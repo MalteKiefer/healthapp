@@ -1,0 +1,57 @@
+{
+  "app": {
+    "name": "HealthVault",
+    "tagline": "Your health data, your control"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "vitals": "Vitals",
+    "labs": "Lab Results",
+    "diary": "Health Diary",
+    "medications": "Medications",
+    "documents": "Documents",
+    "appointments": "Appointments",
+    "vaccinations": "Vaccinations",
+    "allergies": "Allergies",
+    "diagnoses": "Diagnoses",
+    "contacts": "Contacts",
+    "tasks": "Tasks",
+    "symptoms": "Symptoms",
+    "settings": "Settings",
+    "admin": "Admin",
+    "logout": "Log Out"
+  },
+  "auth": {
+    "login": "Log In",
+    "register": "Create Account",
+    "email": "Email",
+    "passphrase": "Passphrase",
+    "passphrase_warning": "This passphrase cannot be reset. If you lose it, your health data is permanently inaccessible.",
+    "totp_code": "Authentication Code",
+    "submit": "Continue"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "loading": "Loading...",
+    "no_data": "No data yet",
+    "confirm": "Confirm",
+    "back": "Back"
+  },
+  "vitals": {
+    "title": "Vital Signs",
+    "add": "Record Vitals",
+    "systolic": "Systolic",
+    "diastolic": "Diastolic",
+    "pulse": "Pulse",
+    "weight": "Weight",
+    "temperature": "Temperature",
+    "oxygen": "Oxygen Saturation",
+    "glucose": "Blood Glucose",
+    "bmi": "BMI"
+  }
+}

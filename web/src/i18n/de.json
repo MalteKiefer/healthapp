@@ -1,0 +1,57 @@
+{
+  "app": {
+    "name": "HealthVault",
+    "tagline": "Deine Gesundheitsdaten, deine Kontrolle"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "vitals": "Vitalwerte",
+    "labs": "Laborergebnisse",
+    "diary": "Gesundheitstagebuch",
+    "medications": "Medikamente",
+    "documents": "Dokumente",
+    "appointments": "Termine",
+    "vaccinations": "Impfungen",
+    "allergies": "Allergien",
+    "diagnoses": "Diagnosen",
+    "contacts": "Kontakte",
+    "tasks": "Aufgaben",
+    "symptoms": "Symptome",
+    "settings": "Einstellungen",
+    "admin": "Administration",
+    "logout": "Abmelden"
+  },
+  "auth": {
+    "login": "Anmelden",
+    "register": "Konto erstellen",
+    "email": "E-Mail",
+    "passphrase": "Passphrase",
+    "passphrase_warning": "Diese Passphrase kann nicht zurückgesetzt werden. Wenn Sie sie verlieren, sind Ihre Gesundheitsdaten dauerhaft unzugänglich.",
+    "totp_code": "Authentifizierungscode",
+    "submit": "Weiter"
+  },
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "add": "Hinzufügen",
+    "search": "Suchen",
+    "loading": "Laden...",
+    "no_data": "Noch keine Daten",
+    "confirm": "Bestätigen",
+    "back": "Zurück"
+  },
+  "vitals": {
+    "title": "Vitalwerte",
+    "add": "Vitalwerte erfassen",
+    "systolic": "Systolisch",
+    "diastolic": "Diastolisch",
+    "pulse": "Puls",
+    "weight": "Gewicht",
+    "temperature": "Temperatur",
+    "oxygen": "Sauerstoffsättigung",
+    "glucose": "Blutzucker",
+    "bmi": "BMI"
+  }
+}
