@@ -86,8 +86,8 @@ func Load() (*Config, error) {
 			DB:       getEnvInt("REDIS_DB", 0),
 		},
 		JWT: JWTConfig{
-			PrivateKeyPath: getEnv("JWT_PRIVATE_KEY_PATH", "/run/secrets/jwt_private.pem"),
-			PublicKeyPath:  getEnv("JWT_PUBLIC_KEY_PATH", "/run/secrets/jwt_public.pem"),
+			PrivateKeyPath: getEnv("JWT_PRIVATE_KEY_PATH", "/data/keys/jwt_private.pem"),
+			PublicKeyPath:  getEnv("JWT_PUBLIC_KEY_PATH", "/data/keys/jwt_public.pem"),
 			AccessTTL:      getEnvDuration("JWT_ACCESS_TTL", 15*time.Minute),
 			RefreshTTL:     getEnvDuration("JWT_REFRESH_TTL", 7*24*time.Hour),
 		},

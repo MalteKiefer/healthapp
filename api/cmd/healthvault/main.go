@@ -117,7 +117,18 @@ func run() error {
 		return fmt.Errorf("schema migration: %w", err)
 	}
 
-	// JWT Token Service
+	// JWT Token Service — auto-generate keys if missing
+	if !fileExists(cfg.JWT.PrivateKeyPath) || !fileExists(cfg.JWT.PublicKeyPath) {
+		logger.Info("JWT keys not found, generating new RS256 keypair...")
+		if err := generateJWTKeypair(cfg.JWT.PrivateKeyPath, cfg.JWT.PublicKeyPath); err != nil {
+			return fmt.Errorf("generate JWT keys: %w", err)
+		}
+		logger.Info("JWT keypair generated",
+			zap.String("private", cfg.JWT.PrivateKeyPath),
+			zap.String("public", cfg.JWT.PublicKeyPath),
+		)
+	}
+
 	ts, err := crypto.NewTokenService(
 		cfg.JWT.PrivateKeyPath, cfg.JWT.PublicKeyPath,
 		rdb, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL,

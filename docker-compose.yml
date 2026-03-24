@@ -50,14 +50,15 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private.pem
-      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public.pem
+      - JWT_PRIVATE_KEY_PATH=/data/keys/jwt_private.pem
+      - JWT_PUBLIC_KEY_PATH=/data/keys/jwt_public.pem
       - INSTANCE_HOSTNAME=${INSTANCE_HOSTNAME}
       - REGISTRATION_MODE=${REGISTRATION_MODE:-invite_only}
       - DEFAULT_QUOTA_MB=${DEFAULT_QUOTA_MB:-5120}
       - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
     volumes:
       - uploads:/data/uploads
+      - jwt-keys:/data/keys
     networks:
       - internal
       - frontend
@@ -102,13 +103,15 @@ services:
       - POSTGRES_USER=${DB_SUPERUSER:-postgres}
       - POSTGRES_PASSWORD=${DB_SUPERUSER_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
+      - HEALTHVAULT_DB_USER=${DB_USER:-healthvault}
       - HEALTHVAULT_DB_PASSWORD=${DB_PASSWORD}
+      - HEALTHVAULT_DB_READONLY_USER=healthvault_readonly
       - HEALTHVAULT_DB_READONLY_PASSWORD=${DB_READONLY_PASSWORD:-readonly_change_me}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./deploy/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
       - ./deploy/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
-      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./deploy/postgres/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
     command: >
       postgres
         -c config_file=/etc/postgresql/postgresql.conf
@@ -128,6 +131,8 @@ services:
     command: >
       redis-server /usr/local/etc/redis/redis.conf
         --requirepass ${REDIS_PASSWORD}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
       - ./deploy/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -135,7 +140,7 @@ services:
       - internal
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -194,5 +199,6 @@ volumes:
   redis-data:
   backup-data:
   uploads:
+  jwt-keys:
   caddy-data:
   caddy-config:
