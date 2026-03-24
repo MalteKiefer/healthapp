@@ -20,15 +20,21 @@ import (
 
 // Server holds dependencies for HTTP handlers.
 type Server struct {
-	Router         *chi.Mux
-	DB             *pgxpool.Pool
-	Redis          *redis.Client
-	Logger         *zap.Logger
-	Config         *config.Config
-	TokenService   *crypto.TokenService
-	AuthHandler    *handlers.AuthHandler
-	ProfileHandler *handlers.ProfileHandler
-	VitalHandler   *handlers.VitalHandler
+	Router              *chi.Mux
+	DB                  *pgxpool.Pool
+	Redis               *redis.Client
+	Logger              *zap.Logger
+	Config              *config.Config
+	TokenService        *crypto.TokenService
+	AuthHandler         *handlers.AuthHandler
+	ProfileHandler      *handlers.ProfileHandler
+	VitalHandler        *handlers.VitalHandler
+	DiaryHandler        *handlers.DiaryHandler
+	MedicationHandler   *handlers.MedicationHandler
+	AllergyHandler      *handlers.AllergyHandler
+	VaccinationHandler  *handlers.VaccinationHandler
+	DiagnosisHandler    *handlers.DiagnosisHandler
+	DocumentHandler     *handlers.DocumentHandler
 }
 
 // NewServer creates a configured HTTP server with all routes.
@@ -36,21 +42,39 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	userRepo := postgres.NewUserRepo(db)
 	profileRepo := postgres.NewProfileRepo(db)
 	vitalRepo := postgres.NewVitalRepo(db)
+	diaryRepo := postgres.NewDiaryRepo(db)
+	medRepo := postgres.NewMedicationRepo(db)
+	allergyRepo := postgres.NewAllergyRepo(db)
+	vaccRepo := postgres.NewVaccinationRepo(db)
+	diagRepo := postgres.NewDiagnosisRepo(db)
+	docRepo := postgres.NewDocumentRepo(db)
 
 	authHandler := handlers.NewAuthHandler(userRepo, ts, logger, cfg.Instance.DefaultQuotaMB)
 	profileHandler := handlers.NewProfileHandler(profileRepo, logger)
 	vitalHandler := handlers.NewVitalHandler(vitalRepo, profileRepo, logger)
+	diaryHandler := handlers.NewDiaryHandler(diaryRepo, profileRepo, logger)
+	medHandler := handlers.NewMedicationHandler(medRepo, profileRepo, logger)
+	allergyHandler := handlers.NewAllergyHandler(allergyRepo, profileRepo, logger)
+	vaccHandler := handlers.NewVaccinationHandler(vaccRepo, profileRepo, logger)
+	diagHandler := handlers.NewDiagnosisHandler(diagRepo, profileRepo, logger)
+	docHandler := handlers.NewDocumentHandler(docRepo, profileRepo, "/data/uploads", logger)
 
 	s := &Server{
-		Router:         chi.NewRouter(),
-		DB:             db,
-		Redis:          rdb,
-		Logger:         logger,
-		Config:         cfg,
-		TokenService:   ts,
-		AuthHandler:    authHandler,
-		ProfileHandler: profileHandler,
-		VitalHandler:   vitalHandler,
+		Router:              chi.NewRouter(),
+		DB:                  db,
+		Redis:               rdb,
+		Logger:              logger,
+		Config:              cfg,
+		TokenService:        ts,
+		AuthHandler:         authHandler,
+		ProfileHandler:      profileHandler,
+		VitalHandler:        vitalHandler,
+		DiaryHandler:        diaryHandler,
+		MedicationHandler:   medHandler,
+		AllergyHandler:      allergyHandler,
+		VaccinationHandler:  vaccHandler,
+		DiagnosisHandler:    diagHandler,
+		DocumentHandler:     docHandler,
 	}
 
 	s.setupMiddleware()
@@ -165,63 +189,63 @@ func (s *Server) setupRoutes() {
 
 					// Documents
 					r.Route("/documents", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
+						r.Get("/", s.DocumentHandler.HandleList)
+						r.Post("/", s.DocumentHandler.HandleCreate)
 						r.Post("/bulk", s.handleNotImplemented)
 						r.Get("/search", s.handleNotImplemented)
-						r.Get("/{docID}", s.handleNotImplemented)
-						r.Patch("/{docID}", s.handleNotImplemented)
-						r.Delete("/{docID}", s.handleNotImplemented)
+						r.Get("/{docID}", s.DocumentHandler.HandleGet)
+						r.Patch("/{docID}", s.DocumentHandler.HandleUpdate)
+						r.Delete("/{docID}", s.DocumentHandler.HandleDelete)
 						r.Post("/{docID}/ocr-index", s.handleNotImplemented)
 						r.Delete("/{docID}/ocr-index", s.handleNotImplemented)
 					})
 
 					// Health Diary
 					r.Route("/diary", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
-						r.Get("/{eventID}", s.handleNotImplemented)
-						r.Patch("/{eventID}", s.handleNotImplemented)
-						r.Delete("/{eventID}", s.handleNotImplemented)
+						r.Get("/", s.DiaryHandler.HandleList)
+						r.Post("/", s.DiaryHandler.HandleCreate)
+						r.Get("/{eventID}", s.DiaryHandler.HandleGet)
+						r.Patch("/{eventID}", s.DiaryHandler.HandleUpdate)
+						r.Delete("/{eventID}", s.DiaryHandler.HandleDelete)
 					})
 
 					// Medications
 					r.Route("/medications", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
-						r.Get("/active", s.handleNotImplemented)
-						r.Get("/adherence", s.handleNotImplemented)
-						r.Patch("/{medID}", s.handleNotImplemented)
-						r.Delete("/{medID}", s.handleNotImplemented)
-						r.Get("/{medID}/intake", s.handleNotImplemented)
-						r.Post("/{medID}/intake", s.handleNotImplemented)
+						r.Get("/", s.MedicationHandler.HandleList)
+						r.Post("/", s.MedicationHandler.HandleCreate)
+						r.Get("/active", s.MedicationHandler.HandleActive)
+						r.Get("/adherence", s.MedicationHandler.HandleAdherence)
+						r.Patch("/{medID}", s.MedicationHandler.HandleUpdate)
+						r.Delete("/{medID}", s.MedicationHandler.HandleDelete)
+						r.Get("/{medID}/intake", s.MedicationHandler.HandleListIntake)
+						r.Post("/{medID}/intake", s.MedicationHandler.HandleCreateIntake)
 						r.Patch("/{medID}/intake/{intakeID}", s.handleNotImplemented)
 						r.Delete("/{medID}/intake/{intakeID}", s.handleNotImplemented)
 					})
 
 					// Allergies
 					r.Route("/allergies", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
-						r.Patch("/{allergyID}", s.handleNotImplemented)
-						r.Delete("/{allergyID}", s.handleNotImplemented)
+						r.Get("/", s.AllergyHandler.HandleList)
+						r.Post("/", s.AllergyHandler.HandleCreate)
+						r.Patch("/{allergyID}", s.AllergyHandler.HandleUpdate)
+						r.Delete("/{allergyID}", s.AllergyHandler.HandleDelete)
 					})
 
 					// Vaccinations
 					r.Route("/vaccinations", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
-						r.Get("/due", s.handleNotImplemented)
-						r.Patch("/{vaccID}", s.handleNotImplemented)
-						r.Delete("/{vaccID}", s.handleNotImplemented)
+						r.Get("/", s.VaccinationHandler.HandleList)
+						r.Post("/", s.VaccinationHandler.HandleCreate)
+						r.Get("/due", s.VaccinationHandler.HandleDue)
+						r.Patch("/{vaccID}", s.VaccinationHandler.HandleUpdate)
+						r.Delete("/{vaccID}", s.VaccinationHandler.HandleDelete)
 					})
 
 					// Diagnoses
 					r.Route("/diagnoses", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
-						r.Patch("/{diagID}", s.handleNotImplemented)
-						r.Delete("/{diagID}", s.handleNotImplemented)
+						r.Get("/", s.DiagnosisHandler.HandleList)
+						r.Post("/", s.DiagnosisHandler.HandleCreate)
+						r.Patch("/{diagID}", s.DiagnosisHandler.HandleUpdate)
+						r.Delete("/{diagID}", s.DiagnosisHandler.HandleDelete)
 					})
 
 					// Medical Contacts
