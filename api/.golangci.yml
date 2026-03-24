@@ -1,0 +1,51 @@
+run:
+  timeout: 5m
+  go: '1.22'
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - dupl
+    - goconst
+    - gocyclo
+    - gosec
+    - misspell
+    - nakedret
+    - prealloc
+    - revive
+    - unconvert
+    - unparam
+  disable:
+    - depguard
+
+linters-settings:
+  gocyclo:
+    min-complexity: 20
+  dupl:
+    threshold: 150
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  revive:
+    rules:
+      - name: exported
+        disabled: true
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        - goconst
+    - path: migrations/
+      linters:
+        - all
+  max-issues-per-linter: 50
+  max-same-issues: 10

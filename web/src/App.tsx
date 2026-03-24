@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -18,6 +19,7 @@ import { Contacts } from './pages/Contacts';
 import { Symptoms } from './pages/Symptoms';
 import { Onboarding } from './pages/Onboarding';
 import { ShareView } from './pages/ShareView';
+import { NotFound } from './pages/NotFound';
 import { useAuthStore } from './store/auth';
 import './i18n';
 import './App.css';
@@ -42,40 +44,42 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/share/:shareID" element={<ShareView />} />
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/share/:shareID" element={<ShareView />} />
 
-          <Route
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/vitals" element={<Vitals />} />
-            <Route path="/labs" element={<Labs />} />
-            <Route path="/diary" element={<Diary />} />
-            <Route path="/medications" element={<Medications />} />
-            <Route path="/appointments" element={<Appointments />} />
-            <Route path="/documents" element={<Documents />} />
-            <Route path="/vaccinations" element={<Vaccinations />} />
-            <Route path="/allergies" element={<Allergies />} />
-            <Route path="/diagnoses" element={<Diagnoses />} />
-            <Route path="/symptoms" element={<Symptoms />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
+            <Route
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/vitals" element={<Vitals />} />
+              <Route path="/labs" element={<Labs />} />
+              <Route path="/diary" element={<Diary />} />
+              <Route path="/medications" element={<Medications />} />
+              <Route path="/appointments" element={<Appointments />} />
+              <Route path="/documents" element={<Documents />} />
+              <Route path="/vaccinations" element={<Vaccinations />} />
+              <Route path="/allergies" element={<Allergies />} />
+              <Route path="/diagnoses" element={<Diagnoses />} />
+              <Route path="/symptoms" element={<Symptoms />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route path="/contacts" element={<Contacts />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

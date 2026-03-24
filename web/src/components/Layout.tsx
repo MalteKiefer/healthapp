@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/auth';
 import { useUIStore } from '../store/ui';
 import { api } from '../api/client';
+import { clearAllKeys } from '../crypto';
+import { NotificationBell } from './NotificationBell';
+import { SyncIndicator } from './SyncIndicator';
 
 const navItems = [
   { path: '/', label: 'nav.dashboard', icon: '⊞' },
@@ -30,18 +33,24 @@ export function Layout() {
     try {
       await api.post('/api/v1/auth/logout');
     } catch { /* ignore */ }
+    clearAllKeys(); // Wipe encryption keys from memory
     logout();
     navigate('/login');
   };
 
   return (
     <div className={`app-layout ${theme}`} data-theme={theme}>
+      <SyncIndicator />
+
       <aside className={`sidebar ${sidebarOpen ? 'open' : 'collapsed'}`}>
         <div className="sidebar-header">
           <h1 className="app-title">{t('app.name')}</h1>
-          <button onClick={toggleSidebar} className="btn-icon" aria-label="Toggle sidebar">
-            ☰
-          </button>
+          <div className="sidebar-actions">
+            <NotificationBell />
+            <button onClick={toggleSidebar} className="btn-icon" aria-label="Toggle sidebar">
+              ☰
+            </button>
+          </div>
         </div>
 
         <nav className="sidebar-nav">
