@@ -9,6 +9,12 @@ import { Appointments } from './pages/Appointments';
 import { Documents } from './pages/Documents';
 import { Diary } from './pages/Diary';
 import { Settings } from './pages/Settings';
+import { Vaccinations } from './pages/Vaccinations';
+import { Allergies } from './pages/Allergies';
+import { Diagnoses } from './pages/Diagnoses';
+import { Tasks } from './pages/Tasks';
+import { Contacts } from './pages/Contacts';
+import { Symptoms } from './pages/Symptoms';
 import { useAuthStore } from './store/auth';
 import './i18n';
 import './App.css';
@@ -61,12 +67,12 @@ function App() {
             <Route path="/medications" element={<Medications />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/documents" element={<Documents />} />
-            <Route path="/vaccinations" element={<Placeholder title="Vaccinations" />} />
-            <Route path="/allergies" element={<Placeholder title="Allergies" />} />
-            <Route path="/diagnoses" element={<Placeholder title="Diagnoses" />} />
-            <Route path="/symptoms" element={<Placeholder title="Symptoms" />} />
-            <Route path="/tasks" element={<Placeholder title="Tasks" />} />
-            <Route path="/contacts" element={<Placeholder title="Contacts" />} />
+            <Route path="/vaccinations" element={<Vaccinations />} />
+            <Route path="/allergies" element={<Allergies />} />
+            <Route path="/diagnoses" element={<Diagnoses />} />
+            <Route path="/symptoms" element={<Symptoms />} />
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/contacts" element={<Contacts />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
 
