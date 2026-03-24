@@ -1,0 +1,53 @@
+{
+    admin localhost:2019
+}
+
+{$INSTANCE_HOSTNAME} {
+
+    # TLS Mode 1: Internal CA / Self-Signed (default — LAN / home server)
+    # Caddy generates a local CA and signs a certificate automatically.
+    # No external connectivity required. Renews automatically.
+    # Run: docker compose exec proxy caddy trust
+    tls internal
+
+    # TLS Mode 2: ACME / Let's Encrypt (public internet)
+    # Comment out "tls internal" above and uncomment this line.
+    # Requires: port 80 reachable, INSTANCE_HOSTNAME resolves to this server.
+    # tls {$ACME_EMAIL}
+
+    # TLS Mode 3: Bring Your Own Certificate
+    # Comment out "tls internal" above and uncomment this line.
+    # tls /custom/server.crt /custom/server.key
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(self), bluetooth=(self)"
+        -Server
+    }
+
+    # ICS calendar feed — strip headers that break calendar app polling
+    handle /cal/* {
+        header -Content-Security-Policy
+        header -X-Frame-Options
+        reverse_proxy api:8080
+    }
+
+    # API and health check
+    handle /api/* {
+        reverse_proxy api:8080
+    }
+
+    handle /health {
+        reverse_proxy api:8080
+    }
+
+    # PWA static files
+    handle {
+        reverse_proxy web:80
+    }
+}

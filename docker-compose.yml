@@ -1,0 +1,175 @@
+services:
+  proxy:
+    build: ./proxy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - INSTANCE_HOSTNAME=${INSTANCE_HOSTNAME}
+      - ACME_EMAIL=${ACME_EMAIL:-}
+    networks:
+      - frontend
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build: ./web
+    networks:
+      - frontend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  api:
+    build: ./api
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - DB_HOST=pgbouncer
+      - DB_PORT=6432
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private.pem
+      - JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public.pem
+      - INSTANCE_HOSTNAME=${INSTANCE_HOSTNAME}
+      - REGISTRATION_MODE=${REGISTRATION_MODE:-invite_only}
+      - DEFAULT_QUOTA_MB=${DEFAULT_QUOTA_MB:-5120}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
+    volumes:
+      - uploads:/data/uploads
+    networks:
+      - internal
+      - frontend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  pgbouncer:
+    image: bitnami/pgbouncer:1.23.1
+    environment:
+      - PGBOUNCER_DATABASE=healthvault
+      - POSTGRESQL_HOST=db
+      - POSTGRESQL_PORT=5432
+      - POSTGRESQL_USERNAME=${DB_USER}
+      - POSTGRESQL_PASSWORD=${DB_PASSWORD}
+      - PGBOUNCER_PORT=6432
+      - PGBOUNCER_POOL_MODE=transaction
+      - PGBOUNCER_DEFAULT_POOL_SIZE=20
+      - PGBOUNCER_MAX_CLIENT_CONN=100
+      - PGBOUNCER_RESERVE_POOL_SIZE=5
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=${DB_SUPERUSER:-postgres}
+      - POSTGRES_PASSWORD=${DB_SUPERUSER_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - HEALTHVAULT_DB_PASSWORD=${DB_PASSWORD}
+      - HEALTHVAULT_DB_READONLY_PASSWORD=${DB_READONLY_PASSWORD:-readonly_change_me}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./deploy/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    command: >
+      postgres
+        -c config_file=/etc/postgresql/postgresql.conf
+        -c hba_file=/etc/postgresql/pg_hba.conf
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_SUPERUSER:-postgres} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server /usr/local/etc/redis/redis.conf
+        --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+      - ./deploy/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backup:
+    build: ./backup
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER}
+      - DB_NAME=${DB_NAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - PGPASSWORD=${DB_PASSWORD}
+      - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
+      - BACKUP_INTERVAL=${BACKUP_INTERVAL:-86400}
+    volumes:
+      - backup-data:/backups
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  internal:
+    internal: true
+  frontend:
+
+volumes:
+  postgres-data:
+  redis-data:
+  backup-data:
+  uploads:
+  caddy-data:
+  caddy-config:
