@@ -20,6 +20,9 @@ import { Symptoms } from './pages/Symptoms';
 import { Onboarding } from './pages/Onboarding';
 import { ShareView } from './pages/ShareView';
 import { NotFound } from './pages/NotFound';
+import { Search } from './pages/Search';
+import { Admin } from './pages/Admin';
+import { CalendarFeeds } from './pages/CalendarFeeds';
 import { useAuthStore } from './store/auth';
 import './i18n';
 import './App.css';
@@ -73,6 +76,9 @@ function App() {
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/contacts" element={<Contacts />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/search" element={<Search />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/calendar-feeds" element={<CalendarFeeds />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
