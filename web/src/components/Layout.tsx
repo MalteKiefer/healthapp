@@ -6,9 +6,11 @@ import { api } from '../api/client';
 import { clearAllKeys } from '../crypto';
 import { NotificationBell } from './NotificationBell';
 import { SyncIndicator } from './SyncIndicator';
+import { useIdleTimeout } from '../hooks/useIdleTimeout';
 
 const navItems = [
   { path: '/', label: 'nav.dashboard', icon: '⊞' },
+  { path: '/search', label: 'common.search', icon: '🔍' },
   { path: '/vitals', label: 'nav.vitals', icon: '♡' },
   { path: '/labs', label: 'nav.labs', icon: '⚗' },
   { path: '/diary', label: 'nav.diary', icon: '📋' },
@@ -26,8 +28,9 @@ const navItems = [
 export function Layout() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { logout } = useAuthStore();
+  const { logout, role } = useAuthStore();
   const { sidebarOpen, toggleSidebar, theme, toggleTheme } = useUIStore();
+  useIdleTimeout();
 
   const handleLogout = async () => {
     try {
@@ -63,6 +66,16 @@ export function Layout() {
         </nav>
 
         <div className="sidebar-footer">
+          <Link to="/calendar-feeds" className="nav-item">
+            <span className="nav-icon">📅</span>
+            {sidebarOpen && <span className="nav-label">Calendar Feeds</span>}
+          </Link>
+          {role === 'admin' && (
+            <Link to="/admin" className="nav-item">
+              <span className="nav-icon">🛡</span>
+              {sidebarOpen && <span className="nav-label">{t('nav.admin')}</span>}
+            </Link>
+          )}
           <Link to="/settings" className="nav-item">
             <span className="nav-icon">⚙</span>
             {sidebarOpen && <span className="nav-label">{t('nav.settings')}</span>}

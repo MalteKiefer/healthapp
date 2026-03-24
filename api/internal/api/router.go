@@ -55,9 +55,10 @@ type Server struct {
 	LegalHandler         *handlers.LegalHandler
 	GrantHandler         *handlers.GrantHandler
 	ActivityHandler      *handlers.ActivityHandler
-	ReferenceRangeHandler *handlers.ReferenceRangeHandler
-	PDFHandler           *handlers.PDFHandler
-	DoctorShareHandler   *handlers.DoctorShareHandler
+	ReferenceRangeHandler  *handlers.ReferenceRangeHandler
+	PDFHandler             *handlers.PDFHandler
+	DoctorShareHandler     *handlers.DoctorShareHandler
+	ScheduledExportHandler *handlers.ScheduledExportHandler
 }
 
 // NewServer creates a configured HTTP server with all routes.
@@ -118,6 +119,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	referenceRangeHandler := handlers.NewReferenceRangeHandler()
 	pdfHandler := handlers.NewPDFHandler(db, profileRepo, logger)
 	doctorShareHandler := handlers.NewDoctorShareHandler(db, profileRepo, logger, cfg.Instance.Hostname)
+	scheduledExportHandler := handlers.NewScheduledExportHandler(db, logger)
 
 	s := &Server{
 		Router:              chi.NewRouter(),
@@ -156,9 +158,12 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 		GrantHandler:         grantHandler,
 		ActivityHandler:      activityHandler,
 		ReferenceRangeHandler: referenceRangeHandler,
-		PDFHandler:           pdfHandler,
-		DoctorShareHandler:   doctorShareHandler,
+		PDFHandler:             pdfHandler,
+		DoctorShareHandler:     doctorShareHandler,
+		ScheduledExportHandler: scheduledExportHandler,
 	}
+
+	middleware.SetConsentRedis(rdb)
 
 	s.setupMiddleware()
 	s.setupRoutes()
@@ -218,6 +223,7 @@ func (s *Server) setupRoutes() {
 		// Protected routes — JWT required
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.JWTAuth(s.TokenService))
+			r.Use(middleware.ConsentCheck(s.DB))
 
 			// Users
 			r.Route("/users", func(r chi.Router) {
@@ -436,7 +442,9 @@ func (s *Server) setupRoutes() {
 			// Export
 			r.Route("/export", func(r chi.Router) {
 				r.Post("/", s.ExportHandler.HandleExport)
-				r.Post("/schedule", s.ExportHandler.HandleScheduleExport)
+				r.Post("/schedule", s.ScheduledExportHandler.HandleCreateSchedule)
+				r.Get("/schedules", s.ScheduledExportHandler.HandleListSchedules)
+				r.Delete("/schedules/{scheduleID}", s.ScheduledExportHandler.HandleDeleteSchedule)
 			})
 
 			// Emergency (public-ish, but still under v1)

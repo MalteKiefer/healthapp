@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { TrendPanel } from '../components/TrendPanel';
 import { useVitals, useVitalChart, useCreateVital } from '../hooks/useVitals';
 import { useProfiles } from '../hooks/useProfiles';
 
@@ -196,6 +197,15 @@ export function Vitals() {
           </ResponsiveContainer>
         ) : (
           <div className="chart-empty">{t('common.no_data')}</div>
+        )}
+
+        {/* Trend Analysis */}
+        {chartPoints.length >= 2 && (
+          <TrendPanel
+            data={chartPoints.map((p) => ({ measured_at: p.date, value: p.value as number }))}
+            metricName={currentMetric?.label || selectedMetric}
+            unit={currentMetric?.unit || ''}
+          />
         )}
       </div>
 
