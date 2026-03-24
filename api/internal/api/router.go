@@ -47,6 +47,12 @@ type Server struct {
 	TaskHandler          *handlers.TaskHandler
 	AppointmentHandler   *handlers.AppointmentHandler
 	SymptomHandler       *handlers.SymptomHandler
+	TOTPHandler          *handlers.TOTPHandler
+	ExportHandler        *handlers.ExportHandler
+	ThresholdHandler     *handlers.ThresholdHandler
+	InviteHandler        *handlers.InviteHandler
+	WebhookHandler       *handlers.WebhookHandler
+	LegalHandler         *handlers.LegalHandler
 }
 
 // NewServer creates a configured HTTP server with all routes.
@@ -96,6 +102,12 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	emergencyHandler := handlers.NewEmergencyHandler(db, logger)
 	searchHandler := handlers.NewSearchHandler(db, logger)
 	adminHandler := handlers.NewAdminHandler(db, rdb, logger)
+	totpHandler := handlers.NewTOTPHandler(userRepo, logger)
+	exportHandler := handlers.NewExportHandler(db, logger)
+	thresholdHandler := handlers.NewThresholdHandler(db, profileRepo, logger)
+	inviteHandler := handlers.NewInviteHandler(db, logger)
+	webhookHandler := handlers.NewWebhookHandler(db, logger)
+	legalHandler := handlers.NewLegalHandler(db, logger)
 
 	s := &Server{
 		Router:              chi.NewRouter(),
@@ -125,6 +137,12 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 		TaskHandler:          taskHandler,
 		AppointmentHandler:   apptHandler,
 		SymptomHandler:       symptomHandler,
+		TOTPHandler:          totpHandler,
+		ExportHandler:        exportHandler,
+		ThresholdHandler:     thresholdHandler,
+		InviteHandler:        inviteHandler,
+		WebhookHandler:       webhookHandler,
+		LegalHandler:         legalHandler,
 	}
 
 	s.setupMiddleware()
@@ -176,10 +194,10 @@ func (s *Server) setupRoutes() {
 				Requests: 3, Window: time.Hour, BlockDuration: 2 * time.Hour,
 			})).Post("/recovery", s.handleNotImplemented)
 
-			r.Get("/2fa/setup", s.handleNotImplemented)
-			r.Post("/2fa/enable", s.handleNotImplemented)
-			r.Post("/2fa/disable", s.handleNotImplemented)
-			r.Get("/2fa/recovery-codes", s.handleNotImplemented)
+			r.Get("/2fa/setup", s.TOTPHandler.HandleSetup)
+			r.Post("/2fa/enable", s.TOTPHandler.HandleEnable)
+			r.Post("/2fa/disable", s.TOTPHandler.HandleDisable)
+			r.Get("/2fa/recovery-codes", s.TOTPHandler.HandleRegenerateRecoveryCodes)
 		})
 
 		// Protected routes — JWT required
@@ -336,8 +354,8 @@ func (s *Server) setupRoutes() {
 					})
 
 					// Vital Thresholds
-					r.Get("/vital-thresholds", s.handleNotImplemented)
-					r.Put("/vital-thresholds", s.handleNotImplemented)
+					r.Get("/vital-thresholds", s.ThresholdHandler.HandleGet)
+					r.Put("/vital-thresholds", s.ThresholdHandler.HandleSet)
 
 					// Emergency
 					r.Get("/emergency-card", s.EmergencyHandler.HandleGetEmergencyCard)
@@ -349,9 +367,9 @@ func (s *Server) setupRoutes() {
 					r.Get("/activity", s.handleNotImplemented)
 
 					// Export
-					r.Get("/export/fhir", s.handleNotImplemented)
-					r.Post("/import/fhir", s.handleNotImplemented)
-					r.Get("/export/ics", s.handleNotImplemented)
+					r.Get("/export/fhir", s.ExportHandler.HandleExportFHIR)
+					r.Post("/import/fhir", s.ExportHandler.HandleImportFHIR)
+					r.Get("/export/ics", s.ExportHandler.HandleExportICS)
 				})
 			})
 
@@ -396,8 +414,8 @@ func (s *Server) setupRoutes() {
 
 			// Export
 			r.Route("/export", func(r chi.Router) {
-				r.Post("/", s.handleNotImplemented)
-				r.Post("/schedule", s.handleNotImplemented)
+				r.Post("/", s.ExportHandler.HandleExport)
+				r.Post("/schedule", s.ExportHandler.HandleScheduleExport)
 			})
 
 			// Emergency (public-ish, but still under v1)
@@ -418,9 +436,9 @@ func (s *Server) setupRoutes() {
 				r.Delete("/users/{userID}/sessions", s.handleNotImplemented)
 				r.Patch("/users/{userID}/quota", s.AdminHandler.HandleSetQuota)
 				r.Get("/storage", s.AdminHandler.HandleGetStorage)
-				r.Get("/invites", s.handleNotImplemented)
-				r.Post("/invites", s.handleNotImplemented)
-				r.Delete("/invites/{token}", s.handleNotImplemented)
+				r.Get("/invites", s.InviteHandler.HandleListInvites)
+				r.Post("/invites", s.InviteHandler.HandleCreateInvite)
+				r.Delete("/invites/{token}", s.InviteHandler.HandleDeleteInvite)
 				r.Get("/system", s.AdminHandler.HandleGetSystem)
 				r.Get("/backups", s.AdminHandler.HandleGetBackups)
 				r.Post("/backups/trigger", s.AdminHandler.HandleTriggerBackup)
@@ -428,19 +446,19 @@ func (s *Server) setupRoutes() {
 				r.Patch("/settings", s.AdminHandler.HandleGetSettings)
 
 				// Admin legal/consent
-				r.Get("/legal/documents", s.handleNotImplemented)
-				r.Post("/legal/documents", s.handleNotImplemented)
-				r.Get("/legal/consent-records", s.handleNotImplemented)
-				r.Get("/legal/consent-records/{userID}", s.handleNotImplemented)
+				r.Get("/legal/documents", s.LegalHandler.HandleListDocuments)
+				r.Post("/legal/documents", s.LegalHandler.HandleCreateDocument)
+				r.Get("/legal/consent-records", s.LegalHandler.HandleListConsentRecords)
+				r.Get("/legal/consent-records/{userID}", s.LegalHandler.HandleGetUserConsent)
 
 				// Admin webhooks
 				r.Route("/webhooks", func(r chi.Router) {
-					r.Get("/", s.handleNotImplemented)
-					r.Post("/", s.handleNotImplemented)
-					r.Patch("/{webhookID}", s.handleNotImplemented)
-					r.Delete("/{webhookID}", s.handleNotImplemented)
-					r.Get("/{webhookID}/logs", s.handleNotImplemented)
-					r.Post("/{webhookID}/test", s.handleNotImplemented)
+					r.Get("/", s.WebhookHandler.HandleList)
+					r.Post("/", s.WebhookHandler.HandleCreate)
+					r.Patch("/{webhookID}", s.WebhookHandler.HandleUpdate)
+					r.Delete("/{webhookID}", s.WebhookHandler.HandleDelete)
+					r.Get("/{webhookID}/logs", s.WebhookHandler.HandleGetLogs)
+					r.Post("/{webhookID}/test", s.WebhookHandler.HandleTest)
 				})
 			})
 		})

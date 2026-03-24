@@ -7,6 +7,8 @@ import { Vitals } from './pages/Vitals';
 import { Medications } from './pages/Medications';
 import { Appointments } from './pages/Appointments';
 import { Documents } from './pages/Documents';
+import { Diary } from './pages/Diary';
+import { Settings } from './pages/Settings';
 import { useAuthStore } from './store/auth';
 import './i18n';
 import './App.css';
@@ -55,7 +57,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/vitals" element={<Vitals />} />
             <Route path="/labs" element={<Placeholder title="Lab Results" />} />
-            <Route path="/diary" element={<Placeholder title="Health Diary" />} />
+            <Route path="/diary" element={<Diary />} />
             <Route path="/medications" element={<Medications />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/documents" element={<Documents />} />
@@ -65,7 +67,7 @@ function App() {
             <Route path="/symptoms" element={<Placeholder title="Symptoms" />} />
             <Route path="/tasks" element={<Placeholder title="Tasks" />} />
             <Route path="/contacts" element={<Placeholder title="Contacts" />} />
-            <Route path="/settings" element={<Placeholder title="Settings" />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
