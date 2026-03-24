@@ -11,27 +11,46 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"github.com/healthvault/healthvault/internal/api/handlers"
 	"github.com/healthvault/healthvault/internal/api/middleware"
 	"github.com/healthvault/healthvault/internal/config"
+	"github.com/healthvault/healthvault/internal/crypto"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // Server holds dependencies for HTTP handlers.
 type Server struct {
-	Router *chi.Mux
-	DB     *pgxpool.Pool
-	Redis  *redis.Client
-	Logger *zap.Logger
-	Config *config.Config
+	Router         *chi.Mux
+	DB             *pgxpool.Pool
+	Redis          *redis.Client
+	Logger         *zap.Logger
+	Config         *config.Config
+	TokenService   *crypto.TokenService
+	AuthHandler    *handlers.AuthHandler
+	ProfileHandler *handlers.ProfileHandler
+	VitalHandler   *handlers.VitalHandler
 }
 
 // NewServer creates a configured HTTP server with all routes.
-func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *config.Config) *Server {
+func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *config.Config, ts *crypto.TokenService) *Server {
+	userRepo := postgres.NewUserRepo(db)
+	profileRepo := postgres.NewProfileRepo(db)
+	vitalRepo := postgres.NewVitalRepo(db)
+
+	authHandler := handlers.NewAuthHandler(userRepo, ts, logger, cfg.Instance.DefaultQuotaMB)
+	profileHandler := handlers.NewProfileHandler(profileRepo, logger)
+	vitalHandler := handlers.NewVitalHandler(vitalRepo, profileRepo, logger)
+
 	s := &Server{
-		Router: chi.NewRouter(),
-		DB:     db,
-		Redis:  rdb,
-		Logger: logger,
-		Config: cfg,
+		Router:         chi.NewRouter(),
+		DB:             db,
+		Redis:          rdb,
+		Logger:         logger,
+		Config:         cfg,
+		TokenService:   ts,
+		AuthHandler:    authHandler,
+		ProfileHandler: profileHandler,
+		VitalHandler:   vitalHandler,
 	}
 
 	s.setupMiddleware()
@@ -51,6 +70,8 @@ func (s *Server) setupMiddleware() {
 }
 
 func (s *Server) setupRoutes() {
+	rl := middleware.NewRateLimiter(s.Redis)
+
 	// Public endpoints — no auth required
 	s.Router.Get("/health", s.handleHealth)
 
@@ -58,13 +79,29 @@ func (s *Server) setupRoutes() {
 	s.Router.Route("/api/v1", func(r chi.Router) {
 		// Auth routes — rate limited, no JWT required
 		r.Route("/auth", func(r chi.Router) {
-			r.Post("/register", s.handleNotImplemented)
-			r.Post("/register/complete", s.handleNotImplemented)
-			r.Post("/login", s.handleNotImplemented)
-			r.Post("/login/2fa", s.handleNotImplemented)
-			r.Post("/refresh", s.handleNotImplemented)
-			r.Post("/logout", s.handleNotImplemented)
-			r.Post("/recovery", s.handleNotImplemented)
+			r.With(rl.Limit(middleware.RateLimitConfig{
+				Requests: 3, Window: time.Hour, BlockDuration: time.Hour,
+			})).Post("/register", s.AuthHandler.HandleRegisterInit)
+
+			r.With(rl.Limit(middleware.RateLimitConfig{
+				Requests: 3, Window: time.Hour, BlockDuration: time.Hour,
+			})).Post("/register/complete", s.AuthHandler.HandleRegisterComplete)
+
+			r.With(rl.Limit(middleware.RateLimitConfig{
+				Requests: 5, Window: 15 * time.Minute, BlockDuration: 30 * time.Minute,
+			})).Post("/login", s.AuthHandler.HandleLogin)
+
+			r.With(rl.Limit(middleware.RateLimitConfig{
+				Requests: 5, Window: 15 * time.Minute, BlockDuration: 30 * time.Minute,
+			})).Post("/login/2fa", s.AuthHandler.HandleLogin2FA)
+
+			r.Post("/refresh", s.AuthHandler.HandleRefresh)
+			r.Post("/logout", s.AuthHandler.HandleLogout)
+
+			r.With(rl.Limit(middleware.RateLimitConfig{
+				Requests: 3, Window: time.Hour, BlockDuration: 2 * time.Hour,
+			})).Post("/recovery", s.handleNotImplemented)
+
 			r.Get("/2fa/setup", s.handleNotImplemented)
 			r.Post("/2fa/enable", s.handleNotImplemented)
 			r.Post("/2fa/disable", s.handleNotImplemented)
@@ -73,8 +110,7 @@ func (s *Server) setupRoutes() {
 
 		// Protected routes — JWT required
 		r.Group(func(r chi.Router) {
-			// TODO: add JWT auth middleware once auth is implemented
-			// r.Use(middleware.JWTAuth(s.Config, s.Redis))
+			r.Use(middleware.JWTAuth(s.TokenService))
 
 			// Users
 			r.Route("/users", func(r chi.Router) {
@@ -93,28 +129,28 @@ func (s *Server) setupRoutes() {
 
 			// Profiles
 			r.Route("/profiles", func(r chi.Router) {
-				r.Get("/", s.handleNotImplemented)
-				r.Post("/", s.handleNotImplemented)
+				r.Get("/", s.ProfileHandler.HandleList)
+				r.Post("/", s.ProfileHandler.HandleCreate)
 
 				r.Route("/{profileID}", func(r chi.Router) {
-					r.Get("/", s.handleNotImplemented)
-					r.Patch("/", s.handleNotImplemented)
-					r.Delete("/", s.handleNotImplemented)
+					r.Get("/", s.ProfileHandler.HandleGet)
+					r.Patch("/", s.ProfileHandler.HandleUpdate)
+					r.Delete("/", s.ProfileHandler.HandleDelete)
 					r.Post("/grants", s.handleNotImplemented)
 					r.Delete("/grants/{grantUserID}", s.handleNotImplemented)
 					r.Post("/key-rotation", s.handleNotImplemented)
 					r.Post("/transfer", s.handleNotImplemented)
-					r.Post("/archive", s.handleNotImplemented)
-					r.Post("/unarchive", s.handleNotImplemented)
+					r.Post("/archive", s.ProfileHandler.HandleArchive)
+					r.Post("/unarchive", s.ProfileHandler.HandleUnarchive)
 
 					// Vitals
 					r.Route("/vitals", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
-						r.Get("/chart", s.handleNotImplemented)
-						r.Get("/{vitalID}", s.handleNotImplemented)
-						r.Patch("/{vitalID}", s.handleNotImplemented)
-						r.Delete("/{vitalID}", s.handleNotImplemented)
+						r.Get("/", s.VitalHandler.HandleList)
+						r.Post("/", s.VitalHandler.HandleCreate)
+						r.Get("/chart", s.VitalHandler.HandleChart)
+						r.Get("/{vitalID}", s.VitalHandler.HandleGet)
+						r.Patch("/{vitalID}", s.VitalHandler.HandleUpdate)
+						r.Delete("/{vitalID}", s.VitalHandler.HandleDelete)
 					})
 
 					// Labs
@@ -297,7 +333,8 @@ func (s *Server) setupRoutes() {
 
 			// Admin
 			r.Route("/admin", func(r chi.Router) {
-				// TODO: add admin role middleware
+				r.Use(middleware.RequireAdmin)
+
 				r.Get("/users", s.handleNotImplemented)
 				r.Post("/users/{userID}/disable", s.handleNotImplemented)
 				r.Post("/users/{userID}/enable", s.handleNotImplemented)

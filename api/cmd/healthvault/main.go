@@ -14,6 +14,7 @@ import (
 	"github.com/healthvault/healthvault/internal/api"
 	"github.com/healthvault/healthvault/internal/cache"
 	"github.com/healthvault/healthvault/internal/config"
+	"github.com/healthvault/healthvault/internal/crypto"
 	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
@@ -91,8 +92,18 @@ func run() error {
 
 	// TODO: run migrations on startup
 
+	// JWT Token Service
+	ts, err := crypto.NewTokenService(
+		cfg.JWT.PrivateKeyPath, cfg.JWT.PublicKeyPath,
+		rdb, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL,
+	)
+	if err != nil {
+		return fmt.Errorf("init token service: %w", err)
+	}
+	logger.Info("JWT token service initialized")
+
 	// HTTP server
-	srv := api.NewServer(db, rdb, logger, cfg)
+	srv := api.NewServer(db, rdb, logger, cfg, ts)
 
 	httpServer := &http.Server{
 		Addr:         cfg.Server.ListenAddr(),
