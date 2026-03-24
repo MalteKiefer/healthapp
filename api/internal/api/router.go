@@ -56,6 +56,8 @@ type Server struct {
 	GrantHandler         *handlers.GrantHandler
 	ActivityHandler      *handlers.ActivityHandler
 	ReferenceRangeHandler *handlers.ReferenceRangeHandler
+	PDFHandler           *handlers.PDFHandler
+	DoctorShareHandler   *handlers.DoctorShareHandler
 }
 
 // NewServer creates a configured HTTP server with all routes.
@@ -114,6 +116,8 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	grantHandler := handlers.NewGrantHandler(db, profileRepo, logger)
 	activityHandler := handlers.NewActivityHandler(db, profileRepo, logger)
 	referenceRangeHandler := handlers.NewReferenceRangeHandler()
+	pdfHandler := handlers.NewPDFHandler(db, profileRepo, logger)
+	doctorShareHandler := handlers.NewDoctorShareHandler(db, profileRepo, logger, cfg.Instance.Hostname)
 
 	s := &Server{
 		Router:              chi.NewRouter(),
@@ -152,6 +156,8 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 		GrantHandler:         grantHandler,
 		ActivityHandler:      activityHandler,
 		ReferenceRangeHandler: referenceRangeHandler,
+		PDFHandler:           pdfHandler,
+		DoctorShareHandler:   doctorShareHandler,
 	}
 
 	s.setupMiddleware()
@@ -379,6 +385,12 @@ func (s *Server) setupRoutes() {
 					r.Get("/export/fhir", s.ExportHandler.HandleExportFHIR)
 					r.Post("/import/fhir", s.ExportHandler.HandleImportFHIR)
 					r.Get("/export/ics", s.ExportHandler.HandleExportICS)
+					r.Get("/export/pdf", s.PDFHandler.HandleDoctorReport)
+
+					// Temporary doctor shares
+					r.Post("/share", s.DoctorShareHandler.HandleCreateShare)
+					r.Get("/shares", s.DoctorShareHandler.HandleListShares)
+					r.Delete("/share/{shareID}", s.DoctorShareHandler.HandleRevokeShare)
 				})
 			})
 
@@ -475,6 +487,9 @@ func (s *Server) setupRoutes() {
 
 	// ICS calendar feed — no auth header, token-based
 	s.Router.Get("/cal/{token}.ics", s.CalendarHandler.HandleICSFeed)
+
+	// Temporary doctor share — no auth, fragment-based key
+	s.Router.Get("/share/{shareID}", s.DoctorShareHandler.HandleGetShare)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

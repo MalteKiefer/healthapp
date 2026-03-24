@@ -37,6 +37,11 @@
         reverse_proxy api:8080
     }
 
+    # Doctor share data endpoint — API
+    handle /share/* {
+        reverse_proxy api:8080
+    }
+
     # API and health check
     handle /api/* {
         reverse_proxy api:8080

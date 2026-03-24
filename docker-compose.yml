@@ -161,6 +161,29 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  backup-verify:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile.verify
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER}
+      - DB_NAME=${DB_NAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY}
+      - VERIFY_INTERVAL=${VERIFY_INTERVAL:-604800}
+    volumes:
+      - backup-data:/backups:ro
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+      backup:
+        condition: service_started
+    restart: unless-stopped
+
 networks:
   internal:
     internal: true
