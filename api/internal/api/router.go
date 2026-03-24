@@ -37,6 +37,7 @@ type Server struct {
 	DocumentHandler     *handlers.DocumentHandler
 	CalendarHandler      *handlers.CalendarHandler
 	NotificationHandler  *handlers.NotificationHandler
+	FamilyHandler        *handlers.FamilyHandler
 }
 
 // NewServer creates a configured HTTP server with all routes.
@@ -69,6 +70,9 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	notifRepo := postgres.NewNotificationRepo(db)
 	notifHandler := handlers.NewNotificationHandler(notifRepo, logger)
 
+	familyRepo := postgres.NewFamilyRepo(db)
+	familyHandler := handlers.NewFamilyHandler(familyRepo, logger)
+
 	s := &Server{
 		Router:              chi.NewRouter(),
 		DB:                  db,
@@ -87,6 +91,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 		DocumentHandler:     docHandler,
 		CalendarHandler:      calHandler,
 		NotificationHandler:  notifHandler,
+		FamilyHandler:        familyHandler,
 	}
 
 	s.setupMiddleware()
@@ -318,15 +323,15 @@ func (s *Server) setupRoutes() {
 
 			// Families
 			r.Route("/families", func(r chi.Router) {
-				r.Get("/", s.handleNotImplemented)
-				r.Post("/", s.handleNotImplemented)
+				r.Get("/", s.FamilyHandler.HandleList)
+				r.Post("/", s.FamilyHandler.HandleCreate)
 				r.Route("/{familyID}", func(r chi.Router) {
-					r.Get("/", s.handleNotImplemented)
-					r.Patch("/", s.handleNotImplemented)
-					r.Post("/invite", s.handleNotImplemented)
-					r.Post("/accept", s.handleNotImplemented)
-					r.Delete("/members/{memberID}", s.handleNotImplemented)
-					r.Post("/dissolve", s.handleNotImplemented)
+					r.Get("/", s.FamilyHandler.HandleGet)
+					r.Patch("/", s.FamilyHandler.HandleUpdate)
+					r.Post("/invite", s.FamilyHandler.HandleInvite)
+					r.Post("/accept", s.FamilyHandler.HandleAcceptInvite)
+					r.Delete("/members/{memberID}", s.FamilyHandler.HandleRemoveMember)
+					r.Post("/dissolve", s.FamilyHandler.HandleDissolve)
 				})
 			})
 
