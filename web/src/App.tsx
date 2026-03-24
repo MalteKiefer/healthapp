@@ -4,6 +4,9 @@ import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Vitals } from './pages/Vitals';
+import { Medications } from './pages/Medications';
+import { Appointments } from './pages/Appointments';
+import { Documents } from './pages/Documents';
 import { useAuthStore } from './store/auth';
 import './i18n';
 import './App.css';
@@ -53,9 +56,9 @@ function App() {
             <Route path="/vitals" element={<Vitals />} />
             <Route path="/labs" element={<Placeholder title="Lab Results" />} />
             <Route path="/diary" element={<Placeholder title="Health Diary" />} />
-            <Route path="/medications" element={<Placeholder title="Medications" />} />
-            <Route path="/appointments" element={<Placeholder title="Appointments" />} />
-            <Route path="/documents" element={<Placeholder title="Documents" />} />
+            <Route path="/medications" element={<Medications />} />
+            <Route path="/appointments" element={<Appointments />} />
+            <Route path="/documents" element={<Documents />} />
             <Route path="/vaccinations" element={<Placeholder title="Vaccinations" />} />
             <Route path="/allergies" element={<Placeholder title="Allergies" />} />
             <Route path="/diagnoses" element={<Placeholder title="Diagnoses" />} />

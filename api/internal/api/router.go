@@ -43,6 +43,10 @@ type Server struct {
 	EmergencyHandler     *handlers.EmergencyHandler
 	SearchHandler        *handlers.SearchHandler
 	AdminHandler         *handlers.AdminHandler
+	ContactHandler       *handlers.ContactHandler
+	TaskHandler          *handlers.TaskHandler
+	AppointmentHandler   *handlers.AppointmentHandler
+	SymptomHandler       *handlers.SymptomHandler
 }
 
 // NewServer creates a configured HTTP server with all routes.
@@ -67,10 +71,18 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	diagHandler := handlers.NewDiagnosisHandler(diagRepo, profileRepo, logger)
 	docHandler := handlers.NewDocumentHandler(docRepo, profileRepo, "/data/uploads", logger)
 
+	contactRepo := postgres.NewContactRepo(db)
+	symptomRepo := postgres.NewSymptomRepo(db)
+
 	calRepo := postgres.NewCalendarRepo(db)
 	apptRepo := postgres.NewAppointmentRepo(db)
 	taskRepo := postgres.NewTaskRepo(db)
 	calHandler := handlers.NewCalendarHandler(calRepo, apptRepo, taskRepo, vaccRepo, logger, cfg.Instance.Hostname)
+
+	contactHandler := handlers.NewContactHandler(contactRepo, profileRepo, logger)
+	taskHandler := handlers.NewTaskHandler(taskRepo, profileRepo, logger)
+	apptHandler := handlers.NewAppointmentHandler(apptRepo, profileRepo, logger)
+	symptomHandler := handlers.NewSymptomHandler(symptomRepo, profileRepo, logger)
 
 	notifRepo := postgres.NewNotificationRepo(db)
 	notifHandler := handlers.NewNotificationHandler(notifRepo, logger)
@@ -109,6 +121,10 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 		EmergencyHandler:     emergencyHandler,
 		SearchHandler:        searchHandler,
 		AdminHandler:         adminHandler,
+		ContactHandler:       contactHandler,
+		TaskHandler:          taskHandler,
+		AppointmentHandler:   apptHandler,
+		SymptomHandler:       symptomHandler,
 	}
 
 	s.setupMiddleware()
@@ -284,38 +300,39 @@ func (s *Server) setupRoutes() {
 
 					// Medical Contacts
 					r.Route("/contacts", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
-						r.Patch("/{contactID}", s.handleNotImplemented)
-						r.Delete("/{contactID}", s.handleNotImplemented)
+						r.Get("/", s.ContactHandler.HandleList)
+						r.Post("/", s.ContactHandler.HandleCreate)
+						r.Patch("/{contactID}", s.ContactHandler.HandleUpdate)
+						r.Delete("/{contactID}", s.ContactHandler.HandleDelete)
 					})
 
 					// Tasks
 					r.Route("/tasks", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
-						r.Get("/open", s.handleNotImplemented)
-						r.Patch("/{taskID}", s.handleNotImplemented)
-						r.Delete("/{taskID}", s.handleNotImplemented)
+						r.Get("/", s.TaskHandler.HandleList)
+						r.Post("/", s.TaskHandler.HandleCreate)
+						r.Get("/open", s.TaskHandler.HandleGetOpen)
+						r.Patch("/{taskID}", s.TaskHandler.HandleUpdate)
+						r.Delete("/{taskID}", s.TaskHandler.HandleDelete)
 					})
 
 					// Appointments
 					r.Route("/appointments", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
-						r.Get("/upcoming", s.handleNotImplemented)
-						r.Patch("/{apptID}", s.handleNotImplemented)
-						r.Delete("/{apptID}", s.handleNotImplemented)
-						r.Post("/{apptID}/complete", s.handleNotImplemented)
+						r.Get("/", s.AppointmentHandler.HandleList)
+						r.Post("/", s.AppointmentHandler.HandleCreate)
+						r.Get("/upcoming", s.AppointmentHandler.HandleGetUpcoming)
+						r.Patch("/{apptID}", s.AppointmentHandler.HandleUpdate)
+						r.Delete("/{apptID}", s.AppointmentHandler.HandleDelete)
+						r.Post("/{apptID}/complete", s.AppointmentHandler.HandleComplete)
 					})
 
 					// Symptoms
 					r.Route("/symptoms", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
+						r.Get("/", s.SymptomHandler.HandleList)
+						r.Post("/", s.SymptomHandler.HandleCreate)
 						r.Get("/chart", s.handleNotImplemented)
-						r.Patch("/{symptomID}", s.handleNotImplemented)
-						r.Delete("/{symptomID}", s.handleNotImplemented)
+						r.Get("/{symptomID}", s.SymptomHandler.HandleGet)
+						r.Patch("/{symptomID}", s.SymptomHandler.HandleUpdate)
+						r.Delete("/{symptomID}", s.SymptomHandler.HandleDelete)
 					})
 
 					// Vital Thresholds
