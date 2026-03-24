@@ -35,6 +35,8 @@ type Server struct {
 	VaccinationHandler  *handlers.VaccinationHandler
 	DiagnosisHandler    *handlers.DiagnosisHandler
 	DocumentHandler     *handlers.DocumentHandler
+	CalendarHandler      *handlers.CalendarHandler
+	NotificationHandler  *handlers.NotificationHandler
 }
 
 // NewServer creates a configured HTTP server with all routes.
@@ -59,6 +61,14 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	diagHandler := handlers.NewDiagnosisHandler(diagRepo, profileRepo, logger)
 	docHandler := handlers.NewDocumentHandler(docRepo, profileRepo, "/data/uploads", logger)
 
+	calRepo := postgres.NewCalendarRepo(db)
+	apptRepo := postgres.NewAppointmentRepo(db)
+	taskRepo := postgres.NewTaskRepo(db)
+	calHandler := handlers.NewCalendarHandler(calRepo, apptRepo, taskRepo, vaccRepo, logger, cfg.Instance.Hostname)
+
+	notifRepo := postgres.NewNotificationRepo(db)
+	notifHandler := handlers.NewNotificationHandler(notifRepo, logger)
+
 	s := &Server{
 		Router:              chi.NewRouter(),
 		DB:                  db,
@@ -75,6 +85,8 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 		VaccinationHandler:  vaccHandler,
 		DiagnosisHandler:    diagHandler,
 		DocumentHandler:     docHandler,
+		CalendarHandler:      calHandler,
+		NotificationHandler:  notifHandler,
 	}
 
 	s.setupMiddleware()
@@ -320,12 +332,12 @@ func (s *Server) setupRoutes() {
 
 			// Notifications
 			r.Route("/notifications", func(r chi.Router) {
-				r.Get("/", s.handleNotImplemented)
-				r.Post("/{notifID}/read", s.handleNotImplemented)
-				r.Post("/read-all", s.handleNotImplemented)
-				r.Delete("/{notifID}", s.handleNotImplemented)
-				r.Get("/preferences", s.handleNotImplemented)
-				r.Patch("/preferences", s.handleNotImplemented)
+				r.Get("/", s.NotificationHandler.HandleList)
+				r.Post("/{notifID}/read", s.NotificationHandler.HandleMarkRead)
+				r.Post("/read-all", s.NotificationHandler.HandleMarkAllRead)
+				r.Delete("/{notifID}", s.NotificationHandler.HandleDelete)
+				r.Get("/preferences", s.NotificationHandler.HandleGetPreferences)
+				r.Patch("/preferences", s.NotificationHandler.HandleUpdatePreferences)
 			})
 
 			// Search
@@ -336,11 +348,11 @@ func (s *Server) setupRoutes() {
 
 			// Calendar feeds
 			r.Route("/calendar/feeds", func(r chi.Router) {
-				r.Get("/", s.handleNotImplemented)
-				r.Post("/", s.handleNotImplemented)
-				r.Get("/{feedID}", s.handleNotImplemented)
-				r.Patch("/{feedID}", s.handleNotImplemented)
-				r.Delete("/{feedID}", s.handleNotImplemented)
+				r.Get("/", s.CalendarHandler.HandleListFeeds)
+				r.Post("/", s.CalendarHandler.HandleCreateFeed)
+				r.Get("/{feedID}", s.CalendarHandler.HandleGetFeed)
+				r.Patch("/{feedID}", s.CalendarHandler.HandleUpdateFeed)
+				r.Delete("/{feedID}", s.CalendarHandler.HandleDeleteFeed)
 			})
 
 			// Export
@@ -396,7 +408,7 @@ func (s *Server) setupRoutes() {
 	})
 
 	// ICS calendar feed — no auth header, token-based
-	s.Router.Get("/cal/{token}.ics", s.handleNotImplemented)
+	s.Router.Get("/cal/{token}.ics", s.CalendarHandler.HandleICSFeed)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
