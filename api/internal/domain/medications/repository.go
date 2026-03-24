@@ -17,6 +17,9 @@ type Repository interface {
 	GetActive(ctx context.Context, profileID uuid.UUID) ([]Medication, error)
 
 	CreateIntake(ctx context.Context, intake *MedicationIntake) error
+	GetIntakeByID(ctx context.Context, id uuid.UUID) (*MedicationIntake, error)
+	UpdateIntake(ctx context.Context, intake *MedicationIntake) error
+	DeleteIntake(ctx context.Context, id uuid.UUID) error
 	ListIntake(ctx context.Context, medicationID uuid.UUID, limit, offset int) ([]MedicationIntake, int, error)
 	GetAdherence(ctx context.Context, medicationID uuid.UUID, from, to *time.Time) (*AdherenceSummary, error)
 }

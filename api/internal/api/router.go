@@ -53,6 +53,9 @@ type Server struct {
 	InviteHandler        *handlers.InviteHandler
 	WebhookHandler       *handlers.WebhookHandler
 	LegalHandler         *handlers.LegalHandler
+	GrantHandler         *handlers.GrantHandler
+	ActivityHandler      *handlers.ActivityHandler
+	ReferenceRangeHandler *handlers.ReferenceRangeHandler
 }
 
 // NewServer creates a configured HTTP server with all routes.
@@ -108,6 +111,9 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	inviteHandler := handlers.NewInviteHandler(db, logger)
 	webhookHandler := handlers.NewWebhookHandler(db, logger)
 	legalHandler := handlers.NewLegalHandler(db, logger)
+	grantHandler := handlers.NewGrantHandler(db, profileRepo, logger)
+	activityHandler := handlers.NewActivityHandler(db, profileRepo, logger)
+	referenceRangeHandler := handlers.NewReferenceRangeHandler()
 
 	s := &Server{
 		Router:              chi.NewRouter(),
@@ -143,6 +149,9 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 		InviteHandler:        inviteHandler,
 		WebhookHandler:       webhookHandler,
 		LegalHandler:         legalHandler,
+		GrantHandler:         grantHandler,
+		ActivityHandler:      activityHandler,
+		ReferenceRangeHandler: referenceRangeHandler,
 	}
 
 	s.setupMiddleware()
@@ -192,7 +201,7 @@ func (s *Server) setupRoutes() {
 
 			r.With(rl.Limit(middleware.RateLimitConfig{
 				Requests: 3, Window: time.Hour, BlockDuration: 2 * time.Hour,
-			})).Post("/recovery", s.handleNotImplemented)
+			})).Post("/recovery", s.AuthHandler.HandleRecovery)
 
 			r.Get("/2fa/setup", s.TOTPHandler.HandleSetup)
 			r.Post("/2fa/enable", s.TOTPHandler.HandleEnable)
@@ -212,7 +221,7 @@ func (s *Server) setupRoutes() {
 				r.Get("/me/sessions", s.UserHandler.HandleGetSessions)
 				r.Delete("/me/sessions/{sessionID}", s.UserHandler.HandleRevokeSession)
 				r.Delete("/me/sessions/others", s.UserHandler.HandleRevokeOtherSessions)
-				r.Post("/me/change-passphrase", s.handleNotImplemented)
+				r.Post("/me/change-passphrase", s.UserHandler.HandleChangePassphrase)
 				r.Get("/me/storage", s.UserHandler.HandleGetStorage)
 				r.Get("/me/preferences", s.UserHandler.HandleGetPreferences)
 				r.Patch("/me/preferences", s.UserHandler.HandleUpdatePreferences)
@@ -228,10 +237,10 @@ func (s *Server) setupRoutes() {
 					r.Get("/", s.ProfileHandler.HandleGet)
 					r.Patch("/", s.ProfileHandler.HandleUpdate)
 					r.Delete("/", s.ProfileHandler.HandleDelete)
-					r.Post("/grants", s.handleNotImplemented)
-					r.Delete("/grants/{grantUserID}", s.handleNotImplemented)
-					r.Post("/key-rotation", s.handleNotImplemented)
-					r.Post("/transfer", s.handleNotImplemented)
+					r.Post("/grants", s.GrantHandler.HandleCreateGrant)
+					r.Delete("/grants/{grantUserID}", s.GrantHandler.HandleRevokeGrant)
+					r.Post("/key-rotation", s.GrantHandler.HandleKeyRotation)
+					r.Post("/transfer", s.GrantHandler.HandleTransfer)
 					r.Post("/archive", s.ProfileHandler.HandleArchive)
 					r.Post("/unarchive", s.ProfileHandler.HandleUnarchive)
 
@@ -252,20 +261,20 @@ func (s *Server) setupRoutes() {
 						r.Get("/{labID}", s.LabHandler.HandleGet)
 						r.Patch("/{labID}", s.LabHandler.HandleUpdate)
 						r.Delete("/{labID}", s.LabHandler.HandleDelete)
-						r.Get("/{labID}/export/pdf", s.handleNotImplemented)
+						r.Get("/{labID}/export/pdf", s.LabHandler.HandleExportPDF)
 					})
 
 					// Documents
 					r.Route("/documents", func(r chi.Router) {
 						r.Get("/", s.DocumentHandler.HandleList)
 						r.Post("/", s.DocumentHandler.HandleCreate)
-						r.Post("/bulk", s.handleNotImplemented)
-						r.Get("/search", s.handleNotImplemented)
+						r.Post("/bulk", s.DocumentHandler.HandleBulkUpload)
+						r.Get("/search", s.DocumentHandler.HandleSearch)
 						r.Get("/{docID}", s.DocumentHandler.HandleGet)
 						r.Patch("/{docID}", s.DocumentHandler.HandleUpdate)
 						r.Delete("/{docID}", s.DocumentHandler.HandleDelete)
-						r.Post("/{docID}/ocr-index", s.handleNotImplemented)
-						r.Delete("/{docID}/ocr-index", s.handleNotImplemented)
+						r.Post("/{docID}/ocr-index", s.DocumentHandler.HandleCreateOCRIndex)
+						r.Delete("/{docID}/ocr-index", s.DocumentHandler.HandleDeleteOCRIndex)
 					})
 
 					// Health Diary
@@ -287,8 +296,8 @@ func (s *Server) setupRoutes() {
 						r.Delete("/{medID}", s.MedicationHandler.HandleDelete)
 						r.Get("/{medID}/intake", s.MedicationHandler.HandleListIntake)
 						r.Post("/{medID}/intake", s.MedicationHandler.HandleCreateIntake)
-						r.Patch("/{medID}/intake/{intakeID}", s.handleNotImplemented)
-						r.Delete("/{medID}/intake/{intakeID}", s.handleNotImplemented)
+						r.Patch("/{medID}/intake/{intakeID}", s.MedicationHandler.HandleUpdateIntake)
+						r.Delete("/{medID}/intake/{intakeID}", s.MedicationHandler.HandleDeleteIntake)
 					})
 
 					// Allergies
@@ -347,7 +356,7 @@ func (s *Server) setupRoutes() {
 					r.Route("/symptoms", func(r chi.Router) {
 						r.Get("/", s.SymptomHandler.HandleList)
 						r.Post("/", s.SymptomHandler.HandleCreate)
-						r.Get("/chart", s.handleNotImplemented)
+						r.Get("/chart", s.SymptomHandler.HandleChart)
 						r.Get("/{symptomID}", s.SymptomHandler.HandleGet)
 						r.Patch("/{symptomID}", s.SymptomHandler.HandleUpdate)
 						r.Delete("/{symptomID}", s.SymptomHandler.HandleDelete)
@@ -364,7 +373,7 @@ func (s *Server) setupRoutes() {
 					r.Delete("/emergency-access", s.EmergencyHandler.HandleDeleteEmergencyAccess)
 
 					// Activity Log
-					r.Get("/activity", s.handleNotImplemented)
+					r.Get("/activity", s.ActivityHandler.HandleList)
 
 					// Export
 					r.Get("/export/fhir", s.ExportHandler.HandleExportFHIR)
@@ -401,7 +410,7 @@ func (s *Server) setupRoutes() {
 			r.Get("/search", s.SearchHandler.HandleSearch)
 
 			// Reference ranges
-			r.Get("/reference-ranges", s.handleNotImplemented)
+			r.Get("/reference-ranges", s.ReferenceRangeHandler.HandleList)
 
 			// Calendar feeds
 			r.Route("/calendar/feeds", func(r chi.Router) {
@@ -432,8 +441,8 @@ func (s *Server) setupRoutes() {
 				r.Post("/users/{userID}/disable", s.AdminHandler.HandleDisableUser)
 				r.Post("/users/{userID}/enable", s.AdminHandler.HandleEnableUser)
 				r.Delete("/users/{userID}", s.AdminHandler.HandleDeleteUser)
-				r.Get("/users/{userID}/sessions", s.handleNotImplemented)
-				r.Delete("/users/{userID}/sessions", s.handleNotImplemented)
+				r.Get("/users/{userID}/sessions", s.AdminHandler.HandleGetUserSessions)
+				r.Delete("/users/{userID}/sessions", s.AdminHandler.HandleRevokeUserSessions)
 				r.Patch("/users/{userID}/quota", s.AdminHandler.HandleSetQuota)
 				r.Get("/storage", s.AdminHandler.HandleGetStorage)
 				r.Get("/invites", s.InviteHandler.HandleListInvites)

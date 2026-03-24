@@ -407,6 +407,141 @@ func (h *MedicationHandler) HandleListIntake(w http.ResponseWriter, r *http.Requ
 	})
 }
 
+// HandleUpdateIntake updates an existing medication intake record.
+func (h *MedicationHandler) HandleUpdateIntake(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
+		return
+	}
+
+	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
+	if err != nil || !hasAccess {
+		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
+		return
+	}
+
+	medID, err := uuid.Parse(chi.URLParam(r, "medID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_medication_id"))
+		return
+	}
+
+	intakeID, err := uuid.Parse(chi.URLParam(r, "intakeID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_intake_id"))
+		return
+	}
+
+	// Verify medication exists and belongs to profile
+	med, err := h.medRepo.GetByID(r.Context(), medID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, errorResponse("medication_not_found"))
+		return
+	}
+	if med.ProfileID != profileID {
+		writeJSON(w, http.StatusNotFound, errorResponse("medication_not_found"))
+		return
+	}
+
+	existing, err := h.medRepo.GetIntakeByID(r.Context(), intakeID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, errorResponse("intake_not_found"))
+		return
+	}
+	if existing.MedicationID != medID {
+		writeJSON(w, http.StatusNotFound, errorResponse("intake_not_found"))
+		return
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(existing); err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
+		return
+	}
+
+	// Preserve immutable fields
+	existing.ID = intakeID
+	existing.MedicationID = medID
+	existing.ProfileID = profileID
+
+	if err := h.medRepo.UpdateIntake(r.Context(), existing); err != nil {
+		h.logger.Error("update medication intake", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, existing)
+}
+
+// HandleDeleteIntake deletes a medication intake record.
+func (h *MedicationHandler) HandleDeleteIntake(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
+		return
+	}
+
+	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
+	if err != nil || !hasAccess {
+		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
+		return
+	}
+
+	medID, err := uuid.Parse(chi.URLParam(r, "medID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_medication_id"))
+		return
+	}
+
+	intakeID, err := uuid.Parse(chi.URLParam(r, "intakeID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_intake_id"))
+		return
+	}
+
+	// Verify medication exists and belongs to profile
+	med, err := h.medRepo.GetByID(r.Context(), medID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, errorResponse("medication_not_found"))
+		return
+	}
+	if med.ProfileID != profileID {
+		writeJSON(w, http.StatusNotFound, errorResponse("medication_not_found"))
+		return
+	}
+
+	// Verify intake belongs to medication
+	existing, err := h.medRepo.GetIntakeByID(r.Context(), intakeID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, errorResponse("intake_not_found"))
+		return
+	}
+	if existing.MedicationID != medID {
+		writeJSON(w, http.StatusNotFound, errorResponse("intake_not_found"))
+		return
+	}
+
+	if err := h.medRepo.DeleteIntake(r.Context(), intakeID); err != nil {
+		h.logger.Error("delete medication intake", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // HandleAdherence returns adherence statistics for a medication.
 func (h *MedicationHandler) HandleAdherence(w http.ResponseWriter, r *http.Request) {
 	claims, ok := ClaimsFromContext(r.Context())

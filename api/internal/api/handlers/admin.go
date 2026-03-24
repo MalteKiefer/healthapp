@@ -571,3 +571,108 @@ func (h *AdminHandler) HandleSetQuota(w http.ResponseWriter, r *http.Request) {
 		"quota_bytes": req.QuotaBytes,
 	})
 }
+
+// ── Admin Session Management ────────────────────────────────────────
+
+type adminSession struct {
+	ID           uuid.UUID  `json:"id"`
+	UserID       uuid.UUID  `json:"user_id"`
+	DeviceHint   string     `json:"device_hint"`
+	IPAddress    string     `json:"ip_address"`
+	CreatedAt    time.Time  `json:"created_at"`
+	LastActiveAt time.Time  `json:"last_active_at"`
+	ExpiresAt    time.Time  `json:"expires_at"`
+	RevokedAt    *time.Time `json:"revoked_at,omitempty"`
+}
+
+// HandleGetUserSessions returns all sessions for a given user.
+// GET /admin/users/{userID}/sessions
+func (h *AdminHandler) HandleGetUserSessions(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+	if claims.Role != "admin" {
+		writeJSON(w, http.StatusForbidden, errorResponse("admin_required"))
+		return
+	}
+
+	userID, err := uuid.Parse(chi.URLParam(r, "userID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_user_id"))
+		return
+	}
+
+	rows, err := h.db.Query(r.Context(),
+		`SELECT id, user_id, device_hint, ip_address, created_at, last_active_at, expires_at, revoked_at
+		 FROM user_sessions
+		 WHERE user_id = $1
+		 ORDER BY created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		h.logger.Error("query user sessions", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	defer rows.Close()
+
+	sessions := []adminSession{}
+	for rows.Next() {
+		var s adminSession
+		if err := rows.Scan(&s.ID, &s.UserID, &s.DeviceHint, &s.IPAddress,
+			&s.CreatedAt, &s.LastActiveAt, &s.ExpiresAt, &s.RevokedAt); err != nil {
+			h.logger.Error("scan session", zap.Error(err))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+		sessions = append(sessions, s)
+	}
+	if err := rows.Err(); err != nil {
+		h.logger.Error("iterate sessions", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"sessions": sessions,
+	})
+}
+
+// HandleRevokeUserSessions revokes all sessions for a given user.
+// DELETE /admin/users/{userID}/sessions
+func (h *AdminHandler) HandleRevokeUserSessions(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+	if claims.Role != "admin" {
+		writeJSON(w, http.StatusForbidden, errorResponse("admin_required"))
+		return
+	}
+
+	userID, err := uuid.Parse(chi.URLParam(r, "userID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_user_id"))
+		return
+	}
+
+	now := time.Now().UTC()
+	tag, err := h.db.Exec(r.Context(),
+		`UPDATE user_sessions SET revoked_at = $2
+		 WHERE user_id = $1 AND revoked_at IS NULL`,
+		userID, now,
+	)
+	if err != nil {
+		h.logger.Error("revoke user sessions", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status":          "revoked",
+		"sessions_revoked": tag.RowsAffected(),
+	})
+}

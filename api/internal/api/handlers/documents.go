@@ -187,6 +187,38 @@ func (h *DocumentHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, d)
 }
 
+// HandleBulkUpload returns 501 as bulk document upload is not yet implemented.
+func (h *DocumentHandler) HandleBulkUpload(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusNotImplemented, map[string]string{
+		"error":   "not_implemented",
+		"message": "bulk document upload coming soon",
+	})
+}
+
+// HandleSearch returns 501 as document search is not yet implemented.
+func (h *DocumentHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusNotImplemented, map[string]string{
+		"error":   "not_implemented",
+		"message": "document search coming soon",
+	})
+}
+
+// HandleCreateOCRIndex returns 501 as OCR indexing is not yet implemented.
+func (h *DocumentHandler) HandleCreateOCRIndex(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusNotImplemented, map[string]string{
+		"error":   "not_implemented",
+		"message": "OCR indexing coming soon",
+	})
+}
+
+// HandleDeleteOCRIndex returns 501 as OCR index deletion is not yet implemented.
+func (h *DocumentHandler) HandleDeleteOCRIndex(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusNotImplemented, map[string]string{
+		"error":   "not_implemented",
+		"message": "OCR index deletion coming soon",
+	})
+}
+
 // HandleGet returns a single document's metadata.
 func (h *DocumentHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	claims, ok := ClaimsFromContext(r.Context())

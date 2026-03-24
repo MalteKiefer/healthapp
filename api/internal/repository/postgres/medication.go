@@ -226,6 +226,58 @@ func (r *MedicationRepo) CreateIntake(ctx context.Context, intake *medications.M
 	return nil
 }
 
+func (r *MedicationRepo) GetIntakeByID(ctx context.Context, id uuid.UUID) (*medications.MedicationIntake, error) {
+	query := `
+		SELECT id, medication_id, profile_id, scheduled_at, taken_at,
+			dose_taken, skipped_reason, notes, created_at
+		FROM medication_intakes WHERE id = $1`
+
+	var intake medications.MedicationIntake
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&intake.ID, &intake.MedicationID, &intake.ProfileID,
+		&intake.ScheduledAt, &intake.TakenAt, &intake.DoseTaken,
+		&intake.SkippedReason, &intake.Notes, &intake.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("scan intake: %w", err)
+	}
+	return &intake, nil
+}
+
+func (r *MedicationRepo) UpdateIntake(ctx context.Context, intake *medications.MedicationIntake) error {
+	query := `
+		UPDATE medication_intakes SET
+			scheduled_at = $2, taken_at = $3, dose_taken = $4,
+			skipped_reason = $5, notes = $6
+		WHERE id = $1`
+
+	tag, err := r.db.Exec(ctx, query,
+		intake.ID, intake.ScheduledAt, intake.TakenAt,
+		intake.DoseTaken, intake.SkippedReason, intake.Notes,
+	)
+	if err != nil {
+		return fmt.Errorf("update intake: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *MedicationRepo) DeleteIntake(ctx context.Context, id uuid.UUID) error {
+	tag, err := r.db.Exec(ctx, "DELETE FROM medication_intakes WHERE id = $1", id)
+	if err != nil {
+		return fmt.Errorf("delete intake: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *MedicationRepo) ListIntake(ctx context.Context, medicationID uuid.UUID, limit, offset int) ([]medications.MedicationIntake, int, error) {
 	var total int
 	if err := r.db.QueryRow(ctx,

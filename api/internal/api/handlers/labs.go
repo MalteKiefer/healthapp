@@ -126,6 +126,14 @@ func (h *LabHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, lr)
 }
 
+// HandleExportPDF returns 501 as lab PDF export is not yet implemented.
+func (h *LabHandler) HandleExportPDF(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusNotImplemented, map[string]string{
+		"error":   "not_implemented",
+		"message": "pdf export coming soon",
+	})
+}
+
 // HandleGet returns a single lab result with its values.
 func (h *LabHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	claims, ok := ClaimsFromContext(r.Context())

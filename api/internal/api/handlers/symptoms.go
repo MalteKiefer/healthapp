@@ -203,6 +203,14 @@ func (h *SymptomHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, existing)
 }
 
+// HandleChart returns 501 as symptom charting is not yet implemented.
+func (h *SymptomHandler) HandleChart(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusNotImplemented, map[string]string{
+		"error":   "not_implemented",
+		"message": "symptom charting coming soon",
+	})
+}
+
 // HandleDelete soft-deletes a symptom record.
 func (h *SymptomHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	claims, ok := ClaimsFromContext(r.Context())

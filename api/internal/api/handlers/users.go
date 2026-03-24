@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/healthvault/healthvault/internal/crypto"
 	"github.com/healthvault/healthvault/internal/domain/user"
 )
 
@@ -264,6 +265,63 @@ func (h *UserHandler) HandleGetPublicKey(w http.ResponseWriter, r *http.Request)
 		"user_id":         u.ID,
 		"identity_pubkey": u.IdentityPubkey,
 	})
+}
+
+// HandleChangePassphrase updates the user's auth hash and re-encrypted key material,
+// then invalidates all existing sessions.
+func (h *UserHandler) HandleChangePassphrase(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	var req struct {
+		NewAuthHash        string `json:"new_auth_hash"`
+		IdentityPrivkeyEnc string `json:"identity_privkey_enc"`
+		SigningPrivkeyEnc  string `json:"signing_privkey_enc"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
+		return
+	}
+
+	if req.NewAuthHash == "" || req.IdentityPrivkeyEnc == "" || req.SigningPrivkeyEnc == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("missing_required_fields"))
+		return
+	}
+
+	u, err := h.userRepo.GetByID(r.Context(), claims.UserID)
+	if err != nil {
+		h.logger.Error("get user for passphrase change", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	// Hash the new auth_hash server-side
+	storedHash, err := crypto.HashArgon2id(req.NewAuthHash)
+	if err != nil {
+		h.logger.Error("hash new auth_hash", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	u.AuthHash = storedHash
+	u.IdentityPrivkeyEnc = req.IdentityPrivkeyEnc
+	u.SigningPrivkeyEnc = req.SigningPrivkeyEnc
+
+	if err := h.userRepo.Update(r.Context(), u); err != nil {
+		h.logger.Error("update user passphrase", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	// Invalidate all sessions
+	if err := h.userRepo.RevokeAllSessions(r.Context(), claims.UserID, nil); err != nil {
+		h.logger.Error("revoke all sessions after passphrase change", zap.Error(err))
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "passphrase_changed"})
 }
 
 // sanitizeUser returns a map representation of the user without sensitive fields.

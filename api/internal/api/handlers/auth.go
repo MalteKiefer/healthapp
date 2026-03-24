@@ -344,6 +344,70 @@ func (h *AuthHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "logged_out"})
 }
 
+// ── Recovery ─────────────────────────────────────────────────────
+
+type recoveryRequest struct {
+	Email        string `json:"email"`
+	RecoveryCode string `json:"recovery_code"`
+}
+
+// HandleRecovery verifies a recovery code and returns a new token pair.
+func (h *AuthHandler) HandleRecovery(w http.ResponseWriter, r *http.Request) {
+	var req recoveryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
+		return
+	}
+
+	if req.Email == "" || req.RecoveryCode == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("email_and_recovery_code_required"))
+		return
+	}
+
+	u, err := h.userRepo.GetByEmail(r.Context(), req.Email)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_credentials"))
+		return
+	}
+
+	if u.IsDisabled {
+		writeJSON(w, http.StatusForbidden, errorResponse("account_disabled"))
+		return
+	}
+
+	codes, err := h.userRepo.GetUnusedRecoveryCodes(r.Context(), u.ID)
+	if err != nil {
+		h.logger.Error("get recovery codes", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	var matchedCode *user.RecoveryCode
+	for i := range codes {
+		valid, verr := crypto.VerifyArgon2id(req.RecoveryCode, codes[i].CodeHash)
+		if verr != nil {
+			continue
+		}
+		if valid {
+			matchedCode = &codes[i]
+			break
+		}
+	}
+
+	if matchedCode == nil {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_recovery_code"))
+		return
+	}
+
+	if err := h.userRepo.MarkRecoveryCodeUsed(r.Context(), matchedCode.ID); err != nil {
+		h.logger.Error("mark recovery code used", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	h.completeLogin(w, r, u)
+}
+
 func (h *AuthHandler) completeLogin(w http.ResponseWriter, r *http.Request, u *user.User) {
 	pair, err := h.tokenService.GenerateTokenPair(u.ID, u.Role)
 	if err != nil {
