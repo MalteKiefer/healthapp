@@ -16,6 +16,7 @@ import { Diagnoses } from './pages/Diagnoses';
 import { Tasks } from './pages/Tasks';
 import { Contacts } from './pages/Contacts';
 import { Symptoms } from './pages/Symptoms';
+import { Onboarding } from './pages/Onboarding';
 import { useAuthStore } from './store/auth';
 import './i18n';
 import './App.css';
@@ -44,6 +45,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/onboarding" element={<Onboarding />} />
 
           <Route
             element={

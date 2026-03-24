@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/auth';
 import { api, ApiError } from '../api/client';
+import { deriveAuthHash, derivePEK, setPEK } from '../crypto';
 
 interface LoginResponse {
   access_token?: string;
@@ -34,11 +35,14 @@ export function Login() {
     setLoading(true);
 
     try {
-      // TODO: derive auth_hash from passphrase using Argon2id (WebCrypto)
-      // For now, send passphrase directly (will be replaced with client-side hashing)
+      // Step 1: Get salts for this user (embedded in login response)
+      // For the initial login, we derive auth_hash client-side
+      // In production, we'd first fetch salts, then derive
+      const authHash = await deriveAuthHash(passphrase, email);
+
       const res = await api.post<LoginResponse>('/api/v1/auth/login', {
         email,
-        auth_hash: passphrase,
+        auth_hash: authHash,
       });
 
       if (res.requires_totp) {
@@ -49,6 +53,11 @@ export function Login() {
       }
 
       if (res.access_token && res.refresh_token) {
+        // Derive PEK and store in memory for this session
+        if (res.pek_salt) {
+          const pekKey = await derivePEK(passphrase, res.pek_salt);
+          setPEK(pekKey);
+        }
         login(res.access_token, res.refresh_token, res.user_id, 'user');
         navigate('/');
       }
