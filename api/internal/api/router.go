@@ -42,6 +42,7 @@ type Server struct {
 	LabHandler           *handlers.LabHandler
 	EmergencyHandler     *handlers.EmergencyHandler
 	SearchHandler        *handlers.SearchHandler
+	AdminHandler         *handlers.AdminHandler
 }
 
 // NewServer creates a configured HTTP server with all routes.
@@ -82,6 +83,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	labHandler := handlers.NewLabHandler(labRepo, profileRepo, logger)
 	emergencyHandler := handlers.NewEmergencyHandler(db, logger)
 	searchHandler := handlers.NewSearchHandler(db, logger)
+	adminHandler := handlers.NewAdminHandler(db, rdb, logger)
 
 	s := &Server{
 		Router:              chi.NewRouter(),
@@ -106,6 +108,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 		LabHandler:           labHandler,
 		EmergencyHandler:     emergencyHandler,
 		SearchHandler:        searchHandler,
+		AdminHandler:         adminHandler,
 	}
 
 	s.setupMiddleware()
@@ -390,22 +393,22 @@ func (s *Server) setupRoutes() {
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)
 
-				r.Get("/users", s.handleNotImplemented)
-				r.Post("/users/{userID}/disable", s.handleNotImplemented)
-				r.Post("/users/{userID}/enable", s.handleNotImplemented)
-				r.Delete("/users/{userID}", s.handleNotImplemented)
+				r.Get("/users", s.AdminHandler.HandleListUsers)
+				r.Post("/users/{userID}/disable", s.AdminHandler.HandleDisableUser)
+				r.Post("/users/{userID}/enable", s.AdminHandler.HandleEnableUser)
+				r.Delete("/users/{userID}", s.AdminHandler.HandleDeleteUser)
 				r.Get("/users/{userID}/sessions", s.handleNotImplemented)
 				r.Delete("/users/{userID}/sessions", s.handleNotImplemented)
-				r.Patch("/users/{userID}/quota", s.handleNotImplemented)
-				r.Get("/storage", s.handleNotImplemented)
+				r.Patch("/users/{userID}/quota", s.AdminHandler.HandleSetQuota)
+				r.Get("/storage", s.AdminHandler.HandleGetStorage)
 				r.Get("/invites", s.handleNotImplemented)
 				r.Post("/invites", s.handleNotImplemented)
 				r.Delete("/invites/{token}", s.handleNotImplemented)
-				r.Get("/system", s.handleNotImplemented)
-				r.Get("/backups", s.handleNotImplemented)
-				r.Post("/backups/trigger", s.handleNotImplemented)
-				r.Get("/audit-log", s.handleNotImplemented)
-				r.Patch("/settings", s.handleNotImplemented)
+				r.Get("/system", s.AdminHandler.HandleGetSystem)
+				r.Get("/backups", s.AdminHandler.HandleGetBackups)
+				r.Post("/backups/trigger", s.AdminHandler.HandleTriggerBackup)
+				r.Get("/audit-log", s.AdminHandler.HandleGetAuditLog)
+				r.Patch("/settings", s.AdminHandler.HandleGetSettings)
 
 				// Admin legal/consent
 				r.Get("/legal/documents", s.handleNotImplemented)
