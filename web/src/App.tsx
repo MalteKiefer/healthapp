@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Vitals } from './pages/Vitals';
+import { Labs } from './pages/Labs';
 import { Medications } from './pages/Medications';
 import { Appointments } from './pages/Appointments';
 import { Documents } from './pages/Documents';
@@ -37,15 +38,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="page">
-      <h2>{title}</h2>
-      <p>Coming soon</p>
-    </div>
-  );
-}
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -62,7 +54,7 @@ function App() {
           >
             <Route path="/" element={<Dashboard />} />
             <Route path="/vitals" element={<Vitals />} />
-            <Route path="/labs" element={<Placeholder title="Lab Results" />} />
+            <Route path="/labs" element={<Labs />} />
             <Route path="/diary" element={<Diary />} />
             <Route path="/medications" element={<Medications />} />
             <Route path="/appointments" element={<Appointments />} />
