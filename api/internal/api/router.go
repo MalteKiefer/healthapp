@@ -38,6 +38,10 @@ type Server struct {
 	CalendarHandler      *handlers.CalendarHandler
 	NotificationHandler  *handlers.NotificationHandler
 	FamilyHandler        *handlers.FamilyHandler
+	UserHandler          *handlers.UserHandler
+	LabHandler           *handlers.LabHandler
+	EmergencyHandler     *handlers.EmergencyHandler
+	SearchHandler        *handlers.SearchHandler
 }
 
 // NewServer creates a configured HTTP server with all routes.
@@ -73,6 +77,12 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	familyRepo := postgres.NewFamilyRepo(db)
 	familyHandler := handlers.NewFamilyHandler(familyRepo, logger)
 
+	userHandler := handlers.NewUserHandler(userRepo, logger)
+	labRepo := postgres.NewLabRepo(db)
+	labHandler := handlers.NewLabHandler(labRepo, profileRepo, logger)
+	emergencyHandler := handlers.NewEmergencyHandler(db, logger)
+	searchHandler := handlers.NewSearchHandler(db, logger)
+
 	s := &Server{
 		Router:              chi.NewRouter(),
 		DB:                  db,
@@ -92,6 +102,10 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 		CalendarHandler:      calHandler,
 		NotificationHandler:  notifHandler,
 		FamilyHandler:        familyHandler,
+		UserHandler:          userHandler,
+		LabHandler:           labHandler,
+		EmergencyHandler:     emergencyHandler,
+		SearchHandler:        searchHandler,
 	}
 
 	s.setupMiddleware()
@@ -155,17 +169,17 @@ func (s *Server) setupRoutes() {
 
 			// Users
 			r.Route("/users", func(r chi.Router) {
-				r.Get("/me", s.handleNotImplemented)
-				r.Patch("/me", s.handleNotImplemented)
-				r.Delete("/me", s.handleNotImplemented)
-				r.Get("/me/sessions", s.handleNotImplemented)
-				r.Delete("/me/sessions/{sessionID}", s.handleNotImplemented)
-				r.Delete("/me/sessions/others", s.handleNotImplemented)
+				r.Get("/me", s.UserHandler.HandleGetMe)
+				r.Patch("/me", s.UserHandler.HandleUpdateMe)
+				r.Delete("/me", s.UserHandler.HandleDeleteMe)
+				r.Get("/me/sessions", s.UserHandler.HandleGetSessions)
+				r.Delete("/me/sessions/{sessionID}", s.UserHandler.HandleRevokeSession)
+				r.Delete("/me/sessions/others", s.UserHandler.HandleRevokeOtherSessions)
 				r.Post("/me/change-passphrase", s.handleNotImplemented)
-				r.Get("/me/storage", s.handleNotImplemented)
-				r.Get("/me/preferences", s.handleNotImplemented)
-				r.Patch("/me/preferences", s.handleNotImplemented)
-				r.Get("/{userID}/identity-pubkey", s.handleNotImplemented)
+				r.Get("/me/storage", s.UserHandler.HandleGetStorage)
+				r.Get("/me/preferences", s.UserHandler.HandleGetPreferences)
+				r.Patch("/me/preferences", s.UserHandler.HandleUpdatePreferences)
+				r.Get("/{userID}/identity-pubkey", s.UserHandler.HandleGetPublicKey)
 			})
 
 			// Profiles
@@ -196,11 +210,11 @@ func (s *Server) setupRoutes() {
 
 					// Labs
 					r.Route("/labs", func(r chi.Router) {
-						r.Get("/", s.handleNotImplemented)
-						r.Post("/", s.handleNotImplemented)
-						r.Get("/{labID}", s.handleNotImplemented)
-						r.Patch("/{labID}", s.handleNotImplemented)
-						r.Delete("/{labID}", s.handleNotImplemented)
+						r.Get("/", s.LabHandler.HandleList)
+						r.Post("/", s.LabHandler.HandleCreate)
+						r.Get("/{labID}", s.LabHandler.HandleGet)
+						r.Patch("/{labID}", s.LabHandler.HandleUpdate)
+						r.Delete("/{labID}", s.LabHandler.HandleDelete)
 						r.Get("/{labID}/export/pdf", s.handleNotImplemented)
 					})
 
@@ -306,10 +320,10 @@ func (s *Server) setupRoutes() {
 					r.Put("/vital-thresholds", s.handleNotImplemented)
 
 					// Emergency
-					r.Get("/emergency-card", s.handleNotImplemented)
-					r.Post("/emergency-access", s.handleNotImplemented)
-					r.Get("/emergency-access", s.handleNotImplemented)
-					r.Delete("/emergency-access", s.handleNotImplemented)
+					r.Get("/emergency-card", s.EmergencyHandler.HandleGetEmergencyCard)
+					r.Post("/emergency-access", s.EmergencyHandler.HandleConfigureEmergencyAccess)
+					r.Get("/emergency-access", s.EmergencyHandler.HandleGetEmergencyAccessConfig)
+					r.Delete("/emergency-access", s.EmergencyHandler.HandleDeleteEmergencyAccess)
 
 					// Activity Log
 					r.Get("/activity", s.handleNotImplemented)
@@ -346,7 +360,7 @@ func (s *Server) setupRoutes() {
 			})
 
 			// Search
-			r.Get("/search", s.handleNotImplemented)
+			r.Get("/search", s.SearchHandler.HandleSearch)
 
 			// Reference ranges
 			r.Get("/reference-ranges", s.handleNotImplemented)
@@ -367,10 +381,10 @@ func (s *Server) setupRoutes() {
 			})
 
 			// Emergency (public-ish, but still under v1)
-			r.Post("/emergency/request/{token}", s.handleNotImplemented)
-			r.Get("/emergency/pending", s.handleNotImplemented)
-			r.Post("/emergency/approve/{requestID}", s.handleNotImplemented)
-			r.Post("/emergency/deny/{requestID}", s.handleNotImplemented)
+			r.Post("/emergency/request/{token}", s.EmergencyHandler.HandleRequestEmergencyAccess)
+			r.Get("/emergency/pending", s.EmergencyHandler.HandleGetPendingRequests)
+			r.Post("/emergency/approve/{requestID}", s.EmergencyHandler.HandleApproveRequest)
+			r.Post("/emergency/deny/{requestID}", s.EmergencyHandler.HandleDenyRequest)
 
 			// Admin
 			r.Route("/admin", func(r chi.Router) {

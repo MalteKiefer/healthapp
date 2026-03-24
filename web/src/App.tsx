@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+import { Vitals } from './pages/Vitals';
 import { useAuthStore } from './store/auth';
 import './i18n';
 import './App.css';
@@ -49,7 +50,7 @@ function App() {
             }
           >
             <Route path="/" element={<Dashboard />} />
-            <Route path="/vitals" element={<Placeholder title="Vital Signs" />} />
+            <Route path="/vitals" element={<Vitals />} />
             <Route path="/labs" element={<Placeholder title="Lab Results" />} />
             <Route path="/diary" element={<Placeholder title="Health Diary" />} />
             <Route path="/medications" element={<Placeholder title="Medications" />} />
