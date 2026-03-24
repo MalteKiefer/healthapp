@@ -1,0 +1,11 @@
+:80 {
+    root * /srv
+    file_server
+
+    # SPA routing — unknown paths serve index.html
+    try_files {path} /index.html
+
+    # Cache busting for hashed assets
+    @assets path *.js *.css *.woff2 *.png *.svg *.ico
+    header @assets Cache-Control "public, max-age=31536000, immutable"
+}

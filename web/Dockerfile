@@ -8,13 +8,10 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM caddy:2-alpine
 
-RUN addgroup -g 1000 -S healthvault \
-    && adduser -u 1000 -S healthvault -G healthvault
-
-COPY --from=builder /build/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /build/dist /srv
+COPY Caddyfile /etc/caddy/Caddyfile
 
 EXPOSE 80
 
