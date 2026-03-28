@@ -304,7 +304,7 @@ func (h *AdminHandler) HandleGetAuditLog(w http.ResponseWriter, r *http.Request)
 	}
 
 	rows, err := h.db.Query(r.Context(),
-		`SELECT id, user_id, action, details, ip_address, created_at
+		`SELECT id, user_id, action, details, ip_address::text, created_at
 		 FROM audit_log
 		 ORDER BY created_at DESC
 		 LIMIT $1 OFFSET $2`,
@@ -605,7 +605,7 @@ func (h *AdminHandler) HandleGetUserSessions(w http.ResponseWriter, r *http.Requ
 	}
 
 	rows, err := h.db.Query(r.Context(),
-		`SELECT id, user_id, device_hint, ip_address, created_at, last_active_at, expires_at, revoked_at
+		`SELECT id, user_id, device_hint, ip_address::text, created_at, last_active_at, expires_at, revoked_at
 		 FROM user_sessions
 		 WHERE user_id = $1
 		 ORDER BY created_at DESC`,

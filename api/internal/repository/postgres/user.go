@@ -144,7 +144,7 @@ func (r *UserRepo) CreateSession(ctx context.Context, s *user.Session) error {
 
 func (r *UserRepo) GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]user.Session, error) {
 	query := `
-		SELECT id, user_id, jti, device_hint, ip_address, created_at, last_active_at, expires_at, revoked_at
+		SELECT id, user_id, jti, device_hint, ip_address::text, created_at, last_active_at, expires_at, revoked_at
 		FROM user_sessions WHERE user_id = $1 AND revoked_at IS NULL
 		ORDER BY last_active_at DESC`
 
@@ -168,7 +168,7 @@ func (r *UserRepo) GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([
 
 func (r *UserRepo) GetSessionByJTI(ctx context.Context, jti string) (*user.Session, error) {
 	query := `
-		SELECT id, user_id, jti, device_hint, ip_address, created_at, last_active_at, expires_at, revoked_at
+		SELECT id, user_id, jti, device_hint, ip_address::text, created_at, last_active_at, expires_at, revoked_at
 		FROM user_sessions WHERE jti = $1`
 
 	var s user.Session

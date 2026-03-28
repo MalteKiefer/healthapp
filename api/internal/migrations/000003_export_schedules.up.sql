@@ -9,4 +9,4 @@ CREATE TABLE export_schedules (
     enabled     BOOLEAN NOT NULL DEFAULT TRUE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-INSERT INTO schema_migrations (version, dirty) VALUES (3, FALSE);
+-- Note: schema_migrations is managed by the migration framework.

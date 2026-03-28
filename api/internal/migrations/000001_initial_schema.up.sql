@@ -689,12 +689,5 @@ CREATE TABLE webhook_delivery_log (
     delivered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- ── Schema Migrations Tracking ──────────────────────────────────────
-
-CREATE TABLE IF NOT EXISTS schema_migrations (
-    version     BIGINT PRIMARY KEY,
-    dirty       BOOLEAN NOT NULL DEFAULT FALSE,
-    applied_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-INSERT INTO schema_migrations (version, dirty) VALUES (1, FALSE);
+-- Note: schema_migrations table is managed by the migration framework in main.go.
+-- Do NOT insert into schema_migrations here — the framework handles versioning.

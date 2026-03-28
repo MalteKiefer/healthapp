@@ -25,4 +25,4 @@ CREATE TABLE doctor_share_access_log (
 
 CREATE INDEX idx_share_access_share ON doctor_share_access_log (share_id, accessed_at DESC);
 
-INSERT INTO schema_migrations (version, dirty) VALUES (2, FALSE);
+-- Note: schema_migrations is managed by the migration framework.
