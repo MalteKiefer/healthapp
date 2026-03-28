@@ -10,7 +10,7 @@ export function ProfileSelector({ selectedId, onSelect }: Props) {
 
   if (isLoading) return <select disabled><option>Loading...</option></select>;
 
-  const profiles = data?.items || [];
+  const profiles = data || [];
 
   return (
     <select

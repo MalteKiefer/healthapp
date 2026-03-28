@@ -1,57 +1,125 @@
 {
-  "app": {
-    "name": "HealthVault",
-    "tagline": "Your health data, your control"
-  },
+  "app": { "name": "HealthVault", "tagline": "Your health data, your control" },
   "nav": {
-    "dashboard": "Dashboard",
-    "vitals": "Vitals",
-    "labs": "Lab Results",
-    "diary": "Health Diary",
-    "medications": "Medications",
-    "documents": "Documents",
-    "appointments": "Appointments",
-    "vaccinations": "Vaccinations",
-    "allergies": "Allergies",
-    "diagnoses": "Diagnoses",
-    "contacts": "Contacts",
-    "tasks": "Tasks",
-    "symptoms": "Symptoms",
-    "settings": "Settings",
-    "admin": "Admin",
-    "logout": "Log Out"
+    "dashboard": "Dashboard", "vitals": "Vitals", "labs": "Lab Results", "diary": "Health Diary",
+    "medications": "Medications", "documents": "Documents", "appointments": "Appointments",
+    "vaccinations": "Vaccinations", "allergies": "Allergies", "diagnoses": "Diagnoses",
+    "contacts": "Contacts", "tasks": "Tasks", "symptoms": "Symptoms", "settings": "Settings",
+    "admin": "Admin", "logout": "Log Out", "calendar_feeds": "Calendar Feeds", "search": "Search",
+    "dark_mode": "Dark Mode", "light_mode": "Light Mode"
   },
   "auth": {
-    "login": "Log In",
-    "register": "Create Account",
-    "email": "Email",
-    "passphrase": "Passphrase",
+    "login": "Log In", "register": "Create Account", "email": "Email", "passphrase": "Passphrase",
     "passphrase_warning": "This passphrase cannot be reset. If you lose it, your health data is permanently inaccessible.",
-    "totp_code": "Authentication Code",
-    "submit": "Continue"
+    "totp_code": "Authentication Code", "submit": "Continue"
   },
   "common": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "edit": "Edit",
-    "add": "Add",
-    "search": "Search",
-    "loading": "Loading...",
-    "no_data": "No data yet",
-    "confirm": "Confirm",
-    "back": "Back"
+    "save": "Save", "cancel": "Cancel", "delete": "Delete", "edit": "Edit", "add": "Add",
+    "search": "Search", "loading": "Loading...", "no_data": "No data yet", "confirm": "Confirm",
+    "back": "Back", "next": "Next", "close": "Close", "copy": "Copy to Clipboard", "copied": "Copied!",
+    "continue": "Continue", "view_all": "View all", "actions": "Actions", "date": "Date", "time": "Time",
+    "notes": "Notes", "description": "Description", "status": "Status", "type": "Type", "name": "Name",
+    "select": "Select...", "required": "required", "since": "Since", "ended": "ended",
+    "active": "Active", "inactive": "Inactive", "title": "Title", "uploading": "Uploading...",
+    "all": "All", "flag": "Flag", "priority": "Priority", "due_date": "Due Date",
+    "not_specified": "Not specified", "overdue": "Overdue", "done": "Done", "open": "Open"
   },
   "vitals": {
-    "title": "Vital Signs",
-    "add": "Record Vitals",
-    "systolic": "Systolic",
-    "diastolic": "Diastolic",
-    "pulse": "Pulse",
-    "weight": "Weight",
-    "temperature": "Temperature",
-    "oxygen": "Oxygen Saturation",
-    "glucose": "Blood Glucose",
-    "bmi": "BMI"
+    "title": "Vital Signs", "record": "Record Vitals", "add": "Record Vitals",
+    "select_vitals": "What would you like to record?", "enter_measurements": "Enter your measurements",
+    "date_time": "Date & Time", "blood_pressure": "Blood Pressure", "systolic": "Systolic",
+    "diastolic": "Diastolic", "pulse": "Pulse", "weight": "Weight", "temperature": "Temperature",
+    "oxygen": "Oxygen Saturation", "glucose": "Blood Glucose", "sleep": "Sleep",
+    "sleep_duration": "Duration (min)", "sleep_quality": "Quality (1-5)", "notes": "Notes",
+    "bmi": "BMI", "step_select": "Select", "step_measure": "Measure",
+    "step_of": "Step {{current}} of {{total}}"
+  },
+  "dashboard": {
+    "greeting_morning": "Good morning", "greeting_afternoon": "Good afternoon",
+    "greeting_evening": "Good evening", "open_tasks": "Open Tasks",
+    "upcoming_appts": "Upcoming Appts", "active_meds": "Active Meds",
+    "no_vitals": "No Vitals Yet", "upcoming": "Upcoming", "recent_activity": "Recent Activity",
+    "empty_upcoming": "Nothing upcoming — you're all caught up.",
+    "empty_activity": "No recent activity recorded."
+  },
+  "medications": {
+    "title": "Medications", "add": "Add Medication", "name": "Medication Name",
+    "dosage": "Dosage", "unit": "Unit", "frequency": "Frequency", "route": "Route",
+    "prescribed_by": "Prescribed By", "reason": "Reason", "active_only": "Active only",
+    "route_oral": "Oral", "route_injection": "Injection", "route_topical": "Topical",
+    "route_inhalation": "Inhalation", "route_sublingual": "Sublingual", "route_rectal": "Rectal",
+    "route_other": "Other",
+    "placeholder_dosage": "e.g. 500", "placeholder_unit": "e.g. mg",
+    "placeholder_frequency": "e.g. twice daily"
+  },
+  "appointments": {
+    "title": "Appointments", "add": "Schedule Appointment", "upcoming_only": "Upcoming only",
+    "complete": "Complete", "location": "Location", "duration": "Duration (min)",
+    "preparation": "Preparation Notes", "type_examination": "Examination", "type_surgery": "Surgery",
+    "type_follow_up": "Follow-up", "type_consultation": "Consultation", "type_lab": "Lab Work",
+    "type_vaccination": "Vaccination", "type_other": "Other"
+  },
+  "labs": {
+    "title": "Lab Results", "add": "Add Lab Result", "lab_name": "Lab Name",
+    "ordered_by": "Ordered By", "sample_date": "Sample Date", "values": "Lab Values",
+    "marker": "Marker", "value": "Value", "unit": "Unit", "ref_low": "Ref Low",
+    "ref_high": "Ref High", "reference": "Reference", "flag": "Flag", "add_row": "Add Row"
+  },
+  "documents": {
+    "title": "Documents", "upload": "Upload", "drop_files": "Drop files to upload",
+    "all_categories": "All Categories"
+  },
+  "diary": {
+    "title": "Health Diary", "add": "New Entry", "event_type": "Event Type",
+    "severity": "Severity", "location": "Location"
+  },
+  "vaccinations": {
+    "title": "Vaccinations", "add": "Record Vaccination", "upcoming": "Upcoming Boosters",
+    "vaccine_name": "Vaccine Name", "trade_name": "Trade Name", "manufacturer": "Manufacturer",
+    "date_administered": "Date Administered", "dose_number": "Dose Number", "lot_number": "Lot Number",
+    "administered_by": "Administered By", "next_due": "Next Due Date", "injection_site": "Injection Site"
+  },
+  "allergies": {
+    "title": "Allergies", "add": "Add Allergy", "allergen": "Allergen",
+    "category": "Category", "severity": "Severity", "reaction": "Reaction Type",
+    "diagnosed_by": "Diagnosed By"
+  },
+  "diagnoses": {
+    "title": "Diagnoses", "add": "Add Diagnosis", "condition": "Condition",
+    "icd_code": "ICD-10 Code", "diagnosed_at": "Diagnosed Date", "diagnosed_by": "Diagnosed By",
+    "status_active": "Active", "status_resolved": "Resolved", "status_chronic": "Chronic",
+    "status_remission": "In Remission", "status_suspected": "Suspected"
+  },
+  "symptoms": {
+    "title": "Symptoms", "add": "Log Symptom", "symptom": "Symptom",
+    "body_region": "Body Region", "intensity": "Intensity", "trigger_factors": "Trigger Factors",
+    "trigger_hint": "comma-separated"
+  },
+  "tasks": {
+    "title": "Tasks", "add": "Add Task", "open_only": "Open only",
+    "priority_low": "Low", "priority_normal": "Normal", "priority_high": "High", "priority_urgent": "Urgent"
+  },
+  "contacts": {
+    "title": "Medical Contacts", "add": "Add Contact", "specialty": "Specialty",
+    "facility": "Facility", "phone": "Phone", "email": "Email", "address": "Address",
+    "emergency": "Emergency Contact"
+  },
+  "search": { "title": "Search", "placeholder": "Search medications, diagnoses, contacts..." },
+  "calendar_feeds": { "title": "Calendar Feeds", "create": "Create Feed" },
+  "settings": {
+    "title": "Settings", "appearance": "Appearance", "preferences": "Preferences",
+    "storage": "Storage", "sessions": "Active Sessions"
+  },
+  "admin": { "title": "Administration" },
+  "ocr": {
+    "scan_document": "Scan Document", "drop_title": "Upload document",
+    "drop_subtitle": "Lab reports, medical letters, findings — values are detected automatically",
+    "analyzing": "Analyzing document...", "invalid_file": "Please upload an image or PDF",
+    "error": "OCR processing failed", "save_error": "Failed to save lab values",
+    "detected_date": "Document date", "lab_values_found": "Detected lab values ({{count}})",
+    "vitals_found": "Detected vitals ({{count}})",
+    "no_values_found": "No lab values or vitals detected. Try with a sharper photo.",
+    "save_as_lab": "Save as Lab Result", "saved": "Saved", "marker": "Marker",
+    "value": "Value", "unit": "Unit", "reference": "Reference", "show_raw_text": "Show raw text"
   }
 }

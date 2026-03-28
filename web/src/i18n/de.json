@@ -1,57 +1,132 @@
 {
-  "app": {
-    "name": "HealthVault",
-    "tagline": "Deine Gesundheitsdaten, deine Kontrolle"
-  },
+  "app": { "name": "HealthVault", "tagline": "Deine Gesundheitsdaten, deine Kontrolle" },
   "nav": {
-    "dashboard": "Dashboard",
-    "vitals": "Vitalwerte",
-    "labs": "Laborergebnisse",
-    "diary": "Gesundheitstagebuch",
-    "medications": "Medikamente",
-    "documents": "Dokumente",
-    "appointments": "Termine",
-    "vaccinations": "Impfungen",
-    "allergies": "Allergien",
-    "diagnoses": "Diagnosen",
-    "contacts": "Kontakte",
-    "tasks": "Aufgaben",
-    "symptoms": "Symptome",
-    "settings": "Einstellungen",
-    "admin": "Administration",
-    "logout": "Abmelden"
+    "dashboard": "Dashboard", "vitals": "Vitalwerte", "labs": "Laborergebnisse",
+    "diary": "Gesundheitstagebuch", "medications": "Medikamente", "documents": "Dokumente",
+    "appointments": "Termine", "vaccinations": "Impfungen", "allergies": "Allergien",
+    "diagnoses": "Diagnosen", "contacts": "Kontakte", "tasks": "Aufgaben", "symptoms": "Symptome",
+    "settings": "Einstellungen", "admin": "Administration", "logout": "Abmelden",
+    "calendar_feeds": "Kalender-Feeds", "search": "Suche", "dark_mode": "Dunkelmodus",
+    "light_mode": "Hellmodus"
   },
   "auth": {
-    "login": "Anmelden",
-    "register": "Konto erstellen",
-    "email": "E-Mail",
+    "login": "Anmelden", "register": "Konto erstellen", "email": "E-Mail",
     "passphrase": "Passphrase",
-    "passphrase_warning": "Diese Passphrase kann nicht zurückgesetzt werden. Wenn Sie sie verlieren, sind Ihre Gesundheitsdaten dauerhaft unzugänglich.",
-    "totp_code": "Authentifizierungscode",
-    "submit": "Weiter"
+    "passphrase_warning": "Diese Passphrase kann nicht zurückgesetzt werden. Wenn du sie verlierst, sind deine Gesundheitsdaten dauerhaft unzugänglich.",
+    "totp_code": "Authentifizierungscode", "submit": "Weiter"
   },
   "common": {
-    "save": "Speichern",
-    "cancel": "Abbrechen",
-    "delete": "Löschen",
-    "edit": "Bearbeiten",
-    "add": "Hinzufügen",
-    "search": "Suchen",
-    "loading": "Laden...",
-    "no_data": "Noch keine Daten",
-    "confirm": "Bestätigen",
-    "back": "Zurück"
+    "save": "Speichern", "cancel": "Abbrechen", "delete": "Löschen", "edit": "Bearbeiten",
+    "add": "Hinzufügen", "search": "Suchen", "loading": "Laden...", "no_data": "Noch keine Daten",
+    "confirm": "Bestätigen", "back": "Zurück", "next": "Weiter", "close": "Schließen",
+    "copy": "In Zwischenablage kopieren", "copied": "Kopiert!", "continue": "Fortfahren",
+    "view_all": "Alle anzeigen", "actions": "Aktionen", "date": "Datum", "time": "Uhrzeit",
+    "notes": "Notizen", "description": "Beschreibung", "status": "Status", "type": "Typ",
+    "name": "Name", "select": "Auswählen...", "required": "erforderlich",
+    "since": "Seit", "ended": "beendet", "active": "Aktiv", "inactive": "Inaktiv",
+    "title": "Titel", "uploading": "Wird hochgeladen...", "all": "Alle", "flag": "Markierung",
+    "priority": "Priorität", "due_date": "Fälligkeitsdatum", "not_specified": "Nicht angegeben",
+    "overdue": "Überfällig", "done": "Erledigt", "open": "Offen"
   },
   "vitals": {
-    "title": "Vitalwerte",
-    "add": "Vitalwerte erfassen",
-    "systolic": "Systolisch",
-    "diastolic": "Diastolisch",
-    "pulse": "Puls",
-    "weight": "Gewicht",
-    "temperature": "Temperatur",
-    "oxygen": "Sauerstoffsättigung",
-    "glucose": "Blutzucker",
-    "bmi": "BMI"
+    "title": "Vitalwerte", "record": "Vitalwerte erfassen", "add": "Vitalwerte erfassen",
+    "select_vitals": "Was möchtest du erfassen?", "enter_measurements": "Messwerte eingeben",
+    "date_time": "Datum & Uhrzeit", "blood_pressure": "Blutdruck", "systolic": "Systolisch",
+    "diastolic": "Diastolisch", "pulse": "Puls", "weight": "Gewicht", "temperature": "Temperatur",
+    "oxygen": "Sauerstoffsättigung", "glucose": "Blutzucker", "sleep": "Schlaf",
+    "sleep_duration": "Dauer (Min.)", "sleep_quality": "Qualität (1-5)", "notes": "Notizen",
+    "bmi": "BMI", "step_select": "Auswahl", "step_measure": "Messen",
+    "step_of": "Schritt {{current}} von {{total}}"
+  },
+  "dashboard": {
+    "greeting_morning": "Guten Morgen", "greeting_afternoon": "Guten Tag",
+    "greeting_evening": "Guten Abend", "open_tasks": "Offene Aufgaben",
+    "upcoming_appts": "Nächste Termine", "active_meds": "Aktive Medikamente",
+    "no_vitals": "Keine Vitalwerte", "upcoming": "Anstehend", "recent_activity": "Letzte Aktivität",
+    "empty_upcoming": "Nichts anstehend — alles erledigt.",
+    "empty_activity": "Keine kürzliche Aktivität."
+  },
+  "medications": {
+    "title": "Medikamente", "add": "Medikament hinzufügen", "name": "Medikamentenname",
+    "dosage": "Dosierung", "unit": "Einheit", "frequency": "Häufigkeit",
+    "route": "Verabreichungsweg", "prescribed_by": "Verschrieben von", "reason": "Grund",
+    "active_only": "Nur aktive",
+    "route_oral": "Oral", "route_injection": "Injektion", "route_topical": "Topisch",
+    "route_inhalation": "Inhalation", "route_sublingual": "Sublingual", "route_rectal": "Rektal",
+    "route_other": "Sonstige",
+    "placeholder_dosage": "z.B. 500", "placeholder_unit": "z.B. mg",
+    "placeholder_frequency": "z.B. zweimal täglich"
+  },
+  "appointments": {
+    "title": "Termine", "add": "Termin planen", "upcoming_only": "Nur anstehende",
+    "complete": "Abschließen", "location": "Ort", "duration": "Dauer (Min.)",
+    "preparation": "Vorbereitungshinweise", "type_examination": "Untersuchung",
+    "type_surgery": "Operation", "type_follow_up": "Nachsorge", "type_consultation": "Beratung",
+    "type_lab": "Laboruntersuchung", "type_vaccination": "Impfung", "type_other": "Sonstiges"
+  },
+  "labs": {
+    "title": "Laborergebnisse", "add": "Laborergebnis hinzufügen", "lab_name": "Laborname",
+    "ordered_by": "Angeordnet von", "sample_date": "Probendatum", "values": "Laborwerte",
+    "marker": "Marker", "value": "Wert", "unit": "Einheit", "ref_low": "Ref. niedrig",
+    "ref_high": "Ref. hoch", "reference": "Referenz", "flag": "Markierung", "add_row": "Zeile hinzufügen"
+  },
+  "documents": {
+    "title": "Dokumente", "upload": "Hochladen", "drop_files": "Dateien zum Hochladen ablegen",
+    "all_categories": "Alle Kategorien"
+  },
+  "diary": {
+    "title": "Gesundheitstagebuch", "add": "Neuer Eintrag", "event_type": "Ereignistyp",
+    "severity": "Schweregrad", "location": "Ort"
+  },
+  "vaccinations": {
+    "title": "Impfungen", "add": "Impfung erfassen", "upcoming": "Anstehende Auffrischungen",
+    "vaccine_name": "Impfstoffname", "trade_name": "Handelsname", "manufacturer": "Hersteller",
+    "date_administered": "Verabreichungsdatum", "dose_number": "Dosisnummer",
+    "lot_number": "Chargennummer", "administered_by": "Verabreicht von",
+    "next_due": "Nächster Termin", "injection_site": "Injektionsstelle"
+  },
+  "allergies": {
+    "title": "Allergien", "add": "Allergie hinzufügen", "allergen": "Allergen",
+    "category": "Kategorie", "severity": "Schweregrad", "reaction": "Reaktionstyp",
+    "diagnosed_by": "Diagnostiziert von"
+  },
+  "diagnoses": {
+    "title": "Diagnosen", "add": "Diagnose hinzufügen", "condition": "Erkrankung",
+    "icd_code": "ICD-10-Code", "diagnosed_at": "Diagnosedatum", "diagnosed_by": "Diagnostiziert von",
+    "status_active": "Aktiv", "status_resolved": "Behoben", "status_chronic": "Chronisch",
+    "status_remission": "In Remission", "status_suspected": "Verdacht"
+  },
+  "symptoms": {
+    "title": "Symptome", "add": "Symptom erfassen", "symptom": "Symptom",
+    "body_region": "Körperregion", "intensity": "Intensität", "trigger_factors": "Auslöser",
+    "trigger_hint": "kommagetrennt"
+  },
+  "tasks": {
+    "title": "Aufgaben", "add": "Aufgabe hinzufügen", "open_only": "Nur offene",
+    "priority_low": "Niedrig", "priority_normal": "Normal", "priority_high": "Hoch",
+    "priority_urgent": "Dringend"
+  },
+  "contacts": {
+    "title": "Medizinische Kontakte", "add": "Kontakt hinzufügen", "specialty": "Fachrichtung",
+    "facility": "Einrichtung", "phone": "Telefon", "email": "E-Mail", "address": "Adresse",
+    "emergency": "Notfallkontakt"
+  },
+  "search": { "title": "Suche", "placeholder": "Medikamente, Diagnosen, Kontakte suchen..." },
+  "calendar_feeds": { "title": "Kalender-Feeds", "create": "Feed erstellen" },
+  "settings": {
+    "title": "Einstellungen", "appearance": "Erscheinungsbild", "preferences": "Präferenzen",
+    "storage": "Speicher", "sessions": "Aktive Sitzungen"
+  },
+  "admin": { "title": "Administration" },
+  "ocr": {
+    "scan_document": "Dokument scannen", "drop_title": "Dokument hochladen",
+    "drop_subtitle": "Laborberichte, Arztbriefe, Befunde — Werte werden automatisch erkannt",
+    "analyzing": "Dokument wird analysiert...", "invalid_file": "Bitte ein Bild oder PDF hochladen",
+    "error": "OCR-Verarbeitung fehlgeschlagen", "save_error": "Laborwerte konnten nicht gespeichert werden",
+    "detected_date": "Dokumentdatum", "lab_values_found": "Erkannte Laborwerte ({{count}})",
+    "vitals_found": "Erkannte Vitalwerte ({{count}})",
+    "no_values_found": "Keine Laborwerte oder Vitalwerte erkannt. Bitte versuche es mit einem schärferen Foto.",
+    "save_as_lab": "Als Laborergebnis speichern", "saved": "Gespeichert", "marker": "Marker",
+    "value": "Wert", "unit": "Einheit", "reference": "Referenz", "show_raw_text": "Rohtext anzeigen"
   }
 }

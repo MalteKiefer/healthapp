@@ -27,7 +27,6 @@ interface FeedWithToken extends CalendarFeed {
 export function CalendarFeeds() {
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [newFeedUrl, setNewFeedUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -68,12 +67,6 @@ export function CalendarFeeds() {
       verbose_mode: false,
     },
   });
-
-  const copyUrl = async (url: string, id: string) => {
-    await navigator.clipboard.writeText(url);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
 
   const items = data?.items || [];
 

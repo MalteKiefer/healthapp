@@ -38,7 +38,7 @@ function intensityColor(i: number): string {
 export function Symptoms() {
   const { t } = useTranslation();
   const { data: profilesData } = useProfiles();
-  const profiles = profilesData?.items || [];
+  const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
   const queryClient = useQueryClient();
@@ -81,7 +81,7 @@ export function Symptoms() {
 
       {showForm && (
         <div className="card form-card">
-          <h3>Log Symptom</h3>
+          <h3>{t('symptoms.add')}</h3>
           <form onSubmit={handleSubmit((data) => {
             createMutation.mutate({
               recorded_at: new Date().toISOString(),
@@ -95,7 +95,7 @@ export function Symptoms() {
             });
           })}>
             <div className="form-row">
-              <div className="form-group"><label>Symptom *</label>
+              <div className="form-group"><label>{t('symptoms.symptom')} *</label>
                 <select {...register('symptom_type')} required>
                   {SYMPTOM_TYPES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
                 </select>
@@ -104,17 +104,17 @@ export function Symptoms() {
                 <label>Intensity (0-10): {watch('intensity') || 0}</label>
                 <input type="range" min="0" max="10" {...register('intensity')} style={{ width: '100%' }} />
               </div>
-              <div className="form-group"><label>Body Region</label>
+              <div className="form-group"><label>{t('symptoms.body_region')}</label>
                 <select {...register('body_region')}>
-                  <option value="">Not specified</option>
+                  <option value="">{t('common.not_specified')}</option>
                   {BODY_REGIONS.map((r) => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
                 </select>
               </div>
             </div>
-            <div className="form-group"><label>Trigger Factors (comma-separated)</label>
+            <div className="form-group"><label>{t('symptoms.trigger_factors')} ({t('symptoms.trigger_hint')})</label>
               <input type="text" {...register('trigger_factors')} placeholder="e.g. stress, weather change" />
             </div>
-            <div className="form-group"><label>Notes</label><textarea rows={2} {...register('notes')} /></div>
+            <div className="form-group"><label>{t('common.notes')}</label><textarea rows={2} {...register('notes')} /></div>
             <div className="form-actions">
               <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
               <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>

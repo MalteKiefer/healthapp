@@ -36,7 +36,7 @@ function flagColor(flag?: string): string {
 export function Labs() {
   const { t } = useTranslation();
   const { data: profilesData } = useProfiles();
-  const profiles = profilesData?.items || [];
+  const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -83,22 +83,22 @@ export function Labs() {
 
       {showForm && (
         <div className="card form-card">
-          <h3>Add Lab Result</h3>
+          <h3>{t('labs.add')}</h3>
           <form onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
             <div className="form-row">
-              <div className="form-group"><label>Lab Name</label><input type="text" {...register('lab_name')} /></div>
-              <div className="form-group"><label>Ordered By</label><input type="text" {...register('ordered_by')} /></div>
-              <div className="form-group"><label>Sample Date *</label><input type="date" {...register('sample_date')} required /></div>
+              <div className="form-group"><label>{t('labs.lab_name')}</label><input type="text" {...register('lab_name')} /></div>
+              <div className="form-group"><label>{t('labs.ordered_by')}</label><input type="text" {...register('ordered_by')} /></div>
+              <div className="form-group"><label>{t('labs.sample_date')} *</label><input type="date" {...register('sample_date')} required /></div>
             </div>
 
-            <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14 }}>Lab Values</h4>
+            <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14 }}>{t('labs.values')}</h4>
             {fields.map((field, index) => (
               <div key={field.id} className="form-row" style={{ alignItems: 'flex-end' }}>
-                <div className="form-group"><label>Marker</label><input type="text" {...register(`values.${index}.marker`)} placeholder="e.g. Hemoglobin" /></div>
-                <div className="form-group"><label>Value</label><input type="number" step="0.01" {...register(`values.${index}.value`, { valueAsNumber: true })} /></div>
-                <div className="form-group"><label>Unit</label><input type="text" {...register(`values.${index}.unit`)} placeholder="g/dL" /></div>
-                <div className="form-group"><label>Ref Low</label><input type="number" step="0.01" {...register(`values.${index}.reference_low`, { valueAsNumber: true })} /></div>
-                <div className="form-group"><label>Ref High</label><input type="number" step="0.01" {...register(`values.${index}.reference_high`, { valueAsNumber: true })} /></div>
+                <div className="form-group"><label>{t('labs.marker')}</label><input type="text" {...register(`values.${index}.marker`)} placeholder="e.g. Hemoglobin" /></div>
+                <div className="form-group"><label>{t('labs.value')}</label><input type="number" step="0.01" {...register(`values.${index}.value`, { valueAsNumber: true })} /></div>
+                <div className="form-group"><label>{t('labs.unit')}</label><input type="text" {...register(`values.${index}.unit`)} placeholder="g/dL" /></div>
+                <div className="form-group"><label>{t('labs.ref_low')}</label><input type="number" step="0.01" {...register(`values.${index}.reference_low`, { valueAsNumber: true })} /></div>
+                <div className="form-group"><label>{t('labs.ref_high')}</label><input type="number" step="0.01" {...register(`values.${index}.reference_high`, { valueAsNumber: true })} /></div>
                 <button type="button" className="btn-icon-sm" onClick={() => remove(index)} style={{ marginBottom: 16 }}>×</button>
               </div>
             ))}
@@ -133,7 +133,7 @@ export function Labs() {
                 {expandedId === lab.id && lab.values && (
                   <div className="lab-values">
                     <table className="data-table">
-                      <thead><tr><th>Marker</th><th>Value</th><th>Unit</th><th>Reference</th><th>Flag</th></tr></thead>
+                      <thead><tr><th>{t('labs.marker')}</th><th>{t('labs.value')}</th><th>{t('labs.unit')}</th><th>{t('labs.reference')}</th><th>{t('labs.flag')}</th></tr></thead>
                       <tbody>
                         {lab.values.map((v, i) => (
                           <tr key={i}>

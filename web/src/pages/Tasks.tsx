@@ -25,7 +25,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 export function Tasks() {
   const { t } = useTranslation();
   const { data: profilesData } = useProfiles();
-  const profiles = profilesData?.items || [];
+  const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showOpen, setShowOpen] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -79,16 +79,16 @@ export function Tasks() {
 
       {showForm && (
         <div className="card form-card">
-          <h3>Add Task</h3>
+          <h3>{t('tasks.add')}</h3>
           <form onSubmit={handleSubmit((data) => createMutation.mutate({ ...data, status: 'open' }))}>
             <div className="form-row">
-              <div className="form-group"><label>Title *</label><input type="text" {...register('title')} required /></div>
-              <div className="form-group"><label>Due Date</label><input type="date" {...register('due_date')} /></div>
-              <div className="form-group"><label>Priority</label>
-                <select {...register('priority')}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select>
+              <div className="form-group"><label>{t('common.title')} *</label><input type="text" {...register('title')} required /></div>
+              <div className="form-group"><label>{t('common.due_date')}</label><input type="date" {...register('due_date')} /></div>
+              <div className="form-group"><label>{t('common.priority')}</label>
+                <select {...register('priority')}>{PRIORITIES.map((p) => <option key={p} value={p}>{t('tasks.priority_' + p)}</option>)}</select>
               </div>
             </div>
-            <div className="form-group"><label>Notes</label><textarea rows={2} {...register('notes')} /></div>
+            <div className="form-group"><label>{t('common.notes')}</label><textarea rows={2} {...register('notes')} /></div>
             <div className="form-actions">
               <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
               <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>

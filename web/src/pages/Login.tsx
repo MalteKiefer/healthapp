@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/auth';
 import { api, ApiError } from '../api/client';
@@ -58,7 +58,7 @@ export function Login() {
           const pekKey = await derivePEK(passphrase, res.pek_salt);
           setPEK(pekKey);
         }
-        login(res.access_token, res.refresh_token, res.user_id, 'user');
+        login(res.access_token, res.refresh_token, res.user_id, 'user', email);
         navigate('/');
       }
     } catch (err) {
@@ -153,6 +153,9 @@ export function Login() {
             </button>
           </form>
         )}
+        <p className="auth-tagline" style={{ marginTop: 16, marginBottom: 0 }}>
+          Don&apos;t have an account? <Link to="/register" className="card-link">{t('auth.register')}</Link>
+        </p>
       </div>
     </div>
   );

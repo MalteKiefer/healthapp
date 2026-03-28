@@ -27,7 +27,7 @@ const STATUS_COLORS: Record<string, string> = {
 export function Diagnoses() {
   const { t } = useTranslation();
   const { data: profilesData } = useProfiles();
-  const profiles = profilesData?.items || [];
+  const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
   const queryClient = useQueryClient();
@@ -68,18 +68,18 @@ export function Diagnoses() {
 
       {showForm && (
         <div className="card form-card">
-          <h3>Add Diagnosis</h3>
+          <h3>{t('diagnoses.add')}</h3>
           <form onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
             <div className="form-row">
-              <div className="form-group"><label>Condition *</label><input type="text" {...register('name')} required /></div>
+              <div className="form-group"><label>{t('diagnoses.condition')} *</label><input type="text" {...register('name')} required /></div>
               <div className="form-group"><label>ICD-10 Code</label><input type="text" {...register('icd10_code')} placeholder="e.g. E11, J45" /></div>
-              <div className="form-group"><label>Status</label>
-                <select {...register('status')}>{STATUSES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}</select>
+              <div className="form-group"><label>{t('common.status')}</label>
+                <select {...register('status')}>{STATUSES.map((s) => <option key={s} value={s}>{t('diagnoses.status_' + s)}</option>)}</select>
               </div>
             </div>
             <div className="form-row">
-              <div className="form-group"><label>Diagnosed Date</label><input type="date" {...register('diagnosed_at')} /></div>
-              <div className="form-group"><label>Diagnosed By</label><input type="text" {...register('diagnosed_by')} /></div>
+              <div className="form-group"><label>{t('diagnoses.diagnosed_at')}</label><input type="date" {...register('diagnosed_at')} /></div>
+              <div className="form-group"><label>{t('diagnoses.diagnosed_by')}</label><input type="text" {...register('diagnosed_by')} /></div>
             </div>
             <div className="form-actions">
               <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>

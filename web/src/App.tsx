@@ -9,6 +9,7 @@ import './App.css';
 
 // Lazy-loaded pages — code-split per route
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
+const Register = lazy(() => import('./pages/Register').then((m) => ({ default: m.Register })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 const Vitals = lazy(() => import('./pages/Vitals').then((m) => ({ default: m.Vitals })));
 const Labs = lazy(() => import('./pages/Labs').then((m) => ({ default: m.Labs })));
@@ -60,6 +61,7 @@ function App() {
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/share/:shareID" element={<ShareView />} />
 

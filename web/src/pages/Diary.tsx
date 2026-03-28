@@ -24,7 +24,7 @@ function severityColor(sev?: number): string {
 export function Diary() {
   const { t } = useTranslation();
   const { data: profilesData } = useProfiles();
-  const profiles = profilesData?.items || [];
+  const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
   const queryClient = useQueryClient();

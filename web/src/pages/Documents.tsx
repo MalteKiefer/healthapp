@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
 import { useProfiles } from '../hooks/useProfiles';
-import { documentsApi, type Document as HealthDoc } from '../api/documents';
+import { documentsApi } from '../api/documents';
 
 const CATEGORIES = [
   'lab_result', 'imaging', 'prescription', 'referral',
@@ -20,7 +20,7 @@ function formatBytes(bytes: number): string {
 export function Documents() {
   const { t } = useTranslation();
   const { data: profilesData } = useProfiles();
-  const profiles = profilesData?.items || [];
+  const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [category, setCategory] = useState('');
   const [dragOver, setDragOver] = useState(false);
@@ -79,7 +79,7 @@ export function Documents() {
             onChange={(e) => setCategory(e.target.value)}
             className="metric-selector"
           >
-            <option value="">All categories</option>
+            <option value="">{t('documents.all_categories')}</option>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
             ))}
@@ -98,13 +98,13 @@ export function Documents() {
 
       {dragOver && (
         <div className="drop-overlay">
-          <div className="drop-message">Drop files to upload</div>
+          <div className="drop-message">{t('documents.drop_files')}</div>
         </div>
       )}
 
       {uploadMutation.isPending && (
         <div className="card">
-          <p>Uploading...</p>
+          <p>{t('common.uploading')}</p>
         </div>
       )}
 

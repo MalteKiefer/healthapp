@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { OCRUpload } from '../components/OCRUpload';
 import { useProfiles } from '../hooks/useProfiles';
-import { useVitals, useCreateVital } from '../hooks/useVitals';
+import { useVitals } from '../hooks/useVitals';
 import { api } from '../api/client';
-import type { Vital } from '../api/vitals';
+import { diaryApi } from '../api/diary';
 
 interface Task {
   id: string;
@@ -33,12 +33,38 @@ interface Medication {
   frequency?: string;
 }
 
+function formatVitalLabel(v: {
+  blood_pressure_systolic?: number;
+  blood_pressure_diastolic?: number;
+  pulse?: number;
+  weight?: number;
+  body_temperature?: number;
+  blood_glucose?: number;
+  oxygen_saturation?: number;
+}): string {
+  if (v.blood_pressure_systolic && v.blood_pressure_diastolic) {
+    const parts = [`BP ${v.blood_pressure_systolic}/${v.blood_pressure_diastolic}`];
+    if (v.pulse) parts.push(`${v.pulse} bpm`);
+    return parts.join(' · ');
+  }
+  if (v.weight) return `Weight ${v.weight} kg`;
+  if (v.body_temperature) return `Temp ${v.body_temperature}\u00B0C`;
+  if (v.blood_glucose) return `Glucose ${v.blood_glucose} mg/dL`;
+  if (v.oxygen_saturation) return `SpO\u2082 ${v.oxygen_saturation}%`;
+  if (v.pulse) return `Pulse ${v.pulse} bpm`;
+  return 'Vital recorded';
+}
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+}
+
 export function Dashboard() {
   const { t } = useTranslation();
   const { data: profilesData } = useProfiles();
-  const profiles = profilesData?.items || [];
+  const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
-  const queryClient = useQueryClient();
 
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -59,98 +85,160 @@ export function Dashboard() {
     queryFn: () => api.get<{ items: Medication[] }>(`/api/v1/profiles/${profileId}/medications/active`),
     enabled: !!profileId,
   });
-
-  // Quick-add vital
-  const createVital = useCreateVital(profileId);
-  const { register, handleSubmit, reset } = useForm<{
-    blood_pressure_systolic: number;
-    blood_pressure_diastolic: number;
-    pulse: number;
-  }>();
-
-  const onQuickAdd = (data: { blood_pressure_systolic: number; blood_pressure_diastolic: number; pulse: number }) => {
-    const cleaned = Object.fromEntries(
-      Object.entries(data).filter(([, v]) => v !== undefined && !isNaN(v as number) && v !== 0)
-    );
-    if (Object.keys(cleaned).length === 0) return;
-    createVital.mutateAsync({ ...cleaned, measured_at: new Date().toISOString() }).then(() => reset());
-  };
+  const { data: diaryData } = useQuery({
+    queryKey: ['diary-recent', profileId],
+    queryFn: () => diaryApi.list(profileId, { limit: 5 }),
+    enabled: !!profileId,
+  });
 
   const recentVitals = vitalsData?.items || [];
   const openTasks = tasksData?.items || [];
   const upcomingAppts = apptsData?.items || [];
   const activeMeds = medsData?.items || [];
+  const recentDiary = diaryData?.items || [];
+
+  // Latest vital for the summary stat
+  const latestVital = recentVitals[0];
+
+  // Upcoming card: next 5 appointments + overdue tasks, sorted by date
+  const upcomingItems = useMemo(() => {
+    const items: { id: string; title: string; date: string; type: 'appointment' | 'task'; icon: string; overdue: boolean }[] = [];
+
+    for (const appt of upcomingAppts.slice(0, 5)) {
+      items.push({
+        id: appt.id,
+        title: appt.title,
+        date: appt.scheduled_at,
+        type: 'appointment',
+        icon: '\uD83D\uDCC5',
+        overdue: false,
+      });
+    }
+
+    for (const task of openTasks) {
+      const overdue = task.due_date ? isPast(new Date(task.due_date)) : false;
+      items.push({
+        id: task.id,
+        title: task.title,
+        date: task.due_date || '',
+        type: 'task',
+        icon: overdue ? '\u26A0\uFE0F' : '\u2610',
+        overdue,
+      });
+    }
+
+    return items
+      .filter((item) => item.date)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 5);
+  }, [upcomingAppts, openTasks]);
+
+  // Recent activity: last 5 vitals + diary entries combined
+  const recentActivity = useMemo(() => {
+    const items: { id: string; label: string; date: string; type: 'vital' | 'diary'; icon: string }[] = [];
+
+    for (const v of recentVitals) {
+      items.push({
+        id: v.id,
+        label: formatVitalLabel(v),
+        date: v.measured_at,
+        type: 'vital',
+        icon: '\uD83E\uDE7A',
+      });
+    }
+
+    for (const d of recentDiary) {
+      items.push({
+        id: d.id,
+        label: d.title,
+        date: d.started_at,
+        type: 'diary',
+        icon: '\uD83D\uDCD3',
+      });
+    }
+
+    return items
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+  }, [recentVitals, recentDiary]);
 
   return (
     <div className="page">
       <div className="page-header">
-        <h2>{t('nav.dashboard')}</h2>
+        <div>
+          <h2 style={{ marginBottom: 4 }}>{getGreeting()}</h2>
+          <p className="text-muted" style={{ fontSize: 14 }}>
+            {format(new Date(), 'EEEE, MMMM d, yyyy')}
+          </p>
+        </div>
         <ProfileSelector selectedId={profileId} onSelect={setSelectedProfile} />
       </div>
 
-      {/* Quick-Add Widget */}
-      <div className="card quick-add-card">
-        <h3>Quick Add — Blood Pressure</h3>
-        <form onSubmit={handleSubmit(onQuickAdd)} className="quick-add-form">
-          <div className="quick-add-fields">
-            <div className="quick-input">
-              <input type="number" placeholder="SYS" {...register('blood_pressure_systolic', { valueAsNumber: true })} />
-              <span className="quick-label">mmHg</span>
-            </div>
-            <span className="quick-separator">/</span>
-            <div className="quick-input">
-              <input type="number" placeholder="DIA" {...register('blood_pressure_diastolic', { valueAsNumber: true })} />
-              <span className="quick-label">mmHg</span>
-            </div>
-            <div className="quick-input">
-              <input type="number" placeholder="Pulse" {...register('pulse', { valueAsNumber: true })} />
-              <span className="quick-label">bpm</span>
-            </div>
+      {/* Summary Stats Row */}
+      <div className="stats-row">
+        <Link to="/tasks" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="stat-value">{openTasks.length}</div>
+          <div className="stat-label">{t('dashboard.open_tasks')}</div>
+        </Link>
+
+        <Link to="/appointments" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="stat-value">{upcomingAppts.length}</div>
+          <div className="stat-label">{t('dashboard.upcoming_appts')}</div>
+        </Link>
+
+        <Link to="/medications" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="stat-value">{activeMeds.length}</div>
+          <div className="stat-label">{t('dashboard.active_meds')}</div>
+        </Link>
+
+        <Link to="/vitals" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="stat-value" style={{ fontSize: 20 }}>
+            {latestVital ? formatVitalLabel(latestVital) : '\u2014'}
           </div>
-          <button type="submit" className="btn btn-add" disabled={createVital.isPending}>
-            {createVital.isPending ? '...' : 'Save'}
-          </button>
-        </form>
+          <div className="stat-label">
+            {latestVital
+              ? formatDistanceToNow(new Date(latestVital.measured_at), { addSuffix: true })
+              : 'No vitals yet'}
+          </div>
+        </Link>
       </div>
 
-      <div className="dashboard-grid">
-        {/* Open Tasks */}
-        <div className="card">
-          <div className="card-header">
-            <h3>{t('nav.tasks')}</h3>
-            <Link to="/tasks" className="card-link">View all</Link>
-          </div>
-          {openTasks.length === 0 ? (
-            <p className="text-muted">{t('common.no_data')}</p>
-          ) : (
-            <div className="dash-list">
-              {openTasks.slice(0, 5).map((task) => (
-                <div key={task.id} className={`dash-item ${task.due_date && isPast(new Date(task.due_date)) ? 'status-abnormal' : ''}`}>
-                  <span>☐ {task.title}</span>
-                  {task.due_date && (
-                    <span className="dash-meta">{format(new Date(task.due_date), 'MMM d')}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+      {/* OCR Document Scanner */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-header">
+          <h3>{t('ocr.scan_document')}</h3>
         </div>
+        <OCRUpload profileId={profileId} />
+      </div>
 
-        {/* Upcoming Appointments */}
+      {/* Two-Column Detail Cards */}
+      <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        {/* Upcoming Card */}
         <div className="card">
           <div className="card-header">
-            <h3>{t('nav.appointments')}</h3>
-            <Link to="/appointments" className="card-link">View all</Link>
+            <h3>{t('nav.appointments')} &amp; {t('nav.tasks')}</h3>
+            <Link to="/appointments" className="card-link">{t('common.view_all')}</Link>
           </div>
-          {upcomingAppts.length === 0 ? (
-            <p className="text-muted">{t('common.no_data')}</p>
+          {upcomingItems.length === 0 ? (
+            <p className="text-muted" style={{ fontSize: 13, padding: '12px 0' }}>
+              {t('dashboard.empty_upcoming')}
+            </p>
           ) : (
             <div className="dash-list">
-              {upcomingAppts.slice(0, 5).map((appt) => (
-                <div key={appt.id} className="dash-item">
-                  <span>{appt.title}</span>
+              {upcomingItems.map((item) => (
+                <div
+                  key={item.id}
+                  className={`dash-item${item.overdue ? ' status-abnormal' : ''}`}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>{item.icon}</span>
+                    <span>{item.title}</span>
+                    <span className={`badge ${item.type === 'appointment' ? 'badge-scheduled' : item.overdue ? 'badge-missed' : 'badge-info'}`}>
+                      {item.type === 'appointment' ? 'Appt' : 'Task'}
+                    </span>
+                  </span>
                   <span className="dash-meta">
-                    {format(new Date(appt.scheduled_at), 'MMM d, HH:mm')}
+                    {format(new Date(item.date), 'MMM d, HH:mm')}
                   </span>
                 </div>
               ))}
@@ -158,48 +246,29 @@ export function Dashboard() {
           )}
         </div>
 
-        {/* Active Medications */}
+        {/* Recent Activity Card */}
         <div className="card">
           <div className="card-header">
-            <h3>{t('nav.medications')}</h3>
-            <Link to="/medications" className="card-link">View all</Link>
+            <h3>{t('dashboard.recent_activity')}</h3>
+            <Link to="/vitals" className="card-link">{t('common.view_all')}</Link>
           </div>
-          {activeMeds.length === 0 ? (
-            <p className="text-muted">{t('common.no_data')}</p>
+          {recentActivity.length === 0 ? (
+            <p className="text-muted" style={{ fontSize: 13, padding: '12px 0' }}>
+              {t('dashboard.empty_activity')}
+            </p>
           ) : (
             <div className="dash-list">
-              {activeMeds.slice(0, 5).map((med) => (
-                <div key={med.id} className="dash-item">
-                  <span>{med.name}</span>
-                  <span className="dash-meta">{[med.dosage, med.frequency].filter(Boolean).join(' · ')}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Recent Vitals */}
-        <div className="card">
-          <div className="card-header">
-            <h3>{t('vitals.title')}</h3>
-            <Link to="/vitals" className="card-link">View all</Link>
-          </div>
-          {recentVitals.length === 0 ? (
-            <p className="text-muted">{t('common.no_data')}</p>
-          ) : (
-            <div className="dash-list">
-              {recentVitals.map((v) => (
-                <div key={v.id} className="dash-item">
-                  <span>
-                    {v.blood_pressure_systolic && v.blood_pressure_diastolic
-                      ? `BP ${v.blood_pressure_systolic}/${v.blood_pressure_diastolic}`
-                      : v.weight ? `Weight ${v.weight}kg`
-                      : v.body_temperature ? `Temp ${v.body_temperature}°`
-                      : 'Vital'}
-                    {v.pulse ? ` · ${v.pulse}bpm` : ''}
+              {recentActivity.map((item) => (
+                <div key={item.id} className="dash-item">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>{item.icon}</span>
+                    <span>{item.label}</span>
+                    <span className={`badge ${item.type === 'vital' ? 'badge-active' : 'badge-info'}`}>
+                      {item.type === 'vital' ? 'Vital' : 'Diary'}
+                    </span>
                   </span>
                   <span className="dash-meta">
-                    {formatDistanceToNow(new Date(v.measured_at), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(item.date), { addSuffix: true })}
                   </span>
                 </div>
               ))}

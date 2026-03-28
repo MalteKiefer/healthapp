@@ -12,7 +12,7 @@ const ROUTES = ['oral', 'injection', 'topical', 'inhalation', 'sublingual', 'rec
 export function Medications() {
   const { t } = useTranslation();
   const { data: profilesData } = useProfiles();
-  const profiles = profilesData?.items || [];
+  const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showActive, setShowActive] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -60,7 +60,7 @@ export function Medications() {
               checked={showActive}
               onChange={(e) => setShowActive(e.target.checked)}
             />
-            Active only
+            {t('medications.active_only')}
           </label>
           <button className="btn btn-add" onClick={() => setShowForm(!showForm)}>
             + {t('common.add')}
@@ -70,41 +70,41 @@ export function Medications() {
 
       {showForm && (
         <div className="card form-card">
-          <h3>Add Medication</h3>
+          <h3>{t('medications.add')}</h3>
           <form onSubmit={handleSubmit(onSubmit)}>
             <div className="form-row">
               <div className="form-group">
-                <label>Name *</label>
+                <label>{t('common.name')} *</label>
                 <input type="text" {...register('name')} required />
               </div>
               <div className="form-group">
-                <label>Dosage</label>
-                <input type="text" {...register('dosage')} placeholder="e.g. 500" />
+                <label>{t('medications.dosage')}</label>
+                <input type="text" {...register('dosage')} placeholder={t('medications.placeholder_dosage')} />
               </div>
               <div className="form-group">
-                <label>Unit</label>
-                <input type="text" {...register('unit')} placeholder="e.g. mg" />
+                <label>{t('medications.unit')}</label>
+                <input type="text" {...register('unit')} placeholder={t('medications.placeholder_unit')} />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>Frequency</label>
-                <input type="text" {...register('frequency')} placeholder="e.g. twice daily" />
+                <label>{t('medications.frequency')}</label>
+                <input type="text" {...register('frequency')} placeholder={t('medications.placeholder_frequency')} />
               </div>
               <div className="form-group">
-                <label>Route</label>
+                <label>{t('medications.route')}</label>
                 <select {...register('route')}>
-                  <option value="">Select...</option>
-                  {ROUTES.map((r) => <option key={r} value={r}>{r}</option>)}
+                  <option value="">{t('common.select')}</option>
+                  {ROUTES.map((r) => <option key={r} value={r}>{t('medications.route_' + r)}</option>)}
                 </select>
               </div>
               <div className="form-group">
-                <label>Prescribed by</label>
+                <label>{t('medications.prescribed_by')}</label>
                 <input type="text" {...register('prescribed_by')} />
               </div>
             </div>
             <div className="form-group">
-              <label>Reason</label>
+              <label>{t('medications.reason')}</label>
               <input type="text" {...register('reason')} />
             </div>
             <div className="form-actions">
@@ -134,18 +134,18 @@ export function Medications() {
                     {[med.dosage, med.unit, med.frequency, med.route].filter(Boolean).join(' · ')}
                   </div>
                   {med.prescribed_by && (
-                    <div className="med-meta">Prescribed by: {med.prescribed_by}</div>
+                    <div className="med-meta">{t('medications.prescribed_by')}: {med.prescribed_by}</div>
                   )}
                   {med.started_at && (
                     <div className="med-meta">
-                      Since {format(new Date(med.started_at), 'MMM d, yyyy')}
-                      {med.ended_at && ` — ended ${format(new Date(med.ended_at), 'MMM d, yyyy')}`}
+                      {t('common.since')} {format(new Date(med.started_at), 'MMM d, yyyy')}
+                      {med.ended_at && ` — ${t('common.ended')} ${format(new Date(med.ended_at), 'MMM d, yyyy')}`}
                     </div>
                   )}
                 </div>
                 <div className="med-actions">
                   <span className={`badge ${med.ended_at ? 'badge-inactive' : 'badge-active'}`}>
-                    {med.ended_at ? 'Ended' : 'Active'}
+                    {med.ended_at ? t('common.inactive') : t('common.active')}
                   </span>
                   <button
                     className="btn-icon-sm"

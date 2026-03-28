@@ -21,7 +21,7 @@ interface Contact {
 export function Contacts() {
   const { t } = useTranslation();
   const { data: profilesData } = useProfiles();
-  const profiles = profilesData?.items || [];
+  const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
   const queryClient = useQueryClient();
@@ -62,18 +62,18 @@ export function Contacts() {
 
       {showForm && (
         <div className="card form-card">
-          <h3>Add Medical Contact</h3>
+          <h3>{t('contacts.add')}</h3>
           <form onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
             <div className="form-row">
-              <div className="form-group"><label>Name *</label><input type="text" {...register('name')} required /></div>
-              <div className="form-group"><label>Specialty</label><input type="text" {...register('specialty')} placeholder="e.g. Cardiology" /></div>
-              <div className="form-group"><label>Facility</label><input type="text" {...register('facility')} /></div>
+              <div className="form-group"><label>{t('common.name')} *</label><input type="text" {...register('name')} required /></div>
+              <div className="form-group"><label>{t('contacts.specialty')}</label><input type="text" {...register('specialty')} placeholder="e.g. Cardiology" /></div>
+              <div className="form-group"><label>{t('contacts.facility')}</label><input type="text" {...register('facility')} /></div>
             </div>
             <div className="form-row">
-              <div className="form-group"><label>Phone</label><input type="tel" {...register('phone')} /></div>
-              <div className="form-group"><label>Email</label><input type="email" {...register('email')} /></div>
+              <div className="form-group"><label>{t('contacts.phone')}</label><input type="tel" {...register('phone')} /></div>
+              <div className="form-group"><label>{t('contacts.email')}</label><input type="email" {...register('email')} /></div>
             </div>
-            <div className="form-group"><label>Address</label><textarea rows={2} {...register('address')} /></div>
+            <div className="form-group"><label>{t('contacts.address')}</label><textarea rows={2} {...register('address')} /></div>
             <label className="toggle-label" style={{ marginBottom: 12 }}>
               <input type="checkbox" {...register('is_emergency_contact')} />
               Emergency contact

@@ -15,7 +15,7 @@ const TYPES = [
 export function Appointments() {
   const { t } = useTranslation();
   const { data: profilesData } = useProfiles();
-  const profiles = profilesData?.items || [];
+  const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showUpcoming, setShowUpcoming] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -69,36 +69,36 @@ export function Appointments() {
 
       {showForm && (
         <div className="card form-card">
-          <h3>Schedule Appointment</h3>
+          <h3>{t('appointments.add')}</h3>
           <form onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
             <div className="form-row">
               <div className="form-group">
-                <label>Title *</label>
+                <label>{t('common.title')} *</label>
                 <input type="text" {...register('title')} required />
               </div>
               <div className="form-group">
-                <label>Type *</label>
+                <label>{t('common.type')} *</label>
                 <select {...register('appointment_type')} required>
-                  {TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
+                  {TYPES.map((type) => <option key={type} value={type}>{t('appointments.type_' + type)}</option>)}
                 </select>
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>Date & Time *</label>
+                <label>{t('vitals.date_time')} *</label>
                 <input type="datetime-local" {...register('scheduled_at')} required />
               </div>
               <div className="form-group">
-                <label>Duration (min)</label>
+                <label>{t('appointments.duration')}</label>
                 <input type="number" {...register('duration_minutes', { valueAsNumber: true })} />
               </div>
             </div>
             <div className="form-group">
-              <label>Location</label>
+              <label>{t('appointments.location')}</label>
               <input type="text" {...register('location')} />
             </div>
             <div className="form-group">
-              <label>Preparation Notes</label>
+              <label>{t('appointments.preparation')}</label>
               <textarea rows={2} {...register('preparation_notes')} placeholder="e.g. Arrive fasting" />
             </div>
             <div className="form-actions">
