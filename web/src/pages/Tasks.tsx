@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { format, isPast, differenceInDays } from 'date-fns';
+import { isPast, differenceInDays } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { useDateFormat } from '../hooks/useDateLocale';
+import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
 
@@ -24,11 +26,13 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 export function Tasks() {
   const { t } = useTranslation();
+  const { fmt } = useDateFormat();
   const { data: profilesData } = useProfiles();
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showOpen, setShowOpen] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -122,7 +126,7 @@ export function Tasks() {
                     <div className="task-meta">
                       {task.due_date && (
                         <span className={overdue ? 'status-abnormal' : daysLeft !== null && daysLeft <= 7 ? 'status-borderline' : ''}>
-                          {format(new Date(task.due_date), 'MMM d, yyyy')}
+                          {fmt(task.due_date, 'dd. MMM yyyy')}
                           {overdue && ' (overdue)'}
                         </span>
                       )}
@@ -130,7 +134,7 @@ export function Tasks() {
                   </div>
                   <div className="med-actions">
                     <span className={`badge ${PRIORITY_COLORS[task.priority] || 'badge-info'}`}>{task.priority}</span>
-                    <button className="btn-icon-sm" onClick={() => deleteMutation.mutate(task.id)}>×</button>
+                    <button className="btn-icon-sm" onClick={() => setDeleteTarget(task.id)}>×</button>
                   </div>
                 </div>
               );
@@ -138,6 +142,13 @@ export function Tasks() {
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending}
+      />
     </div>
   );
 }

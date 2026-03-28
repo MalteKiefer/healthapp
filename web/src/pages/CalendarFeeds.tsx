@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { format } from 'date-fns';
+import { ConfirmDelete } from '../components/ConfirmDelete';
+import { useDateFormat } from '../hooks/useDateLocale';
 import { api } from '../api/client';
 
 interface CalendarFeed {
@@ -26,8 +27,10 @@ interface FeedWithToken extends CalendarFeed {
 
 export function CalendarFeeds() {
   const { t } = useTranslation();
+  const { fmt } = useDateFormat();
   const [showForm, setShowForm] = useState(false);
   const [newFeedUrl, setNewFeedUrl] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -146,17 +149,24 @@ export function CalendarFeeds() {
                     {feed.verbose_mode && ' · verbose'}
                   </div>
                   {feed.last_polled_at && (
-                    <div className="med-meta">Last polled: {format(new Date(feed.last_polled_at), 'MMM d, HH:mm')}</div>
+                    <div className="med-meta">Last polled: {fmt(feed.last_polled_at, 'dd. MMM, HH:mm')}</div>
                   )}
                 </div>
                 <div className="med-actions">
-                  <button className="btn-sm" onClick={() => deleteMutation.mutate(feed.id)}>Delete</button>
+                  <button className="btn-sm" onClick={() => setDeleteTarget(feed.id)}>Delete</button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending}
+      />
     </div>
   );
 }

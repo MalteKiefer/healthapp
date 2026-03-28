@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { format } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { useDateFormat } from '../hooks/useDateLocale';
+import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
 
@@ -35,11 +36,13 @@ function flagColor(flag?: string): string {
 
 export function Labs() {
   const { t } = useTranslation();
+  const { fmt } = useDateFormat();
   const { data: profilesData } = useProfiles();
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -56,6 +59,11 @@ export function Labs() {
       setShowForm(false);
       reset();
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/labs/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['labs', profileId] }),
   });
 
   const { register, handleSubmit, reset, control } = useForm<{
@@ -123,12 +131,19 @@ export function Labs() {
                   <div className="lab-info">
                     <div className="med-name">{lab.lab_name || 'Lab Result'}</div>
                     <div className="med-details">
-                      {format(new Date(lab.sample_date), 'MMM d, yyyy')}
+                      {fmt(lab.sample_date, 'dd. MMM yyyy')}
                       {lab.ordered_by && ` · ${lab.ordered_by}`}
                       · {lab.values?.length || 0} markers
                     </div>
                   </div>
-                  <span className="expand-icon">{expandedId === lab.id ? '▼' : '▶'}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      className="btn-icon-sm"
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(lab.id); }}
+                      title={t('common.delete')}
+                    >×</button>
+                    <span className="expand-icon">{expandedId === lab.id ? '▼' : '▶'}</span>
+                  </div>
                 </div>
                 {expandedId === lab.id && lab.values && (
                   <div className="lab-values">
@@ -153,6 +168,13 @@ export function Labs() {
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending}
+      />
     </div>
   );
 }

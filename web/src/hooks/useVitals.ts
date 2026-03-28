@@ -28,3 +28,15 @@ export function useCreateVital(profileId: string) {
     },
   });
 }
+
+export function useDeleteVital(profileId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (vitalId: string) => vitalsApi.delete(profileId, vitalId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vitals', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['vitals-chart', profileId] });
+    },
+  });
+}

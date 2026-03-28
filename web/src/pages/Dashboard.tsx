@@ -2,8 +2,9 @@ import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { format, formatDistanceToNow, isPast } from 'date-fns';
+import { isPast } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { useDateFormat } from '../hooks/useDateLocale';
 import { OCRUpload } from '../components/OCRUpload';
 import { useProfiles } from '../hooks/useProfiles';
 import { useVitals } from '../hooks/useVitals';
@@ -62,6 +63,7 @@ function getGreeting(): string {
 
 export function Dashboard() {
   const { t } = useTranslation();
+  const { fmt, relative } = useDateFormat();
   const { data: profilesData } = useProfiles();
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
@@ -168,7 +170,7 @@ export function Dashboard() {
         <div>
           <h2 style={{ marginBottom: 4 }}>{getGreeting()}</h2>
           <p className="text-muted" style={{ fontSize: 14 }}>
-            {format(new Date(), 'EEEE, MMMM d, yyyy')}
+            {fmt(new Date(), 'EEEE, dd. MMMM yyyy')}
           </p>
         </div>
         <ProfileSelector selectedId={profileId} onSelect={setSelectedProfile} />
@@ -197,7 +199,7 @@ export function Dashboard() {
           </div>
           <div className="stat-label">
             {latestVital
-              ? formatDistanceToNow(new Date(latestVital.measured_at), { addSuffix: true })
+              ? relative(latestVital.measured_at)
               : 'No vitals yet'}
           </div>
         </Link>
@@ -238,7 +240,7 @@ export function Dashboard() {
                     </span>
                   </span>
                   <span className="dash-meta">
-                    {format(new Date(item.date), 'MMM d, HH:mm')}
+                    {fmt(item.date, 'dd. MMM, HH:mm')}
                   </span>
                 </div>
               ))}
@@ -268,7 +270,7 @@ export function Dashboard() {
                     </span>
                   </span>
                   <span className="dash-meta">
-                    {formatDistanceToNow(new Date(item.date), { addSuffix: true })}
+                    {relative(item.date)}
                   </span>
                 </div>
               ))}

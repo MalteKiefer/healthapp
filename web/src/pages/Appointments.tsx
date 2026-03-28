@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { format, isPast, isToday, isTomorrow, addDays } from 'date-fns';
+import { isPast, isToday, isTomorrow, addDays } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { useDateFormat } from '../hooks/useDateLocale';
+import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { appointmentsApi, type Appointment } from '../api/appointments';
 
@@ -14,11 +16,13 @@ const TYPES = [
 
 export function Appointments() {
   const { t } = useTranslation();
+  const { fmt } = useDateFormat();
   const { data: profilesData } = useProfiles();
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showUpcoming, setShowUpcoming] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const profileId = selectedProfile || profiles[0]?.id || '';
@@ -40,6 +44,11 @@ export function Appointments() {
 
   const completeMutation = useMutation({
     mutationFn: (id: string) => appointmentsApi.complete(profileId, id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments', profileId] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => appointmentsApi.delete(profileId, id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments', profileId] }),
   });
 
@@ -128,9 +137,9 @@ export function Appointments() {
               return (
                 <div key={appt.id} className={`appt-item ${isPast(date) ? 'appt-past' : ''}`}>
                   <div className="appt-date">
-                    <div className="appt-day">{format(date, 'dd')}</div>
-                    <div className="appt-month">{format(date, 'MMM')}</div>
-                    <div className="appt-time">{format(date, 'HH:mm')}</div>
+                    <div className="appt-day">{fmt(date, 'dd')}</div>
+                    <div className="appt-month">{fmt(date, 'MMM')}</div>
+                    <div className="appt-time">{fmt(date, 'HH:mm')}</div>
                   </div>
                   <div className="appt-info">
                     <div className="appt-title">{appt.title}</div>
@@ -148,6 +157,11 @@ export function Appointments() {
                         Complete
                       </button>
                     )}
+                    <button
+                      className="btn-icon-sm"
+                      onClick={() => setDeleteTarget(appt.id)}
+                      title={t('common.delete')}
+                    >×</button>
                   </div>
                 </div>
               );
@@ -155,6 +169,13 @@ export function Appointments() {
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending}
+      />
     </div>
   );
 }

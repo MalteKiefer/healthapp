@@ -2,10 +2,18 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { format } from 'date-fns';
+import { useDateFormat } from '../hooks/useDateLocale';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { medicationsApi, type Medication } from '../api/medications';
+import { api } from '../api/client';
+
+interface Contact {
+  id: string;
+  name: string;
+  specialty?: string;
+}
 
 const ROUTES = ['oral', 'injection', 'topical', 'inhalation', 'sublingual', 'rectal', 'other'];
 
@@ -16,6 +24,8 @@ export function Medications() {
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showActive, setShowActive] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const { fmt } = useDateFormat();
   const queryClient = useQueryClient();
 
   const profileId = selectedProfile || profiles[0]?.id || '';
@@ -25,6 +35,13 @@ export function Medications() {
     queryFn: () => showActive ? medicationsApi.active(profileId) : medicationsApi.list(profileId),
     enabled: !!profileId,
   });
+
+  const { data: contactsData } = useQuery({
+    queryKey: ['contacts', profileId],
+    queryFn: () => api.get<{ items: Contact[] }>(`/api/v1/profiles/${profileId}/contacts`),
+    enabled: !!profileId && showForm,
+  });
+  const contacts = contactsData?.items || [];
 
   const createMutation = useMutation({
     mutationFn: (med: Partial<Medication>) => medicationsApi.create(profileId, med),
@@ -100,7 +117,14 @@ export function Medications() {
               </div>
               <div className="form-group">
                 <label>{t('medications.prescribed_by')}</label>
-                <input type="text" {...register('prescribed_by')} />
+                <input type="text" {...register('prescribed_by')} list="contacts-list" autoComplete="off" />
+                <datalist id="contacts-list">
+                  {contacts.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.specialty ? `${c.name} — ${c.specialty}` : c.name}
+                    </option>
+                  ))}
+                </datalist>
               </div>
             </div>
             <div className="form-group">
@@ -138,8 +162,8 @@ export function Medications() {
                   )}
                   {med.started_at && (
                     <div className="med-meta">
-                      {t('common.since')} {format(new Date(med.started_at), 'MMM d, yyyy')}
-                      {med.ended_at && ` — ${t('common.ended')} ${format(new Date(med.ended_at), 'MMM d, yyyy')}`}
+                      {t('common.since')} {fmt(med.started_at, 'dd. MMM yyyy')}
+                      {med.ended_at && ` — ${t('common.ended')} ${fmt(med.ended_at, 'dd. MMM yyyy')}`}
                     </div>
                   )}
                 </div>
@@ -149,7 +173,7 @@ export function Medications() {
                   </span>
                   <button
                     className="btn-icon-sm"
-                    onClick={() => deleteMutation.mutate(med.id)}
+                    onClick={() => setDeleteTarget(med.id)}
                     title={t('common.delete')}
                   >
                     ×
@@ -160,6 +184,13 @@ export function Medications() {
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending}
+      />
     </div>
   );
 }

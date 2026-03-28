@@ -117,6 +117,10 @@
     "title": "Einstellungen", "appearance": "Erscheinungsbild", "preferences": "Präferenzen",
     "storage": "Speicher", "sessions": "Aktive Sitzungen"
   },
+  "confirm_delete": {
+    "title": "Eintrag löschen?",
+    "message": "Diese Aktion kann nicht rückgängig gemacht werden. Der Eintrag wird dauerhaft entfernt."
+  },
   "admin": { "title": "Administration" },
   "ocr": {
     "scan_document": "Dokument scannen", "drop_title": "Dokument hochladen",

@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { format, formatDistanceToNow } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { useDateFormat } from '../hooks/useDateLocale';
+import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { diaryApi, EVENT_TYPES, type DiaryEvent } from '../api/diary';
 
@@ -23,10 +24,12 @@ function severityColor(sev?: number): string {
 
 export function Diary() {
   const { t } = useTranslation();
+  const { fmt, relative } = useDateFormat();
   const { data: profilesData } = useProfiles();
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const profileId = selectedProfile || profiles[0]?.id || '';
@@ -135,9 +138,9 @@ export function Diary() {
                   <div className="timeline-header">
                     <span className="timeline-title">{event.title}</span>
                     <span className="timeline-date">
-                      {format(new Date(event.started_at), 'MMM d, yyyy HH:mm')}
+                      {fmt(event.started_at, 'dd. MMM yyyy, HH:mm')}
                       {' · '}
-                      {formatDistanceToNow(new Date(event.started_at), { addSuffix: true })}
+                      {relative(event.started_at)}
                     </span>
                   </div>
                   <div className="timeline-meta">
@@ -159,7 +162,7 @@ export function Diary() {
                 </div>
                 <button
                   className="btn-icon-sm"
-                  onClick={() => deleteMutation.mutate(event.id)}
+                  onClick={() => setDeleteTarget(event.id)}
                   title={t('common.delete')}
                 >
                   ×
@@ -169,6 +172,13 @@ export function Diary() {
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending}
+      />
     </div>
   );
 }

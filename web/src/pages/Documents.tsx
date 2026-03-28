@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { useDateFormat } from '../hooks/useDateLocale';
+import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { documentsApi } from '../api/documents';
 
@@ -19,11 +20,13 @@ function formatBytes(bytes: number): string {
 
 export function Documents() {
   const { t } = useTranslation();
+  const { fmt } = useDateFormat();
   const { data: profilesData } = useProfiles();
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [category, setCategory] = useState('');
   const [dragOver, setDragOver] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const profileId = selectedProfile || profiles[0]?.id || '';
@@ -123,7 +126,7 @@ export function Documents() {
                 <div className="doc-info">
                   <div className="doc-name">{doc.filename_enc}</div>
                   <div className="doc-meta">
-                    {formatBytes(doc.file_size_bytes)} · {doc.category.replace(/_/g, ' ')} · {format(new Date(doc.created_at), 'MMM d, yyyy')}
+                    {formatBytes(doc.file_size_bytes)} · {doc.category.replace(/_/g, ' ')} · {fmt(doc.created_at, 'dd. MMM yyyy')}
                   </div>
                   {doc.tags && doc.tags.length > 0 && (
                     <div className="doc-tags">
@@ -133,7 +136,7 @@ export function Documents() {
                 </div>
                 <button
                   className="btn-icon-sm"
-                  onClick={() => deleteMutation.mutate(doc.id)}
+                  onClick={() => setDeleteTarget(doc.id)}
                   title={t('common.delete')}
                 >
                   ×
@@ -143,6 +146,13 @@ export function Documents() {
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending}
+      />
     </div>
   );
 }

@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { format } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { useDateFormat } from '../hooks/useDateLocale';
+import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
 
@@ -37,10 +38,12 @@ function intensityColor(i: number): string {
 
 export function Symptoms() {
   const { t } = useTranslation();
+  const { fmt } = useDateFormat();
   const { data: profilesData } = useProfiles();
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -57,6 +60,11 @@ export function Symptoms() {
       setShowForm(false);
       reset();
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/symptoms/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['symptoms', profileId] }),
   });
 
   const { register, handleSubmit, reset, watch } = useForm<{
@@ -129,8 +137,14 @@ export function Symptoms() {
             {items.map((record) => (
               <div key={record.id} className="timeline-item">
                 <div className="timeline-icon">📊</div>
-                <div className="timeline-content">
-                  <div className="timeline-date">{format(new Date(record.recorded_at), 'MMM d, yyyy HH:mm')}</div>
+                <div className="timeline-content" style={{ position: 'relative' }}>
+                  <button
+                    className="btn-icon-sm"
+                    style={{ position: 'absolute', top: 0, right: 0 }}
+                    onClick={() => setDeleteTarget(record.id)}
+                    title={t('common.delete')}
+                  >×</button>
+                  <div className="timeline-date">{fmt(record.recorded_at, 'dd. MMM yyyy, HH:mm')}</div>
                   <div className="symptom-entries">
                     {record.entries?.map((e, i) => (
                       <div key={i} className="symptom-entry">
@@ -152,6 +166,13 @@ export function Symptoms() {
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending}
+      />
     </div>
   );
 }

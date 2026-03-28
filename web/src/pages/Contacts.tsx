@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
 
@@ -24,6 +25,7 @@ export function Contacts() {
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -103,12 +105,19 @@ export function Contacts() {
                 {c.phone && <div className="contact-detail">{c.phone}</div>}
                 {c.email && <div className="contact-detail">{c.email}</div>}
                 {c.address && <div className="contact-detail text-muted">{c.address}</div>}
-                <button className="btn-icon-sm" onClick={() => deleteMutation.mutate(c.id)} style={{ alignSelf: 'flex-end' }}>×</button>
+                <button className="btn-icon-sm" onClick={() => setDeleteTarget(c.id)} style={{ alignSelf: 'flex-end' }}>×</button>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending}
+      />
     </div>
   );
 }

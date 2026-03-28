@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
 
@@ -32,6 +33,7 @@ export function Allergies() {
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -109,13 +111,20 @@ export function Allergies() {
                 <div className="med-actions">
                   {a.severity && <span className={`badge ${SEVERITY_COLORS[a.severity] || ''}`}>{a.severity.replace(/_/g, ' ')}</span>}
                   <span className={`badge ${a.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>{a.status}</span>
-                  <button className="btn-icon-sm" onClick={() => deleteMutation.mutate(a.id)} title={t('common.delete')}>×</button>
+                  <button className="btn-icon-sm" onClick={() => setDeleteTarget(a.id)} title={t('common.delete')}>×</button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending}
+      />
     </div>
   );
 }

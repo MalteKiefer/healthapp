@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { format, isPast, differenceInDays } from 'date-fns';
+import { isPast, differenceInDays } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { useDateFormat } from '../hooks/useDateLocale';
+import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
 
@@ -23,10 +25,12 @@ interface Vaccination {
 
 export function Vaccinations() {
   const { t } = useTranslation();
+  const { fmt } = useDateFormat();
   const { data: profilesData } = useProfiles();
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const profileId = selectedProfile || profiles[0]?.id || '';
@@ -49,6 +53,14 @@ export function Vaccinations() {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
       setShowForm(false);
       reset();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/vaccinations/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['vaccinations-due', profileId] });
     },
   });
 
@@ -79,7 +91,7 @@ export function Vaccinations() {
                   <div className="med-details">
                     {v.next_due_at && (overdue
                       ? <span className="status-abnormal">Overdue by {Math.abs(days)} days</span>
-                      : <span className="status-borderline">Due in {days} days ({format(new Date(v.next_due_at), 'MMM d, yyyy')})</span>
+                      : <span className="status-borderline">Due in {days} days ({fmt(v.next_due_at, 'dd. MMM yyyy')})</span>
                     )}
                   </div>
                 </div>
@@ -148,16 +160,23 @@ export function Vaccinations() {
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
           <div className="table-scroll">
             <table className="data-table">
-              <thead><tr><th>Date</th><th>Vaccine</th><th>Dose</th><th>Lot #</th><th>Administered By</th><th>Next Due</th></tr></thead>
+              <thead><tr><th>Date</th><th>Vaccine</th><th>Dose</th><th>Lot #</th><th>Administered By</th><th>Next Due</th><th></th></tr></thead>
               <tbody>
                 {items.map((v) => (
                   <tr key={v.id}>
-                    <td>{format(new Date(v.administered_at), 'MMM d, yyyy')}</td>
+                    <td>{fmt(v.administered_at, 'dd. MMM yyyy')}</td>
                     <td><strong>{v.vaccine_name}</strong>{v.trade_name && <span className="text-muted"> ({v.trade_name})</span>}</td>
                     <td>{v.dose_number || '—'}</td>
                     <td>{v.lot_number || '—'}</td>
                     <td>{v.administered_by || '—'}</td>
-                    <td>{v.next_due_at ? format(new Date(v.next_due_at), 'MMM d, yyyy') : '—'}</td>
+                    <td>{v.next_due_at ? fmt(v.next_due_at, 'dd. MMM yyyy') : '—'}</td>
+                    <td>
+                      <button
+                        className="btn-icon-sm"
+                        onClick={() => setDeleteTarget(v.id)}
+                        title={t('common.delete')}
+                      >×</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -165,6 +184,13 @@ export function Vaccinations() {
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending}
+      />
     </div>
   );
 }
