@@ -205,6 +205,7 @@ export function Layout() {
   useIdleTimeout();
 
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(localStorage.getItem('user_avatar'));
   const avatarMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -223,6 +224,12 @@ export function Layout() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [avatarMenuOpen]);
+
+  useEffect(() => {
+    const onAvatarChanged = () => setAvatarUrl(localStorage.getItem('user_avatar'));
+    window.addEventListener('avatar-changed', onAvatarChanged);
+    return () => window.removeEventListener('avatar-changed', onAvatarChanged);
+  }, []);
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
@@ -264,12 +271,9 @@ export function Layout() {
             </svg>
             {sidebarOpen && <span className="brand-text">HealthVault</span>}
           </Link>
-          <div className="sidebar-actions">
-            <NotificationBell />
-            <button onClick={toggleSidebar} className="btn-icon" aria-label="Toggle sidebar">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-            </button>
-          </div>
+          <button onClick={toggleSidebar} className="btn-icon" aria-label="Toggle sidebar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </button>
         </div>
 
         <nav className="sidebar-nav">
@@ -300,34 +304,39 @@ export function Layout() {
         </div>
       </aside>
 
-      <main className="main-content">
-        <header className="topbar">
-          <div />
-          <div className="topbar-actions">
-            <div className="avatar-menu" ref={avatarMenuRef}>
-              <button className="avatar-btn" onClick={toggleAvatarMenu}>
+      <header className="topbar">
+        <div className="topbar-actions">
+          <NotificationBell />
+          <div className="avatar-menu" ref={avatarMenuRef}>
+            <button className="avatar-btn" onClick={toggleAvatarMenu}>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="avatar-circle avatar-img" />
+              ) : (
                 <div className="avatar-circle">{initials}</div>
-              </button>
-              {avatarMenuOpen && (
-                <div className="avatar-dropdown">
-                  <div className="avatar-dropdown-header">
-                    <strong>{displayName}</strong>
-                    {role && <span className="user-role">{role}</span>}
-                  </div>
-                  <div className="avatar-dropdown-divider" />
-                  <Link to="/settings" className="avatar-dropdown-item" onClick={closeMenu}>Settings</Link>
-                  <button className="avatar-dropdown-item" onClick={toggleTheme}>
-                    {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-                  </button>
-                  <div className="avatar-dropdown-divider" />
-                  <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={handleLogout}>
-                    Log Out
-                  </button>
-                </div>
               )}
-            </div>
+            </button>
+            {avatarMenuOpen && (
+              <div className="avatar-dropdown">
+                <div className="avatar-dropdown-header">
+                  <strong>{displayName}</strong>
+                  {role && <span className="user-role">{role}</span>}
+                </div>
+                <div className="avatar-dropdown-divider" />
+                <Link to="/settings" className="avatar-dropdown-item" onClick={closeMenu}>{t('nav.settings')}</Link>
+                <button className="avatar-dropdown-item" onClick={toggleTheme}>
+                  {theme === 'light' ? t('nav.dark_mode') : t('nav.light_mode')}
+                </button>
+                <div className="avatar-dropdown-divider" />
+                <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={handleLogout}>
+                  {t('nav.logout')}
+                </button>
+              </div>
+            )}
           </div>
-        </header>
+        </div>
+      </header>
+
+      <main className="main-content">
         <Outlet />
       </main>
     </div>
