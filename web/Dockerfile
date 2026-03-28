@@ -6,6 +6,14 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 COPY . .
+
+# Copy tesseract worker + WASM core + language data to public/ so Vite includes them in dist/
+RUN mkdir -p public/tesseract/lang && \
+    cp node_modules/tesseract.js/dist/worker.min.js public/tesseract/ && \
+    cp node_modules/tesseract.js-core/tesseract-core-lstm.wasm.js public/tesseract/ && \
+    cp node_modules/tesseract.js-core/tesseract-core-lstm.wasm public/tesseract/ && \
+    cp public/tesseract/lang/*.gz public/tesseract/lang/ 2>/dev/null || true
+
 RUN npm run build
 
 FROM caddy:2-alpine

@@ -41,8 +41,8 @@ services:
     environment:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8080
-      - DB_HOST=pgbouncer
-      - DB_PORT=6432
+      - DB_HOST=db
+      - DB_PORT=5432
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
@@ -78,18 +78,14 @@ services:
       retries: 3
 
   pgbouncer:
-    image: bitnami/pgbouncer:1.23.1
+    image: edoburu/pgbouncer:latest
     environment:
-      - PGBOUNCER_DATABASE=healthvault
-      - POSTGRESQL_HOST=db
-      - POSTGRESQL_PORT=5432
-      - POSTGRESQL_USERNAME=${DB_USER}
-      - POSTGRESQL_PASSWORD=${DB_PASSWORD}
-      - PGBOUNCER_PORT=6432
-      - PGBOUNCER_POOL_MODE=transaction
-      - PGBOUNCER_DEFAULT_POOL_SIZE=20
-      - PGBOUNCER_MAX_CLIENT_CONN=100
-      - PGBOUNCER_RESERVE_POOL_SIZE=5
+      - DATABASE_URL=postgres://${DB_USER:-healthvault}:${DB_PASSWORD}@db:5432/${DB_NAME:-healthvault}
+      - POOL_MODE=transaction
+      - DEFAULT_POOL_SIZE=20
+      - MAX_CLIENT_CONN=100
+      - RESERVE_POOL_SIZE=5
+      - LISTEN_PORT=6432
     networks:
       - internal
     depends_on:
@@ -109,9 +105,9 @@ services:
       - HEALTHVAULT_DB_READONLY_PASSWORD=${DB_READONLY_PASSWORD:-readonly_change_me}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./deploy/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
-      - ./deploy/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
-      - ./deploy/postgres/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+      - ./deploy/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro,z
+      - ./deploy/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro,z
+      - ./deploy/postgres/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro,z
     command: >
       postgres
         -c config_file=/etc/postgresql/postgresql.conf
@@ -135,7 +131,7 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
-      - ./deploy/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ./deploy/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro,z
     networks:
       - internal
     restart: unless-stopped
