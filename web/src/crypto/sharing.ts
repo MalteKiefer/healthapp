@@ -11,7 +11,7 @@
  * The server never sees the Profile Key in plaintext.
  */
 
-import { base64ToBytes, bytesToBase64 } from './keys';
+import { base64ToBytes } from './keys';
 import { wrapKey, unwrapKey } from './encrypt';
 
 /**
@@ -21,7 +21,7 @@ export async function importPublicKey(publicKeyBase64: string): Promise<CryptoKe
   const raw = base64ToBytes(publicKeyBase64);
   return crypto.subtle.importKey(
     'raw',
-    raw,
+    raw as BufferSource,
     { name: 'ECDH', namedCurve: 'P-256' },
     true,
     [],

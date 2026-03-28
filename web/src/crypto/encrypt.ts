@@ -20,7 +20,7 @@ export async function encrypt(data: Uint8Array, key: CryptoKey): Promise<string>
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv, tagLength: 128 },
     key,
-    data,
+    data as BufferSource,
   );
 
   // Concatenate IV + ciphertext

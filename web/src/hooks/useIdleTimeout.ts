@@ -13,7 +13,7 @@ const EVENTS = ['mousedown', 'keydown', 'scroll', 'touchstart'];
 export function useIdleTimeout() {
   const navigate = useNavigate();
   const { isAuthenticated, logout } = useAuthStore();
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const handleIdle = useCallback(() => {
     clearAllKeys();

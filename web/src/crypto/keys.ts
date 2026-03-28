@@ -11,6 +11,8 @@
  * No third-party crypto libraries.
  */
 
+import { encrypt, decryptToBytes } from './encrypt';
+
 // Key store — in-memory only, never persisted to disk
 let pek: CryptoKey | null = null;
 const profileKeys: Map<string, CryptoKey> = new Map();
@@ -58,7 +60,7 @@ export async function derivePEK(passphrase: string, salt: string): Promise<Crypt
   const key = await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: saltBytes,
+      salt: saltBytes as BufferSource,
       iterations: 600000, // OWASP recommended minimum for PBKDF2-SHA256
       hash: 'SHA-256',
     },
@@ -73,11 +75,15 @@ export async function derivePEK(passphrase: string, salt: string): Promise<Crypt
 
 /**
  * Derive auth hash from passphrase — sent to server for authentication.
- * Uses a different salt than PEK to ensure separation.
+ * Uses SHA-256(email) as a deterministic salt so that login and registration
+ * always produce the same auth_hash without needing a server round-trip.
  */
-export async function deriveAuthHash(passphrase: string, authSalt: string): Promise<string> {
+export async function deriveAuthHash(passphrase: string, email: string): Promise<string> {
   const encoder = new TextEncoder();
-  const saltBytes = base64ToBytes(authSalt);
+
+  // Deterministic salt from email — same on register and login
+  const emailHash = await crypto.subtle.digest('SHA-256', encoder.encode(email.toLowerCase().trim()));
+  const saltBytes = new Uint8Array(emailHash);
 
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
@@ -90,7 +96,7 @@ export async function deriveAuthHash(passphrase: string, authSalt: string): Prom
   const bits = await crypto.subtle.deriveBits(
     {
       name: 'PBKDF2',
-      salt: saltBytes,
+      salt: saltBytes as BufferSource,
       iterations: 600000,
       hash: 'SHA-256',
     },
@@ -153,7 +159,7 @@ export async function importPrivateKeyEncrypted(
   const decrypted = await decryptToBytes(encryptedKey, decryptionKey);
   return crypto.subtle.importKey(
     'pkcs8',
-    decrypted,
+    decrypted as BufferSource,
     { name: 'ECDH', namedCurve: 'P-256' },
     true,
     ['deriveKey', 'deriveBits'],
@@ -185,5 +191,3 @@ export function generateRandomBytes(length: number): Uint8Array {
   return bytes;
 }
 
-// Re-export encrypt/decrypt from the encryption module
-export { encrypt, decrypt, decryptToBytes } from './encrypt';
