@@ -11,7 +11,8 @@
   "auth": {
     "login": "Log In", "register": "Create Account", "email": "Email", "passphrase": "Passphrase",
     "passphrase_warning": "This passphrase cannot be reset. If you lose it, your health data is permanently inaccessible.",
-    "totp_code": "Authentication Code", "submit": "Continue"
+    "totp_code": "Authentication Code", "submit": "Continue",
+    "invalid_totp": "Invalid authentication code"
   },
   "common": {
     "save": "Save", "cancel": "Cancel", "delete": "Delete", "edit": "Edit", "add": "Add",
@@ -108,7 +109,36 @@
   "calendar_feeds": { "title": "Calendar Feeds", "create": "Create Feed" },
   "settings": {
     "title": "Settings", "appearance": "Appearance", "preferences": "Preferences",
-    "storage": "Storage", "sessions": "Active Sessions"
+    "storage": "Storage", "sessions": "Active Sessions",
+    "theme": "Theme", "switch_to_dark": "Switch to Dark", "switch_to_light": "Switch to Light",
+    "language": "Language", "date_format": "Date Format",
+    "weight": "Weight", "temperature": "Temperature", "blood_glucose": "Blood Glucose",
+    "storage_usage": "{{used}} MB of {{quota}} MB used ({{percent}}%)",
+    "terminate_others": "Terminate all other sessions",
+    "terminate": "Terminate", "unknown_device": "Unknown device",
+    "last_active": "Last active", "no_sessions": "No session data available",
+    "avatar": "Profile Photo", "avatar_upload": "Upload Photo", "avatar_remove": "Remove",
+    "avatar_hint": "JPG, PNG or WebP, max 5 MB",
+    "avatar_too_large": "File too large. Maximum 5 MB.",
+    "security": "Security",
+    "change_passphrase": "Change Passphrase",
+    "new_passphrase": "New Passphrase",
+    "confirm_passphrase": "Confirm Passphrase",
+    "passphrase_changed": "Passphrase changed successfully. You will be logged out.",
+    "passphrase_mismatch": "Passphrases do not match",
+    "two_factor": "Two-Factor Authentication",
+    "two_factor_enabled": "2FA is enabled",
+    "two_factor_disabled": "2FA is not enabled",
+    "enable_2fa": "Enable 2FA",
+    "disable_2fa": "Disable 2FA",
+    "scan_qr": "Scan this QR code with your authenticator app",
+    "current_passphrase": "Current Passphrase",
+    "passphrase_too_short": "Passphrase must be at least 8 characters",
+    "passphrase_wrong": "Current passphrase is incorrect",
+    "enter_code": "Enter the 6-digit code from your app",
+    "verify": "Verify & Enable",
+    "current_session": "Current session",
+    "session_created": "Since"
   },
   "confirm_delete": {
     "title": "Delete entry?",

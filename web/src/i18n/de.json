@@ -13,7 +13,8 @@
     "login": "Anmelden", "register": "Konto erstellen", "email": "E-Mail",
     "passphrase": "Passphrase",
     "passphrase_warning": "Diese Passphrase kann nicht zurückgesetzt werden. Wenn du sie verlierst, sind deine Gesundheitsdaten dauerhaft unzugänglich.",
-    "totp_code": "Authentifizierungscode", "submit": "Weiter"
+    "totp_code": "Authentifizierungscode", "submit": "Weiter",
+    "invalid_totp": "Ungültiger Authentifizierungscode"
   },
   "common": {
     "save": "Speichern", "cancel": "Abbrechen", "delete": "Löschen", "edit": "Bearbeiten",
@@ -115,7 +116,36 @@
   "calendar_feeds": { "title": "Kalender-Feeds", "create": "Feed erstellen" },
   "settings": {
     "title": "Einstellungen", "appearance": "Erscheinungsbild", "preferences": "Präferenzen",
-    "storage": "Speicher", "sessions": "Aktive Sitzungen"
+    "storage": "Speicher", "sessions": "Aktive Sitzungen",
+    "theme": "Design", "switch_to_dark": "Dunkelmodus aktivieren", "switch_to_light": "Hellmodus aktivieren",
+    "language": "Sprache", "date_format": "Datumsformat",
+    "weight": "Gewicht", "temperature": "Temperatur", "blood_glucose": "Blutzucker",
+    "storage_usage": "{{used}} MB von {{quota}} MB belegt ({{percent}}%)",
+    "terminate_others": "Alle anderen Sitzungen beenden",
+    "terminate": "Beenden", "unknown_device": "Unbekanntes Gerät",
+    "last_active": "Zuletzt aktiv", "no_sessions": "Keine Sitzungsdaten verfügbar",
+    "avatar": "Profilbild", "avatar_upload": "Foto hochladen", "avatar_remove": "Entfernen",
+    "avatar_hint": "JPG, PNG oder WebP, max. 5 MB",
+    "avatar_too_large": "Datei zu groß. Maximal 5 MB.",
+    "security": "Sicherheit",
+    "change_passphrase": "Passphrase ändern",
+    "new_passphrase": "Neue Passphrase",
+    "confirm_passphrase": "Passphrase bestätigen",
+    "passphrase_changed": "Passphrase geändert. Du wirst abgemeldet.",
+    "passphrase_mismatch": "Passphrasen stimmen nicht überein",
+    "two_factor": "Zwei-Faktor-Authentifizierung",
+    "two_factor_enabled": "2FA ist aktiviert",
+    "two_factor_disabled": "2FA ist nicht aktiviert",
+    "enable_2fa": "2FA aktivieren",
+    "disable_2fa": "2FA deaktivieren",
+    "scan_qr": "Scanne diesen QR-Code mit deiner Authenticator-App",
+    "current_passphrase": "Aktuelle Passphrase",
+    "passphrase_too_short": "Passphrase muss mindestens 8 Zeichen haben",
+    "passphrase_wrong": "Aktuelle Passphrase ist falsch",
+    "enter_code": "Gib den 6-stelligen Code aus deiner App ein",
+    "verify": "Verifizieren & aktivieren",
+    "current_session": "Aktuelle Sitzung",
+    "session_created": "Seit"
   },
   "confirm_delete": {
     "title": "Eintrag löschen?",

@@ -10,6 +10,7 @@ interface LoginResponse {
   refresh_token?: string;
   expires_at?: number;
   user_id: string;
+  role?: string;
   requires_totp?: boolean;
   pek_salt?: string;
   identity_privkey_enc?: string;
@@ -48,17 +49,18 @@ export function Login() {
       if (res.requires_totp) {
         setNeeds2FA(true);
         setUserId(res.user_id);
+        // Store pek_salt for after 2FA verification
+        if (res.pek_salt) localStorage.setItem('_pek_salt_tmp', res.pek_salt);
         setLoading(false);
         return;
       }
 
       if (res.access_token && res.refresh_token) {
-        // Derive PEK and store in memory for this session
         if (res.pek_salt) {
           const pekKey = await derivePEK(passphrase, res.pek_salt);
           setPEK(pekKey);
         }
-        login(res.access_token, res.refresh_token, res.user_id, 'user', email);
+        login(res.access_token, res.refresh_token, res.user_id, res.role || 'user', email);
         navigate('/');
       }
     } catch (err) {
@@ -84,12 +86,19 @@ export function Login() {
       });
 
       if (res.access_token && res.refresh_token) {
-        login(res.access_token, res.refresh_token, res.user_id, 'user');
+        // Derive PEK with passphrase still in memory
+        const pekSalt = localStorage.getItem('_pek_salt_tmp') || res.pek_salt;
+        if (pekSalt && passphrase) {
+          const pekKey = await derivePEK(passphrase, pekSalt);
+          setPEK(pekKey);
+        }
+        localStorage.removeItem('_pek_salt_tmp');
+        login(res.access_token, res.refresh_token, res.user_id, res.role || 'user', email);
         navigate('/');
       }
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.code);
+        setError(err.code === 'invalid_totp_code' ? t('auth.invalid_totp') : err.code);
       }
     } finally {
       setLoading(false);

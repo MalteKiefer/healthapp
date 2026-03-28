@@ -1,8 +1,16 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import Cropper from 'react-easy-crop';
+import QRCode from 'qrcode';
 import { api } from '../api/client';
 import { useUIStore } from '../store/ui';
+import { useAuthStore } from '../store/auth';
+import { useDateFormat } from '../hooks/useDateLocale';
+import { deriveAuthHash, clearAllKeys } from '../crypto';
+
+// ── Types ──
 
 interface UserPreferences {
   language: string;
@@ -11,8 +19,6 @@ interface UserPreferences {
   height_unit: string;
   temperature_unit: string;
   blood_glucose_unit: string;
-  week_start: string;
-  timezone: string;
 }
 
 interface SessionInfo {
@@ -21,31 +27,81 @@ interface SessionInfo {
   ip_address: string;
   created_at: string;
   last_active_at: string;
+  is_current: boolean;
 }
+
+interface UserInfo {
+  id: string;
+  email: string;
+  display_name: string;
+  role: string;
+  totp_enabled: boolean;
+}
+
+interface CropArea { x: number; y: number; width: number; height: number }
+
+// ── Helpers ──
+
+const svgProps = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+
+function parseDevice(hint: string): { name: string; icon: React.ReactNode } {
+  const h = (hint || '').toLowerCase();
+  if (h.includes('mobile') || h.includes('android') || h.includes('iphone'))
+    return { name: hint.split(' ')[0] || 'Mobile', icon: <svg {...svgProps}><rect x="5" y="2" width="14" height="20" rx="2" /><line x1="12" y1="18" x2="12.01" y2="18" /></svg> };
+  if (h.includes('tablet') || h.includes('ipad'))
+    return { name: 'Tablet', icon: <svg {...svgProps}><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="12" y1="18" x2="12.01" y2="18" /></svg> };
+  return { name: hint ? hint.substring(0, 40) : 'Desktop', icon: <svg {...svgProps}><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg> };
+}
+
+async function getCroppedImg(src: string, crop: CropArea): Promise<string> {
+  const img = new Image();
+  img.src = src;
+  await new Promise((r) => { img.onload = r; });
+  const canvas = document.createElement('canvas');
+  const size = 256;
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, size, size);
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+// ── Component ──
 
 export function Settings() {
   const { t, i18n } = useTranslation();
+  const { fmt, relative } = useDateFormat();
   const { theme, toggleTheme } = useUIStore();
+  const { email, logout } = useAuthStore();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Queries
+  const { data: userInfo } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.get<UserInfo>('/api/v1/users/me'),
+  });
 
   const { data: prefs } = useQuery({
     queryKey: ['preferences'],
     queryFn: () => api.get<UserPreferences>('/api/v1/users/me/preferences'),
   });
 
-  const { data: sessions } = useQuery({
+  const { data: sessionsData } = useQuery({
     queryKey: ['sessions'],
-    queryFn: () => api.get<SessionInfo[]>('/api/v1/users/me/sessions'),
+    queryFn: () => api.get<{ sessions: SessionInfo[] }>('/api/v1/users/me/sessions'),
   });
+  const sessions = sessionsData?.sessions || [];
 
   const { data: storage } = useQuery({
     queryKey: ['storage'],
     queryFn: () => api.get<{ used_bytes: number; quota_bytes: number }>('/api/v1/users/me/storage'),
   });
 
+  // Mutations
   const updatePrefs = useMutation({
-    mutationFn: (data: Partial<UserPreferences>) =>
-      api.patch('/api/v1/users/me/preferences', data),
+    mutationFn: (data: Partial<UserPreferences>) => api.patch('/api/v1/users/me/preferences', data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['preferences'] }),
   });
 
@@ -59,11 +115,52 @@ export function Settings() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sessions'] }),
   });
 
+  const changePassMut = useMutation({
+    mutationFn: (data: { current_auth_hash: string; new_auth_hash: string }) =>
+      api.post('/api/v1/users/me/change-passphrase', data),
+  });
+
+  const setup2FAMut = useMutation({
+    mutationFn: () => api.get<{ secret: string; provisioning_uri: string }>('/api/v1/auth/2fa/setup'),
+  });
+
+  const enable2FAMut = useMutation({
+    mutationFn: (code: string) => api.post('/api/v1/auth/2fa/enable', { code }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['me'] }),
+  });
+
+  const disable2FAMut = useMutation({
+    mutationFn: (code: string) => api.post('/api/v1/auth/2fa/disable', { code }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['me'] }),
+  });
+
+  // Preferences state
   const [language, setLanguage] = useState(prefs?.language || 'en');
   const [dateFormat, setDateFormat] = useState(prefs?.date_format || 'DMY');
   const [weightUnit, setWeightUnit] = useState(prefs?.weight_unit || 'kg');
   const [tempUnit, setTempUnit] = useState(prefs?.temperature_unit || 'celsius');
   const [glucoseUnit, setGlucoseUnit] = useState(prefs?.blood_glucose_unit || 'mmol_l');
+
+  // Avatar state
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(localStorage.getItem('user_avatar'));
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedArea, setCroppedArea] = useState<CropArea | null>(null);
+
+  // Modal state
+  const [showPassModal, setShowPassModal] = useState(false);
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [passError, setPassError] = useState('');
+
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [totpSetup, setTotpSetup] = useState<{ secret: string; provisioning_uri: string } | null>(null);
+  const [totpQrDataUrl, setTotpQrDataUrl] = useState<string | null>(null);
+  const [totpCode, setTotpCode] = useState('');
+  const [showDisable2FA, setShowDisable2FA] = useState(false);
+  const [disableCode, setDisableCode] = useState('');
 
   useEffect(() => {
     if (prefs) {
@@ -75,117 +172,366 @@ export function Settings() {
     }
   }, [prefs]);
 
+  // Handlers
   const handleSavePrefs = () => {
     i18n.changeLanguage(language);
     localStorage.setItem('language', language);
-    updatePrefs.mutate({
-      language, date_format: dateFormat, weight_unit: weightUnit,
-      temperature_unit: tempUnit, blood_glucose_unit: glucoseUnit,
-    });
+    updatePrefs.mutate({ language, date_format: dateFormat, weight_unit: weightUnit, temperature_unit: tempUnit, blood_glucose_unit: glucoseUnit });
   };
 
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1048576) { alert(t('settings.avatar_too_large')); return; }
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const onCropComplete = useCallback((_: unknown, area: CropArea) => setCroppedArea(area), []);
+
+  const handleCropSave = async () => {
+    if (!cropSrc || !croppedArea) return;
+    const dataUrl = await getCroppedImg(cropSrc, croppedArea);
+    localStorage.setItem('user_avatar', dataUrl);
+    setAvatarUrl(dataUrl);
+    window.dispatchEvent(new Event('avatar-changed'));
+    setCropSrc(null);
+  };
+
+  const handleAvatarRemove = () => {
+    localStorage.removeItem('user_avatar');
+    setAvatarUrl(null);
+    window.dispatchEvent(new Event('avatar-changed'));
+  };
+
+  const handleChangePass = async () => {
+    setPassError('');
+    if (newPass !== confirmPass) { setPassError(t('settings.passphrase_mismatch')); return; }
+    if (newPass.length < 8) { setPassError(t('settings.passphrase_too_short')); return; }
+    try {
+      const currentHash = await deriveAuthHash(currentPass, email || '');
+      const newHash = await deriveAuthHash(newPass, email || '');
+      await changePassMut.mutateAsync({ current_auth_hash: currentHash, new_auth_hash: newHash });
+      setShowPassModal(false);
+      setCurrentPass(''); setNewPass(''); setConfirmPass('');
+      setTimeout(() => { clearAllKeys(); logout(); navigate('/login'); }, 1500);
+    } catch {
+      setPassError(t('settings.passphrase_wrong'));
+    }
+  };
+
+  const handleSetup2FA = async () => {
+    try {
+      const data = await setup2FAMut.mutateAsync();
+      setTotpSetup(data);
+      setTotpCode('');
+      const qrUrl = await QRCode.toDataURL(data.provisioning_uri, { width: 240, margin: 2 });
+      setTotpQrDataUrl(qrUrl);
+      setShow2FAModal(true);
+    } catch { /* */ }
+  };
+
+  const handleEnable2FA = async () => {
+    try {
+      await enable2FAMut.mutateAsync(totpCode);
+      setShow2FAModal(false);
+      setTotpSetup(null);
+    } catch { /* */ }
+  };
+
+  const handleDisable2FA = async () => {
+    try {
+      await disable2FAMut.mutateAsync(disableCode);
+      setShowDisable2FA(false);
+      setDisableCode('');
+    } catch { /* */ }
+  };
+
+  const initials = email ? email.charAt(0).toUpperCase() : 'U';
   const usedMB = storage ? (storage.used_bytes / 1048576).toFixed(1) : '0';
   const quotaMB = storage ? (storage.quota_bytes / 1048576).toFixed(0) : '5120';
   const usagePercent = storage ? (storage.used_bytes / storage.quota_bytes * 100) : 0;
+  const is2FA = userInfo?.totp_enabled ?? false;
 
   return (
     <div className="page">
-      <h2>{t('nav.settings')}</h2>
+      <h2>{t('settings.title')}</h2>
 
-      {/* Appearance */}
+      {/* ── Avatar ── */}
       <div className="card settings-section">
-        <h3>Appearance</h3>
+        <h3>{t('settings.avatar')}</h3>
+        <div className="avatar-upload-row">
+          <div className="avatar-upload-preview">
+            {avatarUrl ? <img src={avatarUrl} alt="" className="avatar-upload-img" /> : <div className="avatar-upload-placeholder">{initials}</div>}
+          </div>
+          <div className="avatar-upload-actions">
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>{t('settings.avatar_upload')}</button>
+              {avatarUrl && <button className="btn btn-secondary" onClick={handleAvatarRemove}>{t('settings.avatar_remove')}</button>}
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={handleAvatarSelect} />
+            <span className="text-muted" style={{ fontSize: 12 }}>{t('settings.avatar_hint')}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Appearance ── */}
+      <div className="card settings-section">
+        <h3>{t('settings.appearance')}</h3>
         <div className="setting-row">
-          <label>Theme</label>
+          <label>{t('settings.theme')}</label>
           <button className="btn btn-secondary" onClick={toggleTheme}>
-            {theme === 'light' ? 'Switch to Dark' : 'Switch to Light'}
+            {theme === 'light' ? t('settings.switch_to_dark') : t('settings.switch_to_light')}
           </button>
         </div>
       </div>
 
-      {/* Preferences */}
+      {/* ── Preferences ── */}
       <div className="card settings-section">
-        <h3>Preferences</h3>
+        <h3>{t('settings.preferences')}</h3>
         <div className="form-row">
-          <div className="form-group">
-            <label>Language</label>
-            <select value={language} onChange={(e) => setLanguage(e.target.value)}>
-              <option value="en">English</option>
-              <option value="de">Deutsch</option>
-            </select>
+          <div className="form-group"><label>{t('settings.language')}</label>
+            <select value={language} onChange={(e) => setLanguage(e.target.value)}><option value="en">English</option><option value="de">Deutsch</option></select>
           </div>
-          <div className="form-group">
-            <label>Date Format</label>
-            <select value={dateFormat} onChange={(e) => setDateFormat(e.target.value)}>
-              <option value="DMY">DD.MM.YYYY</option>
-              <option value="MDY">MM/DD/YYYY</option>
-              <option value="YMD">YYYY-MM-DD</option>
-            </select>
+          <div className="form-group"><label>{t('settings.date_format')}</label>
+            <select value={dateFormat} onChange={(e) => setDateFormat(e.target.value)}><option value="DMY">DD.MM.YYYY</option><option value="MDY">MM/DD/YYYY</option><option value="YMD">YYYY-MM-DD</option></select>
           </div>
         </div>
         <div className="form-row">
-          <div className="form-group">
-            <label>Weight</label>
-            <select value={weightUnit} onChange={(e) => setWeightUnit(e.target.value)}>
-              <option value="kg">Kilograms (kg)</option>
-              <option value="lbs">Pounds (lbs)</option>
-            </select>
+          <div className="form-group"><label>{t('settings.weight')}</label>
+            <select value={weightUnit} onChange={(e) => setWeightUnit(e.target.value)}><option value="kg">kg</option><option value="lbs">lbs</option></select>
           </div>
-          <div className="form-group">
-            <label>Temperature</label>
-            <select value={tempUnit} onChange={(e) => setTempUnit(e.target.value)}>
-              <option value="celsius">Celsius (°C)</option>
-              <option value="fahrenheit">Fahrenheit (°F)</option>
-            </select>
+          <div className="form-group"><label>{t('settings.temperature')}</label>
+            <select value={tempUnit} onChange={(e) => setTempUnit(e.target.value)}><option value="celsius">°C</option><option value="fahrenheit">°F</option></select>
           </div>
-          <div className="form-group">
-            <label>Blood Glucose</label>
-            <select value={glucoseUnit} onChange={(e) => setGlucoseUnit(e.target.value)}>
-              <option value="mmol_l">mmol/L</option>
-              <option value="mg_dl">mg/dL</option>
-            </select>
+          <div className="form-group"><label>{t('settings.blood_glucose')}</label>
+            <select value={glucoseUnit} onChange={(e) => setGlucoseUnit(e.target.value)}><option value="mmol_l">mmol/L</option><option value="mg_dl">mg/dL</option></select>
           </div>
         </div>
-        <button className="btn btn-add" onClick={handleSavePrefs} style={{ width: 'auto' }}>
-          {t('common.save')}
-        </button>
+        <button className="btn btn-add" onClick={handleSavePrefs} style={{ width: 'auto' }}>{t('common.save')}</button>
       </div>
 
-      {/* Storage */}
+      {/* ── Security ── */}
       <div className="card settings-section">
-        <h3>Storage</h3>
-        <div className="storage-bar">
-          <div className="storage-fill" style={{ width: `${Math.min(usagePercent, 100)}%` }} />
+        <h3>{t('settings.security')}</h3>
+
+        {/* Passphrase */}
+        <div className="security-block">
+          <div className="security-header">
+            <div className="security-icon">
+              <svg {...svgProps}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+            </div>
+            <div>
+              <div className="security-title">{t('settings.change_passphrase')}</div>
+              <div className="text-muted" style={{ fontSize: 13 }}>{email}</div>
+            </div>
+            <button className="btn btn-secondary" style={{ marginLeft: 'auto' }} onClick={() => setShowPassModal(true)}>
+              {t('common.edit')}
+            </button>
+          </div>
         </div>
-        <p className="text-muted">{usedMB} MB of {quotaMB} MB used ({usagePercent.toFixed(1)}%)</p>
-      </div>
 
-      {/* Sessions */}
-      <div className="card settings-section">
-        <h3>Active Sessions</h3>
-        <button className="btn btn-secondary" onClick={() => revokeOthers.mutate()} style={{ marginBottom: 12 }}>
-          Terminate all other sessions
-        </button>
-        {Array.isArray(sessions) && sessions.length > 0 ? (
-          <div className="session-list">
-            {sessions.map((s) => (
-              <div key={s.id} className="session-item">
-                <div>
-                  <div className="session-device">{s.device_hint || 'Unknown device'}</div>
-                  <div className="text-muted" style={{ fontSize: 12 }}>
-                    {s.ip_address} · Last active: {new Date(s.last_active_at).toLocaleString()}
-                  </div>
-                </div>
-                <button className="btn-sm" onClick={() => revokeSession.mutate(s.id)}>
-                  Terminate
-                </button>
+        {/* 2FA */}
+        <div className="security-block" style={{ marginTop: 20 }}>
+          <div className="security-header">
+            <div className="security-icon">
+              <svg {...svgProps}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+            </div>
+            <div>
+              <div className="security-title">{t('settings.two_factor')}</div>
+              <div className="text-muted" style={{ fontSize: 13 }}>
+                {is2FA
+                  ? <span style={{ color: 'var(--color-success)' }}>{t('settings.two_factor_enabled')}</span>
+                  : t('settings.two_factor_disabled')}
               </div>
-            ))}
+            </div>
+            <button
+              className={`btn ${is2FA ? 'btn-secondary' : 'btn-add'}`}
+              style={{ marginLeft: 'auto' }}
+              onClick={is2FA ? () => setShowDisable2FA(true) : handleSetup2FA}
+            >
+              {is2FA ? t('settings.disable_2fa') : t('settings.enable_2fa')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Storage ── */}
+      <div className="card settings-section">
+        <h3>{t('settings.storage')}</h3>
+        <div className="storage-bar"><div className="storage-fill" style={{ width: `${Math.min(usagePercent, 100)}%` }} /></div>
+        <p className="text-muted">{t('settings.storage_usage', { used: usedMB, quota: quotaMB, percent: usagePercent.toFixed(1) })}</p>
+      </div>
+
+      {/* ── Sessions ── */}
+      <div className="card settings-section">
+        <div className="session-section-header">
+          <h3>{t('settings.sessions')}</h3>
+          {sessions.filter((s) => !s.is_current).length > 0 && (
+            <button className="btn btn-secondary" onClick={() => revokeOthers.mutate()}>{t('settings.terminate_others')}</button>
+          )}
+        </div>
+        {sessions.length > 0 ? (
+          <div className="session-list">
+            {sessions.slice().sort((a, b) => (a.is_current ? -1 : b.is_current ? 1 : 0)).map((s) => {
+              const device = parseDevice(s.device_hint);
+              return (
+                <div key={s.id} className={`session-card${s.is_current ? ' session-current' : ''}`}>
+                  <div className="session-icon">{device.icon}</div>
+                  <div className="session-info">
+                    <div className="session-device-name">
+                      {device.name}
+                      {s.is_current && <span className="session-badge">{t('settings.current_session')}</span>}
+                    </div>
+                    <div className="session-meta">{s.ip_address}</div>
+                    <div className="session-meta">{t('settings.session_created')} {fmt(s.created_at, 'dd. MMM yyyy')} · {relative(s.last_active_at)}</div>
+                  </div>
+                  {!s.is_current && (
+                    <button className="btn-icon-sm session-revoke" onClick={() => revokeSession.mutate(s.id)} title={t('settings.terminate')}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
-          <p className="text-muted">No session data available</p>
+          <p className="text-muted">{t('settings.no_sessions')}</p>
         )}
       </div>
+
+      {/* ═══ MODALS ═══ */}
+
+      {/* Avatar Crop Modal */}
+      {cropSrc && (
+        <div className="modal-overlay" onClick={() => setCropSrc(null)}>
+          <div className="modal crop-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('settings.avatar')}</h3>
+              <button className="modal-close" onClick={() => setCropSrc(null)}>&times;</button>
+            </div>
+            <div className="crop-container">
+              <Cropper
+                image={cropSrc}
+                crop={crop}
+                zoom={zoom}
+                minZoom={0.5}
+                maxZoom={5}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                objectFit="contain"
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+            <div className="crop-zoom-bar">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              <input type="range" min={0.5} max={5} step={0.05} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setCropSrc(null)}>{t('common.cancel')}</button>
+              <button className="btn btn-add" onClick={handleCropSave}>{t('common.save')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Passphrase Change Modal */}
+      {showPassModal && (
+        <div className="modal-overlay" onClick={() => setShowPassModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>{t('settings.change_passphrase')}</h3>
+              <button className="modal-close" onClick={() => { setShowPassModal(false); setPassError(''); }}>&times;</button>
+            </div>
+            <div className="modal-body">
+              {passError && <div className="alert alert-error">{passError}</div>}
+              <div className="form-group">
+                <label>{t('settings.current_passphrase')}</label>
+                <input type="password" value={currentPass} onChange={(e) => setCurrentPass(e.target.value)} autoComplete="current-password" />
+              </div>
+              <div className="form-group">
+                <label>{t('settings.new_passphrase')}</label>
+                <input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} autoComplete="new-password" />
+              </div>
+              <div className="form-group">
+                <label>{t('settings.confirm_passphrase')}</label>
+                <input type="password" value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)} autoComplete="new-password" />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowPassModal(false)}>{t('common.cancel')}</button>
+              <button className="btn btn-add" onClick={handleChangePass} disabled={!currentPass || !newPass || changePassMut.isPending}>
+                {changePassMut.isPending ? t('common.loading') : t('common.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2FA Enable Modal */}
+      {show2FAModal && totpSetup && (
+        <div className="modal-overlay" onClick={() => setShow2FAModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>{t('settings.enable_2fa')}</h3>
+              <button className="modal-close" onClick={() => { setShow2FAModal(false); setTotpSetup(null); }}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ textAlign: 'center' }}>
+              <p className="text-muted" style={{ marginBottom: 16 }}>{t('settings.scan_qr')}</p>
+              {totpQrDataUrl && (
+                <img
+                  src={totpQrDataUrl}
+                  alt="TOTP QR"
+                  style={{ width: 200, height: 200, borderRadius: 12, border: '1px solid var(--color-border)' }}
+                />
+              )}
+              <code style={{ display: 'block', margin: '12px auto', padding: '6px 12px', background: 'var(--color-bg-subtle)', borderRadius: 6, fontSize: 13, letterSpacing: 1, userSelect: 'all' as const }}>
+                {totpSetup.secret}
+              </code>
+              <div className="form-group" style={{ marginTop: 16, textAlign: 'left' }}>
+                <label>{t('settings.enter_code')}</label>
+                <input type="text" inputMode="numeric" maxLength={6} value={totpCode} onChange={(e) => setTotpCode(e.target.value)} placeholder="000000" style={{ maxWidth: 160 }} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => { setShow2FAModal(false); setTotpSetup(null); }}>{t('common.cancel')}</button>
+              <button className="btn btn-add" onClick={handleEnable2FA} disabled={totpCode.length !== 6 || enable2FAMut.isPending}>
+                {enable2FAMut.isPending ? t('common.loading') : t('settings.verify')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2FA Disable Modal */}
+      {showDisable2FA && (
+        <div className="modal-overlay" onClick={() => setShowDisable2FA(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
+            <div className="modal-header">
+              <h3>{t('settings.disable_2fa')}</h3>
+              <button className="modal-close" onClick={() => setShowDisable2FA(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>{t('settings.enter_code')}</label>
+                <input type="text" inputMode="numeric" maxLength={6} value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder="000000" style={{ maxWidth: 160 }} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowDisable2FA(false)}>{t('common.cancel')}</button>
+              <button className="btn btn-danger" onClick={handleDisable2FA} disabled={disableCode.length !== 6 || disable2FAMut.isPending}>
+                {disable2FAMut.isPending ? t('common.loading') : t('settings.disable_2fa')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
