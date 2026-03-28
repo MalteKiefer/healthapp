@@ -113,8 +113,36 @@ func (h *UserHandler) HandleGetSessions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Find current session by JTI to mark it
+	currentSession, _ := h.userRepo.GetSessionByJTI(r.Context(), claims.ID)
+	var currentID string
+	if currentSession != nil {
+		currentID = currentSession.ID.String()
+	}
+
+	type sessionView struct {
+		ID           string  `json:"id"`
+		DeviceHint   string  `json:"device_hint"`
+		IPAddress    string  `json:"ip_address"`
+		CreatedAt    string  `json:"created_at"`
+		LastActiveAt string  `json:"last_active_at"`
+		IsCurrent    bool    `json:"is_current"`
+	}
+
+	views := make([]sessionView, 0, len(sessions))
+	for _, s := range sessions {
+		views = append(views, sessionView{
+			ID:           s.ID.String(),
+			DeviceHint:   s.DeviceHint,
+			IPAddress:    s.IPAddress,
+			CreatedAt:    s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			LastActiveAt: s.LastActiveAt.Format("2006-01-02T15:04:05Z07:00"),
+			IsCurrent:    s.ID.String() == currentID,
+		})
+	}
+
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"sessions": sessions,
+		"sessions": views,
 	})
 }
 
@@ -277,6 +305,7 @@ func (h *UserHandler) HandleChangePassphrase(w http.ResponseWriter, r *http.Requ
 	}
 
 	var req struct {
+		CurrentAuthHash    string `json:"current_auth_hash"`
 		NewAuthHash        string `json:"new_auth_hash"`
 		IdentityPrivkeyEnc string `json:"identity_privkey_enc"`
 		SigningPrivkeyEnc  string `json:"signing_privkey_enc"`
@@ -286,7 +315,7 @@ func (h *UserHandler) HandleChangePassphrase(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if req.NewAuthHash == "" || req.IdentityPrivkeyEnc == "" || req.SigningPrivkeyEnc == "" {
+	if req.CurrentAuthHash == "" || req.NewAuthHash == "" {
 		writeJSON(w, http.StatusBadRequest, errorResponse("missing_required_fields"))
 		return
 	}
@@ -295,6 +324,13 @@ func (h *UserHandler) HandleChangePassphrase(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		h.logger.Error("get user for passphrase change", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	// Verify current passphrase
+	valid, err := crypto.VerifyArgon2id(req.CurrentAuthHash, u.AuthHash)
+	if err != nil || !valid {
+		writeJSON(w, http.StatusForbidden, errorResponse("invalid_current_passphrase"))
 		return
 	}
 

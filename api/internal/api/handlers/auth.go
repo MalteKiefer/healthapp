@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pquerna/otp/totp"
 	"go.uber.org/zap"
 
 	"github.com/healthvault/healthvault/internal/crypto"
@@ -63,6 +64,7 @@ type loginResponse struct {
 	RefreshToken       string  `json:"refresh_token"`
 	ExpiresAt          int64   `json:"expires_at"`
 	UserID             string  `json:"user_id"`
+	Role               string  `json:"role"`
 	RequiresTOTP       bool    `json:"requires_totp"`
 	PEKSalt            string  `json:"pek_salt"`
 	IdentityPrivkeyEnc string  `json:"identity_privkey_enc"`
@@ -248,6 +250,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, loginResponse{
 			UserID:       u.ID.String(),
 			RequiresTOTP: true,
+			PEKSalt:      u.PEKSalt,
 		})
 		return
 	}
@@ -275,8 +278,16 @@ func (h *AuthHandler) HandleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: verify TOTP code against u.TOTPSecretEnc using pquerna/otp
-	_ = req.Code
+	if !u.TOTPEnabled || u.TOTPSecretEnc == nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("2fa_not_enabled"))
+		return
+	}
+
+	valid := totp.Validate(req.Code, *u.TOTPSecretEnc)
+	if !valid {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_totp_code"))
+		return
+	}
 
 	h.completeLogin(w, r, u)
 }
@@ -433,6 +444,7 @@ func (h *AuthHandler) completeLogin(w http.ResponseWriter, r *http.Request, u *u
 		RefreshToken:       pair.RefreshToken,
 		ExpiresAt:          pair.ExpiresAt,
 		UserID:             u.ID.String(),
+		Role:               u.Role,
 		PEKSalt:            u.PEKSalt,
 		IdentityPrivkeyEnc: u.IdentityPrivkeyEnc,
 		SigningPrivkeyEnc:  u.SigningPrivkeyEnc,

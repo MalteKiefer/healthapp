@@ -213,17 +213,20 @@ func (s *Server) setupRoutes() {
 			r.With(rl.Limit(middleware.RateLimitConfig{
 				Requests: 3, Window: time.Hour, BlockDuration: 2 * time.Hour,
 			})).Post("/recovery", s.AuthHandler.HandleRecovery)
-
-			r.Get("/2fa/setup", s.TOTPHandler.HandleSetup)
-			r.Post("/2fa/enable", s.TOTPHandler.HandleEnable)
-			r.Post("/2fa/disable", s.TOTPHandler.HandleDisable)
-			r.Get("/2fa/recovery-codes", s.TOTPHandler.HandleRegenerateRecoveryCodes)
 		})
 
 		// Protected routes — JWT required
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.JWTAuth(s.TokenService))
 			r.Use(middleware.ConsentCheck(s.DB))
+
+			// 2FA management (requires authenticated user)
+			r.Route("/auth/2fa", func(r chi.Router) {
+				r.Get("/setup", s.TOTPHandler.HandleSetup)
+				r.Post("/enable", s.TOTPHandler.HandleEnable)
+				r.Post("/disable", s.TOTPHandler.HandleDisable)
+				r.Get("/recovery-codes", s.TOTPHandler.HandleRegenerateRecoveryCodes)
+			})
 
 			// Users
 			r.Route("/users", func(r chi.Router) {
