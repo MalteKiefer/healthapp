@@ -202,14 +202,6 @@ func registerTestUser(t *testing.T, env *testEnv, email string) string {
 		recoveryCodes[i] = fmt.Sprintf("recovery-code-%d", i)
 	}
 
-	// Hash the recovery codes (the API expects hashes)
-	recoveryHashes := make([]string, 10)
-	for i, code := range recoveryCodes {
-		h, err := crypto.HashArgon2id(code)
-		require.NoError(t, err)
-		recoveryHashes[i] = h
-	}
-
 	// Hash the password client-side to simulate auth_hash
 	authHash, err := crypto.HashArgon2id("test-password-123")
 	require.NoError(t, err)
@@ -222,7 +214,7 @@ func registerTestUser(t *testing.T, env *testEnv, email string) string {
 		"identity_privkey_enc": "test-identity-privkey-enc",
 		"signing_pubkey":     "test-signing-pubkey",
 		"signing_privkey_enc": "test-signing-privkey-enc",
-		"recovery_code_hashes": recoveryHashes,
+		"recovery_codes":     recoveryCodes,
 	})
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/register/complete", completeBody)
 	req.Header.Set("Content-Type", "application/json")

@@ -458,8 +458,7 @@ func (s *Server) setupRoutes() {
 				r.Delete("/schedules/{scheduleID}", s.ScheduledExportHandler.HandleDeleteSchedule)
 			})
 
-			// Emergency (public-ish, but still under v1)
-			r.Post("/emergency/request/{token}", s.EmergencyHandler.HandleRequestEmergencyAccess)
+			// Emergency management (requires auth)
 			r.Get("/emergency/pending", s.EmergencyHandler.HandleGetPendingRequests)
 			r.Post("/emergency/approve/{requestID}", s.EmergencyHandler.HandleApproveRequest)
 			r.Post("/emergency/deny/{requestID}", s.EmergencyHandler.HandleDenyRequest)
@@ -506,6 +505,9 @@ func (s *Server) setupRoutes() {
 
 	// ICS calendar feed — no auth header, token-based
 	s.Router.Get("/cal/{token}.ics", s.CalendarHandler.HandleICSFeed)
+
+	// Emergency access request — no auth, token-based
+	s.Router.Post("/api/v1/emergency/request/{token}", s.EmergencyHandler.HandleRequestEmergencyAccess)
 
 	// Temporary doctor share data endpoint — no auth, fragment-based key
 	s.Router.Get("/api/v1/share/{shareID}", s.DoctorShareHandler.HandleGetShare)

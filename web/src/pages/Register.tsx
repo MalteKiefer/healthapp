@@ -11,7 +11,6 @@ import {
   exportPublicKey,
   exportPrivateKeyEncrypted,
   generateRecoveryCodes,
-  bytesToBase64,
 } from '../crypto';
 import { useAuthStore } from '../store/auth';
 
@@ -111,15 +110,8 @@ export function Register() {
       const signingPubkey = await exportPublicKey(signingKeyPair.publicKey);
       const signingPrivkeyEnc = await exportPrivateKeyEncrypted(signingKeyPair.privateKey, pekKey);
 
-      // Step 5: Generate recovery codes and hash them
+      // Step 5: Generate recovery codes (server will hash with Argon2id)
       const codes = generateRecoveryCodes(10);
-      const encoder = new TextEncoder();
-      const codeHashes: string[] = [];
-      for (const code of codes) {
-        const raw = code.replace(/-/g, '');
-        const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(raw));
-        codeHashes.push(bytesToBase64(new Uint8Array(hashBuffer)));
-      }
 
       // Step 6: Complete registration
       await api.post<RegisterCompleteResponse>('/api/v1/auth/register/complete', {
@@ -130,7 +122,7 @@ export function Register() {
         identity_privkey_enc: identityPrivkeyEnc,
         signing_pubkey: signingPubkey,
         signing_privkey_enc: signingPrivkeyEnc,
-        recovery_code_hashes: codeHashes,
+        recovery_codes: codes,
       });
 
       // Show recovery codes

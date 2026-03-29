@@ -57,12 +57,38 @@ type emergencyAccessRequest struct {
 // ── Handlers ────────────────────────────────────────────────────────
 
 // HandleGetEmergencyCard returns the emergency card data for a profile.
-// This endpoint is token-based and does not require JWT authentication.
 // GET /profiles/{profileID}/emergency-card
 func (h *EmergencyHandler) HandleGetEmergencyCard(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
 	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
+		return
+	}
+
+	// Verify the authenticated user owns or has been granted access to this profile
+	var hasAccess bool
+	err = h.db.QueryRow(r.Context(),
+		`SELECT EXISTS (
+			SELECT 1 FROM profiles WHERE id = $1 AND owner_user_id = $2
+			UNION ALL
+			SELECT 1 FROM profile_key_grants
+			WHERE profile_id = $1 AND grantee_user_id = $2 AND revoked_at IS NULL
+		)`,
+		profileID, claims.UserID,
+	).Scan(&hasAccess)
+	if err != nil {
+		h.logger.Error("check profile access", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if !hasAccess {
+		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
 		return
 	}
 

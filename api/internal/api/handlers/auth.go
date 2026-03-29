@@ -85,7 +85,7 @@ type registerCompleteRequest struct {
 	IdentityPrivkeyEnc string   `json:"identity_privkey_enc"`
 	SigningPubkey      string   `json:"signing_pubkey"`
 	SigningPrivkeyEnc  string   `json:"signing_privkey_enc"`
-	RecoveryCodeHashes []string `json:"recovery_code_hashes"`
+	RecoveryCodes []string `json:"recovery_codes"`
 	InviteToken        string   `json:"invite_token"`
 }
 
@@ -220,7 +220,7 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if len(req.RecoveryCodeHashes) != 10 {
+	if len(req.RecoveryCodes) != 10 {
 		writeJSON(w, http.StatusBadRequest, errorResponse("exactly_10_recovery_codes_required"))
 		return
 	}
@@ -299,8 +299,18 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	// Store recovery code hashes
-	if err := h.userRepo.StoreRecoveryCodes(r.Context(), u.ID, req.RecoveryCodeHashes); err != nil {
+	// Hash recovery codes with Argon2id before storing (matches HandleRecovery's VerifyArgon2id)
+	hashedCodes := make([]string, 0, len(req.RecoveryCodes))
+	for _, code := range req.RecoveryCodes {
+		codeHash, err := crypto.HashArgon2id(code)
+		if err != nil {
+			h.logger.Error("hash recovery code", zap.Error(err))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+		hashedCodes = append(hashedCodes, codeHash)
+	}
+	if err := h.userRepo.StoreRecoveryCodes(r.Context(), u.ID, hashedCodes); err != nil {
 		h.logger.Error("store recovery codes", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
@@ -414,18 +424,15 @@ func (h *AuthHandler) HandleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify challenge token from Redis — this proves the password was already
-	// checked in HandleLogin for this specific user.
-	redisKey := "2fa_challenge:" + req.ChallengeToken
-	userIDStr, err := h.rdb.Get(r.Context(), redisKey).Result()
+	// Atomically fetch and delete the challenge token from Redis — this proves
+	// the password was already checked in HandleLogin for this specific user
+	// and guarantees single-use (no TOCTOU race between Get and Del).
+	userIDStr, err := h.rdb.GetDel(r.Context(), "2fa_challenge:"+req.ChallengeToken).Result()
 	if err != nil {
 		// Token not found or expired
 		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_or_expired_challenge"))
 		return
 	}
-
-	// Delete the challenge token immediately so it cannot be reused.
-	h.rdb.Del(r.Context(), redisKey)
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {

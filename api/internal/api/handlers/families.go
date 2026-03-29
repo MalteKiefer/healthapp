@@ -363,6 +363,20 @@ func (h *FamilyHandler) HandleRemoveMember(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	members, err := h.familyRepo.GetMemberships(r.Context(), familyID)
+	if err != nil {
+		h.logger.Error("get memberships for removal check", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	for _, m := range members {
+		if m.UserID == memberID && m.Role == "owner" {
+			writeJSON(w, http.StatusBadRequest, errorResponse("cannot_remove_owner"))
+			return
+		}
+	}
+
 	if err := h.familyRepo.RemoveMember(r.Context(), familyID, memberID); err != nil {
 		h.logger.Error("remove member", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
