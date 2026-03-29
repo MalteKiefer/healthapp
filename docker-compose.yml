@@ -102,7 +102,7 @@ services:
       - HEALTHVAULT_DB_USER=${DB_USER:-healthvault}
       - HEALTHVAULT_DB_PASSWORD=${DB_PASSWORD}
       - HEALTHVAULT_DB_READONLY_USER=healthvault_readonly
-      - HEALTHVAULT_DB_READONLY_PASSWORD=${DB_READONLY_PASSWORD:-readonly_change_me}
+      - HEALTHVAULT_DB_READONLY_PASSWORD=${DB_READONLY_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./deploy/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro,z
@@ -155,6 +155,7 @@ services:
       - BACKUP_INTERVAL=${BACKUP_INTERVAL:-86400}
     volumes:
       - backup-data:/backups
+      - uploads:/data/uploads:ro
     networks:
       - internal
     depends_on:

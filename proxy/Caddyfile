@@ -22,7 +22,7 @@
     # Security headers
     header {
         Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
-        Content-Security-Policy "default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+        Content-Security-Policy "default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests"
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
         Referrer-Policy "strict-origin-when-cross-origin"
@@ -34,11 +34,6 @@
     handle /cal/* {
         header -Content-Security-Policy
         header -X-Frame-Options
-        reverse_proxy api:8080
-    }
-
-    # Doctor share data endpoint — API
-    handle /share/* {
         reverse_proxy api:8080
     }
 
