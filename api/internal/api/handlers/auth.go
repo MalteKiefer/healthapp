@@ -1,13 +1,19 @@
 package handlers
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pquerna/otp/totp"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
 	"github.com/healthvault/healthvault/internal/crypto"
@@ -19,23 +25,51 @@ import (
 type AuthHandler struct {
 	userRepo     user.Repository
 	tokenService *crypto.TokenService
+	db           *pgxpool.Pool
+	rdb          *redis.Client
 	logger       *zap.Logger
 	defaultQuota int64
+	totpEncKey   []byte // 32-byte AES-256 key for decrypting TOTP secrets during 2FA login
 }
 
-func NewAuthHandler(repo user.Repository, ts *crypto.TokenService, logger *zap.Logger, defaultQuotaMB int) *AuthHandler {
+func NewAuthHandler(repo user.Repository, ts *crypto.TokenService, db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, defaultQuotaMB int, totpEncKey []byte) *AuthHandler {
 	return &AuthHandler{
 		userRepo:     repo,
 		tokenService: ts,
+		db:           db,
+		rdb:          rdb,
 		logger:       logger,
 		defaultQuota: int64(defaultQuotaMB) * 1024 * 1024,
+		totpEncKey:   totpEncKey,
+	}
+}
+
+// writeAuditLog inserts an audit log entry. Errors are logged but never block
+// the calling request.
+func (h *AuthHandler) writeAuditLog(ctx context.Context, r *http.Request, userID uuid.UUID, action, resource string, resourceID *uuid.UUID, metadata map[string]interface{}) {
+	var metaJSON []byte
+	if metadata != nil {
+		var err error
+		metaJSON, err = json.Marshal(metadata)
+		if err != nil {
+			h.logger.Error("marshal audit metadata", zap.Error(err))
+		}
+	}
+	_, err := h.db.Exec(ctx,
+		`INSERT INTO audit_log (user_id, action, resource, resource_id, ip_address, user_agent, metadata)
+		 VALUES ($1, $2, $3, $4, $5::inet, $6, $7)`,
+		userID, action, resource, resourceID, r.RemoteAddr, r.UserAgent(), metaJSON,
+	)
+	if err != nil {
+		h.logger.Error("write audit log", zap.String("action", action), zap.Error(err))
 	}
 }
 
 // ── Request/Response Types ──────────────────────────────────────────
 
 type registerInitRequest struct {
-	Email string `json:"email"`
+	Email       string `json:"email"`
+	InviteToken string `json:"invite_token"`
 }
 
 type registerInitResponse struct {
@@ -44,14 +78,15 @@ type registerInitResponse struct {
 }
 
 type registerCompleteRequest struct {
-	Email             string `json:"email"`
-	DisplayName       string `json:"display_name"`
-	AuthHash          string `json:"auth_hash"`
-	IdentityPubkey    string `json:"identity_pubkey"`
-	IdentityPrivkeyEnc string `json:"identity_privkey_enc"`
-	SigningPubkey      string `json:"signing_pubkey"`
-	SigningPrivkeyEnc  string `json:"signing_privkey_enc"`
+	Email              string   `json:"email"`
+	DisplayName        string   `json:"display_name"`
+	AuthHash           string   `json:"auth_hash"`
+	IdentityPubkey     string   `json:"identity_pubkey"`
+	IdentityPrivkeyEnc string   `json:"identity_privkey_enc"`
+	SigningPubkey      string   `json:"signing_pubkey"`
+	SigningPrivkeyEnc  string   `json:"signing_privkey_enc"`
 	RecoveryCodeHashes []string `json:"recovery_code_hashes"`
+	InviteToken        string   `json:"invite_token"`
 }
 
 type loginRequest struct {
@@ -60,20 +95,22 @@ type loginRequest struct {
 }
 
 type loginResponse struct {
-	AccessToken        string  `json:"access_token"`
-	RefreshToken       string  `json:"refresh_token"`
-	ExpiresAt          int64   `json:"expires_at"`
-	UserID             string  `json:"user_id"`
-	Role               string  `json:"role"`
-	RequiresTOTP       bool    `json:"requires_totp"`
-	PEKSalt            string  `json:"pek_salt"`
-	IdentityPrivkeyEnc string  `json:"identity_privkey_enc"`
-	SigningPrivkeyEnc  string  `json:"signing_privkey_enc"`
+	AccessToken        string `json:"access_token"`
+	RefreshToken       string `json:"refresh_token"`
+	ExpiresAt          int64  `json:"expires_at"`
+	UserID             string `json:"user_id"`
+	Role               string `json:"role"`
+	RequiresTOTP       bool   `json:"requires_totp"`
+	PEKSalt            string `json:"pek_salt"`
+	ChallengeToken     string `json:"challenge_token,omitempty"`
+	IdentityPrivkeyEnc string `json:"identity_privkey_enc"`
+	SigningPrivkeyEnc  string `json:"signing_privkey_enc"`
 }
 
 type login2FARequest struct {
-	UserID string `json:"user_id"`
-	Code   string `json:"code"`
+	UserID         string `json:"user_id"`
+	Code           string `json:"code"`
+	ChallengeToken string `json:"challenge_token"`
 }
 
 type refreshRequest struct {
@@ -82,8 +119,28 @@ type refreshRequest struct {
 
 // ── Handlers ────────────────────────────────────────────────────────
 
+// registrationMode reads the registration mode from DB first (admin-configurable
+// without restart), then falls back to the REGISTRATION_MODE env var, defaulting
+// to "invite_only".
+func (h *AuthHandler) registrationMode(ctx context.Context) string {
+	if dbMode := h.getSetting(ctx, "registration_mode", ""); dbMode != "" {
+		return dbMode
+	}
+	if envMode := os.Getenv("REGISTRATION_MODE"); envMode != "" {
+		return envMode
+	}
+	return "invite_only"
+}
+
 // HandleRegisterInit handles Step 1: generates salts for the client.
 func (h *AuthHandler) HandleRegisterInit(w http.ResponseWriter, r *http.Request) {
+	// Enforce registration mode early so clients get a clear error.
+	mode := h.registrationMode(r.Context())
+	if mode == "closed" {
+		writeJSON(w, http.StatusForbidden, errorResponse("registration_closed"))
+		return
+	}
+
 	var req registerInitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
@@ -93,6 +150,28 @@ func (h *AuthHandler) HandleRegisterInit(w http.ResponseWriter, r *http.Request)
 	if req.Email == "" {
 		writeJSON(w, http.StatusBadRequest, errorResponse("email_required"))
 		return
+	}
+
+	// When invite_only, require a valid invite token up front.
+	if mode == "invite_only" {
+		if req.InviteToken == "" {
+			writeJSON(w, http.StatusForbidden, errorResponse("invite_token_required"))
+			return
+		}
+		var inviteEmail *string
+		err := h.db.QueryRow(r.Context(),
+			`SELECT email FROM registration_invites WHERE token = $1 AND used_at IS NULL`,
+			req.InviteToken,
+		).Scan(&inviteEmail)
+		if err != nil {
+			writeJSON(w, http.StatusForbidden, errorResponse("invalid_invite_token"))
+			return
+		}
+		// If the invite is scoped to an email, verify it matches.
+		if inviteEmail != nil && *inviteEmail != "" && *inviteEmail != req.Email {
+			writeJSON(w, http.StatusForbidden, errorResponse("invite_email_mismatch"))
+			return
+		}
 	}
 
 	// Check if email already exists
@@ -122,6 +201,12 @@ func (h *AuthHandler) HandleRegisterInit(w http.ResponseWriter, r *http.Request)
 
 // HandleRegisterComplete handles Step 2: creates the user account.
 func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Request) {
+	mode := h.registrationMode(r.Context())
+	if mode == "closed" {
+		writeJSON(w, http.StatusForbidden, errorResponse("registration_closed"))
+		return
+	}
+
 	var req registerCompleteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
@@ -138,6 +223,28 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 	if len(req.RecoveryCodeHashes) != 10 {
 		writeJSON(w, http.StatusBadRequest, errorResponse("exactly_10_recovery_codes_required"))
 		return
+	}
+
+	// When invite_only, re-validate the invite token (it could have been used
+	// between the init and complete steps).
+	if mode == "invite_only" {
+		if req.InviteToken == "" {
+			writeJSON(w, http.StatusForbidden, errorResponse("invite_token_required"))
+			return
+		}
+		var inviteEmail *string
+		err := h.db.QueryRow(r.Context(),
+			`SELECT email FROM registration_invites WHERE token = $1 AND used_at IS NULL`,
+			req.InviteToken,
+		).Scan(&inviteEmail)
+		if err != nil {
+			writeJSON(w, http.StatusForbidden, errorResponse("invalid_invite_token"))
+			return
+		}
+		if inviteEmail != nil && *inviteEmail != "" && *inviteEmail != req.Email {
+			writeJSON(w, http.StatusForbidden, errorResponse("invite_email_mismatch"))
+			return
+		}
 	}
 
 	// Hash the auth_hash again server-side for storage
@@ -181,6 +288,17 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Mark the invite as used now that the user has been created.
+	if mode == "invite_only" && req.InviteToken != "" {
+		if _, err := h.db.Exec(r.Context(),
+			`UPDATE registration_invites SET used_at = NOW(), used_by = $1 WHERE token = $2 AND used_at IS NULL`,
+			u.ID, req.InviteToken,
+		); err != nil {
+			h.logger.Error("mark invite used", zap.Error(err))
+			// Non-fatal: user was already created. Log and continue.
+		}
+	}
+
 	// Store recovery code hashes
 	if err := h.userRepo.StoreRecoveryCodes(r.Context(), u.ID, req.RecoveryCodeHashes); err != nil {
 		h.logger.Error("store recovery codes", zap.Error(err))
@@ -207,6 +325,10 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 	}); err != nil {
 		h.logger.Error("init preferences", zap.Error(err))
 	}
+
+	h.writeAuditLog(r.Context(), r, u.ID, "auth.register", "user", &u.ID, map[string]interface{}{
+		"email": u.Email,
+	})
 
 	writeJSON(w, http.StatusCreated, map[string]string{
 		"id":    u.ID.String(),
@@ -245,12 +367,30 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If 2FA enabled, return partial response requiring TOTP
+	// If 2FA enabled, generate a short-lived challenge token that binds the
+	// password verification step to the upcoming TOTP step. This prevents an
+	// attacker from calling /auth/login/2fa directly with a stolen user_id.
 	if u.TOTPEnabled {
+		challengeBytes := make([]byte, 32)
+		if _, err := rand.Read(challengeBytes); err != nil {
+			h.logger.Error("generate 2fa challenge token", zap.Error(err))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+		challengeToken := hex.EncodeToString(challengeBytes)
+
+		// Store in Redis: key = "2fa_challenge:{token}", value = userID, TTL = 5 min
+		if err := h.rdb.Set(r.Context(), "2fa_challenge:"+challengeToken, u.ID.String(), 5*time.Minute).Err(); err != nil {
+			h.logger.Error("store 2fa challenge token", zap.Error(err))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+
 		writeJSON(w, http.StatusOK, loginResponse{
-			UserID:       u.ID.String(),
-			RequiresTOTP: true,
-			PEKSalt:      u.PEKSalt,
+			UserID:         u.ID.String(),
+			RequiresTOTP:   true,
+			PEKSalt:        u.PEKSalt,
+			ChallengeToken: challengeToken,
 		})
 		return
 	}
@@ -259,6 +399,9 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleLogin2FA verifies TOTP code after password is confirmed.
+// The caller must provide the challenge_token that was returned by HandleLogin;
+// this token is single-use and expires after 5 minutes, binding the 2FA step
+// to a prior successful password verification.
 func (h *AuthHandler) HandleLogin2FA(w http.ResponseWriter, r *http.Request) {
 	var req login2FARequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -266,9 +409,27 @@ func (h *AuthHandler) HandleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := uuid.Parse(req.UserID)
+	if req.ChallengeToken == "" {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("challenge_token_required"))
+		return
+	}
+
+	// Verify challenge token from Redis — this proves the password was already
+	// checked in HandleLogin for this specific user.
+	redisKey := "2fa_challenge:" + req.ChallengeToken
+	userIDStr, err := h.rdb.Get(r.Context(), redisKey).Result()
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_user_id"))
+		// Token not found or expired
+		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_or_expired_challenge"))
+		return
+	}
+
+	// Delete the challenge token immediately so it cannot be reused.
+	h.rdb.Del(r.Context(), redisKey)
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_credentials"))
 		return
 	}
 
@@ -283,7 +444,14 @@ func (h *AuthHandler) HandleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valid := totp.Validate(req.Code, *u.TOTPSecretEnc)
+	secret, err := crypto.DecryptAESGCM(*u.TOTPSecretEnc, h.totpEncKey)
+	if err != nil {
+		h.logger.Error("decrypt totp secret for 2fa login", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	valid := totp.Validate(req.Code, secret)
 	if !valid {
 		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_totp_code"))
 		return
@@ -311,13 +479,25 @@ func (h *AuthHandler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verify user still exists and is active
+	u, err := h.userRepo.GetByID(r.Context(), claims.UserID)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("user_not_found"))
+		return
+	}
+
+	if u.IsDisabled {
+		writeJSON(w, http.StatusForbidden, errorResponse("account_disabled"))
+		return
+	}
+
 	// Deny old refresh token
 	if err := h.tokenService.DenyToken(r.Context(), claims.ID, time.Until(claims.ExpiresAt.Time)); err != nil {
 		h.logger.Error("deny old refresh token", zap.Error(err))
 	}
 
-	// Generate new pair
-	pair, err := h.tokenService.GenerateTokenPair(claims.UserID, claims.Role)
+	// Generate new pair using current role from database
+	pair, err := h.tokenService.GenerateTokenPair(u.ID, u.Role)
 	if err != nil {
 		h.logger.Error("generate token pair", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
@@ -419,6 +599,44 @@ func (h *AuthHandler) HandleRecovery(w http.ResponseWriter, r *http.Request) {
 	h.completeLogin(w, r, u)
 }
 
+// HandleGetPolicy returns the public password policy so login/register pages
+// can enforce the same minimum passphrase length configured by the admin.
+// GET /auth/policy  (no JWT required)
+func (h *AuthHandler) HandleGetPolicy(w http.ResponseWriter, r *http.Request) {
+	var minLen int
+	err := h.db.QueryRow(r.Context(),
+		`SELECT COALESCE((SELECT value FROM instance_settings WHERE key = 'min_passphrase_length'), '12')::int`,
+	).Scan(&minLen)
+	if err != nil {
+		minLen = 12
+	}
+
+	// Read password requirements
+	requireUpper := h.getSetting(r.Context(), "require_uppercase", "false")
+	requireLower := h.getSetting(r.Context(), "require_lowercase", "false")
+	requireNumbers := h.getSetting(r.Context(), "require_numbers", "false")
+	requireSymbols := h.getSetting(r.Context(), "require_symbols", "false")
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"min_passphrase_length": minLen,
+		"require_uppercase":     requireUpper == "true",
+		"require_lowercase":     requireLower == "true",
+		"require_numbers":       requireNumbers == "true",
+		"require_symbols":       requireSymbols == "true",
+		"registration_mode":     h.registrationMode(r.Context()),
+	})
+}
+
+// getSetting reads a single value from instance_settings, returning defaultVal on error.
+func (h *AuthHandler) getSetting(ctx context.Context, key, defaultVal string) string {
+	var val string
+	err := h.db.QueryRow(ctx, `SELECT value FROM instance_settings WHERE key = $1`, key).Scan(&val)
+	if err != nil {
+		return defaultVal
+	}
+	return val
+}
+
 func (h *AuthHandler) completeLogin(w http.ResponseWriter, r *http.Request, u *user.User) {
 	pair, err := h.tokenService.GenerateTokenPair(u.ID, u.Role)
 	if err != nil {
@@ -438,6 +656,10 @@ func (h *AuthHandler) completeLogin(w http.ResponseWriter, r *http.Request, u *u
 	if err := h.userRepo.CreateSession(r.Context(), session); err != nil {
 		h.logger.Error("create session", zap.Error(err))
 	}
+
+	h.writeAuditLog(r.Context(), r, u.ID, "auth.login", "session", nil, map[string]interface{}{
+		"email": u.Email,
+	})
 
 	writeJSON(w, http.StatusOK, loginResponse{
 		AccessToken:        pair.AccessToken,

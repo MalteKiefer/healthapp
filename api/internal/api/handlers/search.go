@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -45,6 +46,18 @@ var searchableTypes = []searchableType{
 	{typeName: "vaccinations", table: "vaccinations", nameColumn: "name", extraColumn: "manufacturer"},
 	{typeName: "contacts", table: "emergency_contacts", nameColumn: "name", extraColumn: "relationship"},
 	{typeName: "diary", table: "diary_entries", nameColumn: "title", extraColumn: ""},
+}
+
+// sanitizeTsqueryWord removes tsquery-special characters to prevent parsing errors.
+// Only allows alphanumeric, hyphens, and dots.
+func sanitizeTsqueryWord(word string) string {
+	var buf strings.Builder
+	for _, r := range word {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '.' {
+			buf.WriteRune(r)
+		}
+	}
+	return buf.String()
 }
 
 // HandleSearch performs a global full-text and fuzzy search across health data types.
@@ -168,11 +181,19 @@ func (h *SearchHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	profileInClause := strings.Join(profilePlaceholders, ", ")
 
 	// Prepare tsquery from search term
-	// Split words and join with & for AND matching
+	// Split words, sanitize, and join with & for AND matching
 	words := strings.Fields(q)
-	tsqueryParts := make([]string, len(words))
-	for i, w := range words {
-		tsqueryParts[i] = w + ":*"
+	tsqueryParts := make([]string, 0, len(words))
+	for _, w := range words {
+		sanitized := sanitizeTsqueryWord(w)
+		if sanitized != "" {
+			tsqueryParts = append(tsqueryParts, sanitized+":*")
+		}
+	}
+	if len(tsqueryParts) == 0 {
+		// No valid search terms after sanitization
+		writeJSON(w, http.StatusOK, map[string]interface{}{"results": map[string]interface{}{}})
+		return
 	}
 	tsquery := strings.Join(tsqueryParts, " & ")
 

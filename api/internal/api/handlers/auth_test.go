@@ -81,7 +81,8 @@ func setupTestEnv(t *testing.T) *testEnv {
 
 	// ── Router ──────────────────────────────────────────────────────
 	userRepo := postgres.NewUserRepo(db)
-	authHandler := handlers.NewAuthHandler(userRepo, ts, logger, 5120)
+	totpEncKey := ts.DeriveEncryptionKey()
+	authHandler := handlers.NewAuthHandler(userRepo, ts, db, rdb, logger, 5120, totpEncKey)
 
 	r := chi.NewRouter()
 	r.Post("/api/v1/auth/register", authHandler.HandleRegisterInit)

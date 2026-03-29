@@ -73,7 +73,11 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	diagRepo := postgres.NewDiagnosisRepo(db)
 	docRepo := postgres.NewDocumentRepo(db)
 
-	authHandler := handlers.NewAuthHandler(userRepo, ts, logger, cfg.Instance.DefaultQuotaMB)
+	// Derive a 32-byte AES-256 encryption key from the JWT private key.
+	// This key is used to encrypt/decrypt TOTP secrets at rest.
+	totpEncKey := ts.DeriveEncryptionKey()
+
+	authHandler := handlers.NewAuthHandler(userRepo, ts, db, rdb, logger, cfg.Instance.DefaultQuotaMB, totpEncKey)
 	profileHandler := handlers.NewProfileHandler(profileRepo, logger)
 	vitalHandler := handlers.NewVitalHandler(vitalRepo, profileRepo, logger)
 	diaryHandler := handlers.NewDiaryHandler(diaryRepo, profileRepo, logger)
@@ -100,7 +104,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	notifHandler := handlers.NewNotificationHandler(notifRepo, logger)
 
 	familyRepo := postgres.NewFamilyRepo(db)
-	familyHandler := handlers.NewFamilyHandler(familyRepo, logger)
+	familyHandler := handlers.NewFamilyHandler(familyRepo, logger, db)
 
 	userHandler := handlers.NewUserHandler(userRepo, logger)
 	labRepo := postgres.NewLabRepo(db)
@@ -108,7 +112,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	emergencyHandler := handlers.NewEmergencyHandler(db, logger)
 	searchHandler := handlers.NewSearchHandler(db, logger)
 	adminHandler := handlers.NewAdminHandler(db, rdb, logger)
-	totpHandler := handlers.NewTOTPHandler(userRepo, logger)
+	totpHandler := handlers.NewTOTPHandler(userRepo, logger, totpEncKey)
 	exportHandler := handlers.NewExportHandler(db, logger)
 	thresholdHandler := handlers.NewThresholdHandler(db, profileRepo, logger)
 	inviteHandler := handlers.NewInviteHandler(db, logger)
@@ -210,6 +214,8 @@ func (s *Server) setupRoutes() {
 			r.Post("/refresh", s.AuthHandler.HandleRefresh)
 			r.Post("/logout", s.AuthHandler.HandleLogout)
 
+			r.Get("/policy", s.AuthHandler.HandleGetPolicy)
+
 			r.With(rl.Limit(middleware.RateLimitConfig{
 				Requests: 3, Window: time.Hour, BlockDuration: 2 * time.Hour,
 			})).Post("/recovery", s.AuthHandler.HandleRecovery)
@@ -285,11 +291,12 @@ func (s *Server) setupRoutes() {
 						r.Post("/", s.DocumentHandler.HandleCreate)
 						r.Post("/bulk", s.DocumentHandler.HandleBulkUpload)
 						r.Get("/search", s.DocumentHandler.HandleSearch)
-						r.Get("/{docID}", s.DocumentHandler.HandleGet)
-						r.Patch("/{docID}", s.DocumentHandler.HandleUpdate)
-						r.Delete("/{docID}", s.DocumentHandler.HandleDelete)
-						r.Post("/{docID}/ocr-index", s.DocumentHandler.HandleCreateOCRIndex)
-						r.Delete("/{docID}/ocr-index", s.DocumentHandler.HandleDeleteOCRIndex)
+						r.Get("/{documentID}", s.DocumentHandler.HandleGet)
+						r.Get("/{documentID}/download", s.DocumentHandler.HandleDownload)
+						r.Patch("/{documentID}", s.DocumentHandler.HandleUpdate)
+						r.Delete("/{documentID}", s.DocumentHandler.HandleDelete)
+						r.Post("/{documentID}/ocr-index", s.DocumentHandler.HandleCreateOCRIndex)
+						r.Delete("/{documentID}/ocr-index", s.DocumentHandler.HandleDeleteOCRIndex)
 					})
 
 					// Health Diary
@@ -307,12 +314,12 @@ func (s *Server) setupRoutes() {
 						r.Post("/", s.MedicationHandler.HandleCreate)
 						r.Get("/active", s.MedicationHandler.HandleActive)
 						r.Get("/adherence", s.MedicationHandler.HandleAdherence)
-						r.Patch("/{medID}", s.MedicationHandler.HandleUpdate)
-						r.Delete("/{medID}", s.MedicationHandler.HandleDelete)
-						r.Get("/{medID}/intake", s.MedicationHandler.HandleListIntake)
-						r.Post("/{medID}/intake", s.MedicationHandler.HandleCreateIntake)
-						r.Patch("/{medID}/intake/{intakeID}", s.MedicationHandler.HandleUpdateIntake)
-						r.Delete("/{medID}/intake/{intakeID}", s.MedicationHandler.HandleDeleteIntake)
+						r.Patch("/{medicationID}", s.MedicationHandler.HandleUpdate)
+						r.Delete("/{medicationID}", s.MedicationHandler.HandleDelete)
+						r.Get("/{medicationID}/intake", s.MedicationHandler.HandleListIntake)
+						r.Post("/{medicationID}/intake", s.MedicationHandler.HandleCreateIntake)
+						r.Patch("/{medicationID}/intake/{intakeID}", s.MedicationHandler.HandleUpdateIntake)
+						r.Delete("/{medicationID}/intake/{intakeID}", s.MedicationHandler.HandleDeleteIntake)
 					})
 
 					// Allergies
@@ -410,6 +417,7 @@ func (s *Server) setupRoutes() {
 				r.Route("/{familyID}", func(r chi.Router) {
 					r.Get("/", s.FamilyHandler.HandleGet)
 					r.Patch("/", s.FamilyHandler.HandleUpdate)
+					r.Get("/members", s.FamilyHandler.HandleGetMembers)
 					r.Post("/invite", s.FamilyHandler.HandleInvite)
 					r.Post("/accept", s.FamilyHandler.HandleAcceptInvite)
 					r.Delete("/members/{memberID}", s.FamilyHandler.HandleRemoveMember)
@@ -499,8 +507,8 @@ func (s *Server) setupRoutes() {
 	// ICS calendar feed — no auth header, token-based
 	s.Router.Get("/cal/{token}.ics", s.CalendarHandler.HandleICSFeed)
 
-	// Temporary doctor share — no auth, fragment-based key
-	s.Router.Get("/share/{shareID}", s.DoctorShareHandler.HandleGetShare)
+	// Temporary doctor share data endpoint — no auth, fragment-based key
+	s.Router.Get("/api/v1/share/{shareID}", s.DoctorShareHandler.HandleGetShare)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

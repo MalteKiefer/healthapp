@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
@@ -192,6 +193,15 @@ func (ts *TokenService) IsTokenDenied(ctx context.Context, jti string) (bool, er
 		return false, err
 	}
 	return result > 0, nil
+}
+
+// DeriveEncryptionKey returns a deterministic 32-byte AES-256 key derived from
+// the JWT RSA private key using SHA-256. This is used to encrypt TOTP secrets
+// at rest without introducing an additional secret.
+func (ts *TokenService) DeriveEncryptionKey() []byte {
+	privBytes := x509.MarshalPKCS1PrivateKey(ts.privateKey)
+	sum := sha256.Sum256(privBytes)
+	return sum[:]
 }
 
 func generateJTI() (string, error) {

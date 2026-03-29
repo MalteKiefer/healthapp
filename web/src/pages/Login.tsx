@@ -13,6 +13,7 @@ interface LoginResponse {
   role?: string;
   requires_totp?: boolean;
   pek_salt?: string;
+  challenge_token?: string;
   identity_privkey_enc?: string;
   signing_privkey_enc?: string;
 }
@@ -27,6 +28,7 @@ export function Login() {
   const [totpCode, setTotpCode] = useState('');
   const [needs2FA, setNeeds2FA] = useState(false);
   const [userId, setUserId] = useState('');
+  const [challengeToken, setChallengeToken] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -49,6 +51,7 @@ export function Login() {
       if (res.requires_totp) {
         setNeeds2FA(true);
         setUserId(res.user_id);
+        setChallengeToken(res.challenge_token || '');
         // Store pek_salt for after 2FA verification
         if (res.pek_salt) localStorage.setItem('_pek_salt_tmp', res.pek_salt);
         setLoading(false);
@@ -83,6 +86,7 @@ export function Login() {
       const res = await api.post<LoginResponse>('/api/v1/auth/login/2fa', {
         user_id: userId,
         code: totpCode,
+        challenge_token: challengeToken,
       });
 
       if (res.access_token && res.refresh_token) {

@@ -6,6 +6,8 @@ interface RequestOptions {
   headers?: Record<string, string>;
 }
 
+let refreshPromise: Promise<boolean> | null = null;
+
 class ApiError extends Error {
   status: number;
   code: string;
@@ -40,14 +42,26 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   });
 
   if (res.status === 401) {
-    // Try refresh
-    const refreshed = await tryRefresh();
-    if (refreshed) {
-      return request<T>(path, options);
+    // Don't try to refresh tokens for auth endpoints - 401 there means bad credentials
+    const isAuthEndpoint = path.includes('/auth/login') || path.includes('/auth/register') || path.includes('/auth/recovery');
+
+    if (!isAuthEndpoint) {
+      if (!refreshPromise) {
+        refreshPromise = tryRefresh().finally(() => {
+          refreshPromise = null;
+        });
+      }
+
+      const refreshed = await refreshPromise;
+      if (refreshed) {
+        return request<T>(path, options);
+      }
+
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      window.location.href = '/login';
     }
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    window.location.href = '/login';
+
     throw new ApiError(401, 'unauthorized');
   }
 

@@ -48,8 +48,8 @@ func (rl *RateLimiter) Limit(cfg RateLimitConfig) func(next http.Handler) http.H
 			// Sliding window counter
 			allowed, remaining, err := rl.checkLimit(ctx, key, cfg)
 			if err != nil {
-				// On Redis error, allow the request (fail open)
-				next.ServeHTTP(w, r)
+				// On Redis error, deny the request (fail closed) to prevent brute-force
+				writeJSONError(w, http.StatusServiceUnavailable, "service_temporarily_unavailable")
 				return
 			}
 

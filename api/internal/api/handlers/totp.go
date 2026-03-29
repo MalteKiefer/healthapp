@@ -17,10 +17,11 @@ import (
 type TOTPHandler struct {
 	userRepo user.Repository
 	logger   *zap.Logger
+	encKey   []byte // 32-byte AES-256 key for encrypting TOTP secrets at rest
 }
 
-func NewTOTPHandler(repo user.Repository, logger *zap.Logger) *TOTPHandler {
-	return &TOTPHandler{userRepo: repo, logger: logger}
+func NewTOTPHandler(repo user.Repository, logger *zap.Logger, encKey []byte) *TOTPHandler {
+	return &TOTPHandler{userRepo: repo, logger: logger, encKey: encKey}
 }
 
 // ── Request/Response Types ──────────────────────────────────────────
@@ -68,9 +69,15 @@ func (h *TOTPHandler) HandleSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Store the secret temporarily on the user record (encrypted field) but do not enable yet.
+	// Encrypt the TOTP secret with AES-256-GCM before storing.
 	secret := key.Secret()
-	u.TOTPSecretEnc = &secret
+	encryptedSecret, err := crypto.EncryptAESGCM(secret, h.encKey)
+	if err != nil {
+		h.logger.Error("encrypt totp secret", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	u.TOTPSecretEnc = &encryptedSecret
 	if err := h.userRepo.Update(r.Context(), u); err != nil {
 		h.logger.Error("store totp secret", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
@@ -115,7 +122,14 @@ func (h *TOTPHandler) HandleEnable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valid := totp.Validate(req.Code, *u.TOTPSecretEnc)
+	secret, err := crypto.DecryptAESGCM(*u.TOTPSecretEnc, h.encKey)
+	if err != nil {
+		h.logger.Error("decrypt totp secret for enable", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	valid := totp.Validate(req.Code, secret)
 	if !valid {
 		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_totp_code"))
 		return
@@ -163,7 +177,14 @@ func (h *TOTPHandler) HandleDisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valid := totp.Validate(req.Code, *u.TOTPSecretEnc)
+	secret, err := crypto.DecryptAESGCM(*u.TOTPSecretEnc, h.encKey)
+	if err != nil {
+		h.logger.Error("decrypt totp secret for disable", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	valid := totp.Validate(req.Code, secret)
 	if !valid {
 		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_totp_code"))
 		return
