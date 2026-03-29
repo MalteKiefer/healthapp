@@ -158,7 +158,7 @@ func (h *InviteHandler) HandleCreateInvite(w http.ResponseWriter, r *http.Reques
 	}
 
 	h.logger.Info("invite token created",
-		zap.String("token", token),
+		zap.String("token_prefix", token[:8]+"..."),
 		zap.String("created_by", claims.UserID.String()),
 	)
 
@@ -204,7 +204,7 @@ func (h *InviteHandler) HandleDeleteInvite(w http.ResponseWriter, r *http.Reques
 	}
 
 	h.logger.Info("invite token deleted",
-		zap.String("token", token),
+		zap.String("token_prefix", token[:8]+"..."),
 		zap.String("deleted_by", claims.UserID.String()),
 	)
 
