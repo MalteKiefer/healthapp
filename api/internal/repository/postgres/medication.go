@@ -210,7 +210,7 @@ func (r *MedicationRepo) CreateIntake(ctx context.Context, intake *medications.M
 	intake.CreatedAt = time.Now().UTC()
 
 	query := `
-		INSERT INTO medication_intakes (
+		INSERT INTO medication_intake (
 			id, medication_id, profile_id, scheduled_at, taken_at,
 			dose_taken, skipped_reason, notes, created_at
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`
@@ -230,7 +230,7 @@ func (r *MedicationRepo) GetIntakeByID(ctx context.Context, id uuid.UUID) (*medi
 	query := `
 		SELECT id, medication_id, profile_id, scheduled_at, taken_at,
 			dose_taken, skipped_reason, notes, created_at
-		FROM medication_intakes WHERE id = $1`
+		FROM medication_intake WHERE id = $1`
 
 	var intake medications.MedicationIntake
 	err := r.db.QueryRow(ctx, query, id).Scan(
@@ -249,7 +249,7 @@ func (r *MedicationRepo) GetIntakeByID(ctx context.Context, id uuid.UUID) (*medi
 
 func (r *MedicationRepo) UpdateIntake(ctx context.Context, intake *medications.MedicationIntake) error {
 	query := `
-		UPDATE medication_intakes SET
+		UPDATE medication_intake SET
 			scheduled_at = $2, taken_at = $3, dose_taken = $4,
 			skipped_reason = $5, notes = $6
 		WHERE id = $1`
@@ -268,7 +268,7 @@ func (r *MedicationRepo) UpdateIntake(ctx context.Context, intake *medications.M
 }
 
 func (r *MedicationRepo) DeleteIntake(ctx context.Context, id uuid.UUID) error {
-	tag, err := r.db.Exec(ctx, "DELETE FROM medication_intakes WHERE id = $1", id)
+	tag, err := r.db.Exec(ctx, "DELETE FROM medication_intake WHERE id = $1", id)
 	if err != nil {
 		return fmt.Errorf("delete intake: %w", err)
 	}
@@ -281,7 +281,7 @@ func (r *MedicationRepo) DeleteIntake(ctx context.Context, id uuid.UUID) error {
 func (r *MedicationRepo) ListIntake(ctx context.Context, medicationID uuid.UUID, limit, offset int) ([]medications.MedicationIntake, int, error) {
 	var total int
 	if err := r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM medication_intakes WHERE medication_id = $1",
+		"SELECT COUNT(*) FROM medication_intake WHERE medication_id = $1",
 		medicationID,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count intakes: %w", err)
@@ -290,7 +290,7 @@ func (r *MedicationRepo) ListIntake(ctx context.Context, medicationID uuid.UUID,
 	query := `
 		SELECT id, medication_id, profile_id, scheduled_at, taken_at,
 			dose_taken, skipped_reason, notes, created_at
-		FROM medication_intakes WHERE medication_id = $1
+		FROM medication_intake WHERE medication_id = $1
 		ORDER BY created_at DESC`
 
 	args := []interface{}{medicationID}
@@ -334,7 +334,7 @@ func (r *MedicationRepo) GetAdherence(ctx context.Context, medicationID uuid.UUI
 			COUNT(*) AS total_scheduled,
 			COUNT(*) FILTER (WHERE taken_at IS NOT NULL) AS total_taken,
 			COUNT(*) FILTER (WHERE taken_at IS NULL AND skipped_reason IS NOT NULL) AS total_skipped
-		FROM medication_intakes
+		FROM medication_intake
 		WHERE medication_id = $1`
 
 	args := []interface{}{medicationID}

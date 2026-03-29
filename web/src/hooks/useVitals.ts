@@ -40,3 +40,14 @@ export function useDeleteVital(profileId: string) {
     },
   });
 }
+
+export function useUpdateVital(profileId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<Vital> & { id: string }) => vitalsApi.update(profileId, data.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vitals', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['vitals-chart', profileId] });
+    },
+  });
+}

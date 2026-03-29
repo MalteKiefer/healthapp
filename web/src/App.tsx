@@ -30,6 +30,9 @@ const NotFound = lazy(() => import('./pages/NotFound').then((m) => ({ default: m
 const Search = lazy(() => import('./pages/Search').then((m) => ({ default: m.Search })));
 const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })));
 const CalendarFeeds = lazy(() => import('./pages/CalendarFeeds').then((m) => ({ default: m.CalendarFeeds })));
+const Family = lazy(() => import('./pages/Family').then((m) => ({ default: m.Family })));
+const DoctorShares = lazy(() => import('./pages/DoctorShares').then((m) => ({ default: m.DoctorShares })));
+const EmergencyAccess = lazy(() => import('./pages/EmergencyAccess').then((m) => ({ default: m.EmergencyAccess })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -89,6 +92,9 @@ function App() {
                 <Route path="/search" element={<Search />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/calendar-feeds" element={<CalendarFeeds />} />
+                <Route path="/family" element={<Family />} />
+                <Route path="/shares" element={<DoctorShares />} />
+                <Route path="/emergency" element={<EmergencyAccess />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

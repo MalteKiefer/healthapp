@@ -23,6 +23,10 @@ export const documentsApi = {
     api.get<Document>(`/api/v1/profiles/${profileId}/documents/${id}`),
   delete: (profileId: string, id: string) =>
     api.delete(`/api/v1/profiles/${profileId}/documents/${id}`),
+  update: (profileId: string, id: string, data: Partial<Document>) =>
+    api.patch<Document>(`/api/v1/profiles/${profileId}/documents/${id}`, data),
+  downloadUrl: (profileId: string, id: string) =>
+    `/api/v1/profiles/${profileId}/documents/${id}/download`,
   // Upload handled separately with multipart form
   upload: async (profileId: string, file: File, category: string) => {
     const token = localStorage.getItem('access_token');
