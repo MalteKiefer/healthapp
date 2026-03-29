@@ -183,7 +183,9 @@
     "mark_taken": "Mark as taken",
     "taken": "Taken!", "skipped": "Skipped", "scheduled": "Scheduled",
     "intake_history": "Intake History", "no_intakes": "No intake records yet",
-    "details": "Details"
+    "details": "Details",
+    "adherence": "Adherence",
+    "adherence_rate": "{{rate}}% this week"
   },
   "appointments": {
     "title": "Appointments",
@@ -381,7 +383,10 @@
     "region_left_leg": "Left leg",
     "region_right_leg": "Right leg",
     "region_general": "General",
-    "edit": "Edit Symptom"
+    "edit": "Edit Symptom",
+    "chart_view": "Chart",
+    "list_view": "List",
+    "intensity_over_time": "Intensity Over Time"
   },
   "tasks": {
     "title": "Tasks",
@@ -499,7 +504,23 @@
     "notif_export_ready": "Export completed",
     "notif_family_invite": "Family invitations",
     "notif_session_new": "New login sessions",
-    "notif_storage_warning": "Storage quota warnings"
+    "notif_storage_warning": "Storage quota warnings",
+    "profile_management": "Profile Management",
+    "archive_profile": "Archive Profile",
+    "unarchive_profile": "Unarchive Profile",
+    "transfer_profile": "Transfer Ownership",
+    "transfer_confirm": "Transfer ownership of this profile? This cannot be undone.",
+    "archived": "Archived",
+    "profile_archived": "Profile archived",
+    "profile_unarchived": "Profile unarchived",
+    "transfer_user_id": "New owner User ID",
+    "transfer_success": "Profile ownership transferred",
+    "grant_access": "Grant Access",
+    "revoke_access": "Revoke Access",
+    "grantee_user_id": "User ID to grant access",
+    "grant_success": "Access granted",
+    "revoke_success": "Access revoked",
+    "no_profile_selected": "Select a profile to manage"
   },
   "confirm_delete": {
     "title": "Delete entry?",
@@ -594,7 +615,32 @@
     "require_symbols_desc": "At least one symbol (!@#$%...)",
     "registration_desc": "Control who can create accounts",
     "storage_desc": "Default quota for new user accounts",
-    "instance_desc": "System information and status"
+    "instance_desc": "System information and status",
+    "tab_webhooks": "Webhooks",
+    "webhook_url": "Webhook URL",
+    "webhook_events": "Events",
+    "webhook_secret": "Secret (optional)",
+    "webhook_active": "Active",
+    "create_webhook": "Create Webhook",
+    "test_webhook": "Test",
+    "webhook_logs": "Delivery Logs",
+    "no_webhooks": "No webhooks configured",
+    "webhook_tested": "Test sent",
+    "no_logs": "No delivery logs",
+    "tab_legal": "Legal",
+    "legal_documents": "Legal Documents",
+    "create_document": "Create Document",
+    "document_title": "Title",
+    "document_content": "Content",
+    "document_version": "Version",
+    "document_type": "Type",
+    "type_privacy": "Privacy Policy",
+    "type_terms": "Terms of Service",
+    "type_dpa": "Data Processing",
+    "consent_records": "Consent Records",
+    "no_legal_docs": "No legal documents",
+    "no_consent": "No consent records",
+    "consented_at": "Consented"
   },
   "ocr": {
     "scan_document": "Scan Document",

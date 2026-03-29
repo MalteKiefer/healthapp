@@ -58,9 +58,60 @@ interface AuditEntry {
   created_at: string;
 }
 
+interface WebhookInfo {
+  id: string;
+  url: string;
+  events: string[];
+  secret?: string;
+  active: boolean;
+  created_at: string;
+}
+
+interface WebhookLogEntry {
+  id: string;
+  webhook_id: string;
+  event: string;
+  status_code: number;
+  response_body?: string;
+  error?: string;
+  created_at: string;
+}
+
+interface LegalDocument {
+  id: string;
+  title: string;
+  content: string;
+  version: string;
+  type: string;
+  created_at: string;
+}
+
+interface ConsentRecord {
+  id: string;
+  user_id: string;
+  user_email?: string;
+  document_id: string;
+  document_title?: string;
+  document_version?: string;
+  consented_at: string;
+}
+
 /* ── Helpers ────────────────────────────────────────────── */
 
-type AdminTab = 'overview' | 'users' | 'invites' | 'backups' | 'audit' | 'settings';
+type AdminTab = 'overview' | 'users' | 'invites' | 'backups' | 'audit' | 'settings' | 'webhooks' | 'legal';
+
+const WEBHOOK_EVENTS = [
+  'user.created',
+  'user.updated',
+  'profile.created',
+  'vital.created',
+  'medication.created',
+  'appointment.created',
+  'lab.created',
+  'document.uploaded',
+  'share.created',
+  'backup.completed',
+];
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -176,7 +227,7 @@ export function Admin() {
   const [tab, setTab] = useState<AdminTab>('overview');
 
   /* ── Delete confirmation state ── */
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'user' | 'invite'; id: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'user' | 'invite' | 'webhook'; id: string } | null>(null);
 
   /* ── Queries ── */
   const isAdmin = role === 'admin';
@@ -346,15 +397,141 @@ export function Admin() {
     );
   }, [createInvite, inviteEmail, inviteNote]);
 
+  /* ── Webhooks ── */
+  const { data: webhooks } = useQuery({
+    queryKey: ['admin-webhooks'],
+    queryFn: () => api.get<{ items: WebhookInfo[] }>('/api/v1/admin/webhooks'),
+    enabled: isAdmin && tab === 'webhooks',
+  });
+
+  const createWebhook = useMutation({
+    mutationFn: (body: { url: string; events: string[]; secret?: string; active: boolean }) =>
+      api.post('/api/v1/admin/webhooks', body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-webhooks'] }),
+  });
+
+  const updateWebhook = useMutation({
+    mutationFn: ({ id, ...body }: { id: string; active: boolean }) =>
+      api.patch(`/api/v1/admin/webhooks/${id}`, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-webhooks'] }),
+  });
+
+  const deleteWebhook = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/admin/webhooks/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-webhooks'] }),
+  });
+
   /* ── Delete confirmation handler ── */
   const handleConfirmDelete = useCallback(() => {
     if (!deleteTarget) return;
     if (deleteTarget.type === 'user') {
       deleteUser.mutate(deleteTarget.id, { onSettled: () => setDeleteTarget(null) });
-    } else {
+    } else if (deleteTarget.type === 'invite') {
       deleteInvite.mutate(deleteTarget.id, { onSettled: () => setDeleteTarget(null) });
+    } else if (deleteTarget.type === 'webhook') {
+      deleteWebhook.mutate(deleteTarget.id, { onSettled: () => setDeleteTarget(null) });
     }
-  }, [deleteTarget, deleteUser, deleteInvite]);
+  }, [deleteTarget, deleteUser, deleteInvite, deleteWebhook]);
+
+  const testWebhook = useMutation({
+    mutationFn: (id: string) => api.post<{ success: boolean }>(`/api/v1/admin/webhooks/${id}/test`),
+  });
+
+  const [showWebhookForm, setShowWebhookForm] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [webhookEvents, setWebhookEvents] = useState<string[]>([]);
+  const [webhookSecret, setWebhookSecret] = useState('');
+  const [webhookActive, setWebhookActive] = useState(true);
+  const [testedWebhookId, setTestedWebhookId] = useState<string | null>(null);
+
+  const [logsWebhookId, setLogsWebhookId] = useState<string | null>(null);
+  const { data: webhookLogs } = useQuery({
+    queryKey: ['admin-webhook-logs', logsWebhookId],
+    queryFn: () => api.get<{ items: WebhookLogEntry[] }>(`/api/v1/admin/webhooks/${logsWebhookId}/logs`),
+    enabled: isAdmin && logsWebhookId !== null,
+  });
+
+  const handleCreateWebhook = useCallback(() => {
+    if (!webhookUrl.trim() || webhookEvents.length === 0) return;
+    createWebhook.mutate(
+      {
+        url: webhookUrl.trim(),
+        events: webhookEvents,
+        secret: webhookSecret.trim() || undefined,
+        active: webhookActive,
+      },
+      {
+        onSuccess: () => {
+          setWebhookUrl('');
+          setWebhookEvents([]);
+          setWebhookSecret('');
+          setWebhookActive(true);
+          setShowWebhookForm(false);
+        },
+      },
+    );
+  }, [createWebhook, webhookUrl, webhookEvents, webhookSecret, webhookActive]);
+
+  const handleTestWebhook = useCallback((id: string) => {
+    testWebhook.mutate(id, {
+      onSuccess: () => {
+        setTestedWebhookId(id);
+        setTimeout(() => setTestedWebhookId(null), 3000);
+      },
+    });
+  }, [testWebhook]);
+
+  const toggleWebhookEvent = useCallback((event: string) => {
+    setWebhookEvents((prev) =>
+      prev.includes(event) ? prev.filter((e) => e !== event) : [...prev, event],
+    );
+  }, []);
+
+  /* ── Legal documents & consent ── */
+  const { data: legalDocs } = useQuery({
+    queryKey: ['admin-legal-docs'],
+    queryFn: () => api.get<{ items: LegalDocument[] }>('/api/v1/admin/legal/documents'),
+    enabled: isAdmin && tab === 'legal',
+  });
+
+  const { data: consentRecords } = useQuery({
+    queryKey: ['admin-consent-records'],
+    queryFn: () => api.get<{ items: ConsentRecord[] }>('/api/v1/admin/legal/consent-records'),
+    enabled: isAdmin && tab === 'legal',
+  });
+
+  const createLegalDoc = useMutation({
+    mutationFn: (body: { title: string; content: string; version: string; type: string }) =>
+      api.post('/api/v1/admin/legal/documents', body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-legal-docs'] }),
+  });
+
+  const [showDocForm, setShowDocForm] = useState(false);
+  const [docTitle, setDocTitle] = useState('');
+  const [docContent, setDocContent] = useState('');
+  const [docVersion, setDocVersion] = useState('');
+  const [docType, setDocType] = useState('privacy_policy');
+
+  const handleCreateDoc = useCallback(() => {
+    if (!docTitle.trim() || !docContent.trim() || !docVersion.trim()) return;
+    createLegalDoc.mutate(
+      {
+        title: docTitle.trim(),
+        content: docContent.trim(),
+        version: docVersion.trim(),
+        type: docType,
+      },
+      {
+        onSuccess: () => {
+          setDocTitle('');
+          setDocContent('');
+          setDocVersion('');
+          setDocType('privacy_policy');
+          setShowDocForm(false);
+        },
+      },
+    );
+  }, [createLegalDoc, docTitle, docContent, docVersion, docType]);
 
   /* ── Access guard ── */
   if (!isAdmin) {
@@ -381,6 +558,8 @@ export function Admin() {
     { key: 'invites', label: t('admin.tab_invites') },
     { key: 'backups', label: t('admin.tab_backups') },
     { key: 'audit', label: t('admin.tab_audit') },
+    { key: 'webhooks', label: t('admin.tab_webhooks') },
+    { key: 'legal', label: t('admin.tab_legal') },
     { key: 'settings', label: t('admin.tab_settings') },
   ];
 
@@ -814,6 +993,188 @@ export function Admin() {
         </div>
       )}
 
+      {/* Webhooks */}
+      {tab === 'webhooks' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+              {t('admin.tab_webhooks')}
+            </h3>
+            <button
+              className="btn btn-add"
+              onClick={() => setShowWebhookForm((v) => !v)}
+            >
+              <IconPlus /> {t('admin.create_webhook')}
+            </button>
+          </div>
+
+          {/* Create webhook form */}
+          {showWebhookForm && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label>{t('admin.webhook_url')}</label>
+                <input
+                  type="url"
+                  className="form-input"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://example.com/webhook"
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label>{t('admin.webhook_events')}</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                  {WEBHOOK_EVENTS.map((event) => (
+                    <label key={event} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={webhookEvents.includes(event)}
+                        onChange={() => toggleWebhookEvent(event)}
+                      />
+                      {event}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label>{t('admin.webhook_secret')}</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={webhookSecret}
+                  onChange={(e) => setWebhookSecret(e.target.value)}
+                  placeholder="whsec_..."
+                />
+              </div>
+              <div className="toggle-switch" style={{ marginBottom: 12 }}>
+                <div>
+                  <div className="toggle-switch-label">{t('admin.webhook_active')}</div>
+                </div>
+                <input type="checkbox" checked={webhookActive} onChange={(e) => setWebhookActive(e.target.checked)} />
+              </div>
+              <div className="form-actions">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowWebhookForm(false);
+                    setWebhookUrl('');
+                    setWebhookEvents([]);
+                    setWebhookSecret('');
+                    setWebhookActive(true);
+                  }}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  className="btn"
+                  onClick={handleCreateWebhook}
+                  disabled={createWebhook.isPending || !webhookUrl.trim() || webhookEvents.length === 0}
+                >
+                  {createWebhook.isPending ? t('common.loading') : t('admin.create_webhook')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Webhook list */}
+          {webhooks?.items && webhooks.items.length > 0 ? (
+            <div className="admin-user-list">
+              {webhooks.items.map((wh) => (
+                <div key={wh.id} className="card" style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 500, wordBreak: 'break-all', fontSize: 14 }}>{wh.url}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                        {wh.events.map((ev) => (
+                          <span key={ev} className="badge badge-scheduled" style={{ fontSize: 11 }}>{ev}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <span className={`badge ${wh.active ? 'badge-active' : 'badge-inactive'}`} style={{ marginLeft: 12, flexShrink: 0 }}>
+                      {wh.active ? t('common.active') : t('common.inactive')}
+                    </span>
+                  </div>
+                  <div className="admin-user-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      className="btn-sm"
+                      onClick={() => updateWebhook.mutate({ id: wh.id, active: !wh.active })}
+                      disabled={updateWebhook.isPending}
+                    >
+                      {wh.active ? t('admin.disable') : t('admin.enable')}
+                    </button>
+                    <button
+                      className="btn-sm"
+                      onClick={() => handleTestWebhook(wh.id)}
+                      disabled={testWebhook.isPending}
+                    >
+                      {testedWebhookId === wh.id ? (
+                        <><IconCheck /> {t('admin.webhook_tested')}</>
+                      ) : (
+                        t('admin.test_webhook')
+                      )}
+                    </button>
+                    <button
+                      className="btn-sm"
+                      onClick={() => setLogsWebhookId(logsWebhookId === wh.id ? null : wh.id)}
+                    >
+                      {t('admin.webhook_logs')}
+                    </button>
+                    <button
+                      className="btn-sm"
+                      style={{ color: 'var(--color-danger)' }}
+                      onClick={() => setDeleteTarget({ type: 'webhook', id: wh.id })}
+                    >
+                      {t('common.delete')}
+                    </button>
+                  </div>
+
+                  {/* Delivery logs inline */}
+                  {logsWebhookId === wh.id && (
+                    <div style={{ marginTop: 12, padding: 12, background: 'var(--color-bg-subtle)', borderRadius: 8 }}>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: 14 }}>{t('admin.webhook_logs')}</h4>
+                      {webhookLogs?.items && webhookLogs.items.length > 0 ? (
+                        <div className="table-scroll" style={{ maxHeight: 300, overflowY: 'auto' }}>
+                          <table className="data-table">
+                            <thead>
+                              <tr>
+                                <th>{t('admin.timestamp')}</th>
+                                <th>{t('admin.webhook_events')}</th>
+                                <th>{t('common.status')}</th>
+                                <th>{t('admin.details')}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {webhookLogs.items.map((log) => (
+                                <tr key={log.id}>
+                                  <td title={fmt(log.created_at, 'PPp')}>{relative(log.created_at)}</td>
+                                  <td><code style={{ fontSize: 12 }}>{log.event}</code></td>
+                                  <td>
+                                    <span className={`badge ${log.status_code >= 200 && log.status_code < 300 ? 'badge-active' : 'badge-missed'}`}>
+                                      {log.status_code}
+                                    </span>
+                                  </td>
+                                  <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {log.error || log.response_body || '\u2014'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-muted" style={{ margin: 0 }}>{t('admin.no_logs')}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="card"><p className="text-muted">{t('admin.no_webhooks')}</p></div>
+          )}
+        </div>
+      )}
+
       {/* Settings */}
       {tab === 'settings' && (
         <div>
@@ -974,22 +1335,179 @@ export function Admin() {
         </div>
       )}
 
+      {/* Legal */}
+      {tab === 'legal' && (
+        <div>
+          {/* Legal Documents */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                <IconShield /> {t('admin.legal_documents')}
+              </h3>
+              <button
+                className="btn btn-add"
+                onClick={() => setShowDocForm((v) => !v)}
+              >
+                <IconPlus /> {t('admin.create_document')}
+              </button>
+            </div>
+
+            {/* Create document form */}
+            {showDocForm && (
+              <div style={{ marginBottom: 16, padding: 12, background: 'var(--color-bg-subtle)', borderRadius: 8 }}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('admin.document_title')}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={docTitle}
+                      onChange={(e) => setDocTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('admin.document_version')}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={docVersion}
+                      onChange={(e) => setDocVersion(e.target.value)}
+                      placeholder="1.0"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('admin.document_type')}</label>
+                    <select
+                      className="form-input"
+                      value={docType}
+                      onChange={(e) => setDocType(e.target.value)}
+                    >
+                      <option value="privacy_policy">{t('admin.type_privacy')}</option>
+                      <option value="terms_of_service">{t('admin.type_terms')}</option>
+                      <option value="data_processing">{t('admin.type_dpa')}</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-group" style={{ marginTop: 8 }}>
+                  <label>{t('admin.document_content')}</label>
+                  <textarea
+                    className="form-input"
+                    rows={6}
+                    value={docContent}
+                    onChange={(e) => setDocContent(e.target.value)}
+                    style={{ resize: 'vertical' }}
+                  />
+                </div>
+                <div className="form-actions" style={{ marginTop: 8 }}>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowDocForm(false);
+                      setDocTitle('');
+                      setDocContent('');
+                      setDocVersion('');
+                      setDocType('privacy_policy');
+                    }}
+                  >
+                    {t('common.cancel')}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={handleCreateDoc}
+                    disabled={createLegalDoc.isPending}
+                  >
+                    {createLegalDoc.isPending ? t('common.loading') : t('admin.create_document')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {legalDocs?.items && legalDocs.items.length > 0 ? (
+              <div className="admin-user-list">
+                {legalDocs.items.map((doc) => (
+                  <div key={doc.id} className="card" style={{ padding: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <div>
+                        <strong>{doc.title}</strong>
+                        <span className="dash-meta" style={{ marginLeft: 8 }}>v{doc.version}</span>
+                      </div>
+                      <span className={`badge ${doc.type === 'privacy_policy' ? 'badge-active' : doc.type === 'terms_of_service' ? 'badge-scheduled' : 'badge-info'}`}>
+                        {doc.type === 'privacy_policy'
+                          ? t('admin.type_privacy')
+                          : doc.type === 'terms_of_service'
+                            ? t('admin.type_terms')
+                            : t('admin.type_dpa')}
+                      </span>
+                    </div>
+                    <p className="text-muted" style={{ fontSize: 13, margin: '4px 0', whiteSpace: 'pre-wrap', overflow: 'hidden', maxHeight: 60, textOverflow: 'ellipsis' }}>
+                      {doc.content.length > 200 ? doc.content.slice(0, 200) + '\u2026' : doc.content}
+                    </p>
+                    <div className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
+                      {fmt(doc.created_at, 'PPp')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted">{t('admin.no_legal_docs')}</p>
+            )}
+          </div>
+
+          {/* Consent Records */}
+          <div className="card">
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconClipboard /> {t('admin.consent_records')}
+            </h3>
+            {consentRecords?.items && consentRecords.items.length > 0 ? (
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>{t('admin.user')}</th>
+                      <th>{t('admin.document_title')}</th>
+                      <th>{t('admin.document_version')}</th>
+                      <th>{t('admin.consented_at')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {consentRecords.items.map((cr) => (
+                      <tr key={cr.id}>
+                        <td>{cr.user_email || cr.user_id.slice(0, 8)}</td>
+                        <td>{cr.document_title || cr.document_id.slice(0, 8)}</td>
+                        <td>{cr.document_version || '\u2014'}</td>
+                        <td title={fmt(cr.consented_at, 'PPp')}>{relative(cr.consented_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-muted">{t('admin.no_consent')}</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Confirm delete modal */}
       <ConfirmDelete
         open={deleteTarget !== null}
         title={
           deleteTarget?.type === 'user'
             ? t('admin.delete_user_title')
-            : t('admin.delete_invite_title')
+            : deleteTarget?.type === 'webhook'
+              ? t('confirm_delete.title')
+              : t('admin.delete_invite_title')
         }
         message={
           deleteTarget?.type === 'user'
             ? t('admin.delete_user_message')
-            : t('admin.delete_invite_message')
+            : deleteTarget?.type === 'webhook'
+              ? t('confirm_delete.message')
+              : t('admin.delete_invite_message')
         }
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
-        pending={deleteUser.isPending || deleteInvite.isPending}
+        pending={deleteUser.isPending || deleteInvite.isPending || deleteWebhook.isPending}
       />
     </div>
   );

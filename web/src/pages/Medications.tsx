@@ -55,6 +55,11 @@ export function Medications() {
     enabled: !!profileId && !!selectedMed,
   });
   const intakes = intakeData?.items || [];
+  const { data: adherenceData } = useQuery({
+    queryKey: ['med-adherence', profileId],
+    queryFn: () => api.get<{ rate?: number }>(`/api/v1/profiles/${profileId}/medications/adherence`),
+    enabled: !!profileId && !selectedMed,
+  });
 
   // Mutations
   const createMutation = useMutation({
@@ -83,6 +88,11 @@ export function Medications() {
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Medication> & { id: string }) => medicationsApi.update(profileId, data.id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['medications', profileId] }); setEditTarget(null); editReset(); },
+  });
+  const [deleteIntakeTarget, setDeleteIntakeTarget] = useState<string | null>(null);
+  const deleteIntakeMutation = useMutation({
+    mutationFn: (intakeId: string) => api.delete(`/api/v1/profiles/${profileId}/medications/${selectedMed!.id}/intake/${intakeId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['med-intake'] }),
   });
 
   const { register, handleSubmit, reset } = useForm<Partial<Medication>>();
@@ -165,6 +175,7 @@ export function Medications() {
                     <th>{t('common.time')}</th>
                     <th>{t('common.status')}</th>
                     <th>{t('common.notes')}</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -187,6 +198,9 @@ export function Medications() {
                           )}
                         </td>
                         <td>{intake.notes || intake.skipped_reason || '—'}</td>
+                        <td>
+                          <button className="btn-icon-sm" onClick={() => setDeleteIntakeTarget(intake.id)} title={t('common.delete')}>×</button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -225,6 +239,7 @@ export function Medications() {
         {editTarget && renderEditModal()}
 
         <ConfirmDelete open={!!deleteTarget} onConfirm={() => { deleteMutation.mutate(deleteTarget!); setDeleteTarget(null); }} onCancel={() => setDeleteTarget(null)} pending={deleteMutation.isPending} />
+        <ConfirmDelete open={!!deleteIntakeTarget} onConfirm={() => { deleteIntakeMutation.mutate(deleteIntakeTarget!); setDeleteIntakeTarget(null); }} onCancel={() => setDeleteIntakeTarget(null)} pending={deleteIntakeMutation.isPending} />
       </div>
     );
   }
@@ -243,6 +258,13 @@ export function Medications() {
           <button className="btn btn-add" onClick={() => setShowForm(true)}>+ {t('common.add')}</button>
         </div>
       </div>
+
+      {adherenceData?.rate != null && (
+        <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="badge badge-active" style={{ fontSize: 13 }}>{t('medications.adherence')}</span>
+          <span>{t('medications.adherence_rate', { rate: Math.round(adherenceData.rate) })}</span>
+        </div>
+      )}
 
       <div className="card">
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (

@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend,
+} from 'recharts';
+import { format } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
 import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
@@ -23,6 +28,27 @@ interface SymptomRecord {
   notes?: string;
 }
 
+interface ChartDataPoint {
+  date: string;
+  [symptomType: string]: string | number;
+}
+
+type ViewTab = 'list' | 'chart';
+
+const SYMPTOM_COLORS: Record<string, string> = {
+  pain: '#ef4444',
+  headache: '#f97316',
+  nausea: '#eab308',
+  fatigue: '#84cc16',
+  dizziness: '#22c55e',
+  shortness_of_breath: '#14b8a6',
+  anxiety: '#06b6d4',
+  mood: '#3b82f6',
+  sleep_quality: '#8b5cf6',
+  appetite: '#d946ef',
+  custom: '#6b7280',
+};
+
 const SYMPTOM_TYPES = [
   'pain', 'headache', 'nausea', 'fatigue', 'dizziness',
   'shortness_of_breath', 'anxiety', 'mood', 'sleep_quality', 'appetite', 'custom',
@@ -42,6 +68,7 @@ export function Symptoms() {
   const { data: profilesData } = useProfiles();
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
+  const [viewTab, setViewTab] = useState<ViewTab>('list');
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<SymptomRecord | null>(null);
@@ -53,6 +80,29 @@ export function Symptoms() {
     queryFn: () => api.get<{ items: SymptomRecord[]; total: number }>(`/api/v1/profiles/${profileId}/symptoms`),
     enabled: !!profileId,
   });
+
+  const { data: chartRaw } = useQuery({
+    queryKey: ['symptoms-chart', profileId],
+    queryFn: () => api.get<{ points: Array<{ date: string; symptom_type: string; intensity: number }> }>(`/api/v1/profiles/${profileId}/symptoms/chart`),
+    enabled: !!profileId && viewTab === 'chart',
+  });
+
+  // Transform chart data: group by date, one key per symptom type
+  const chartData: ChartDataPoint[] = (() => {
+    if (!chartRaw?.points) return [];
+    const byDate = new Map<string, ChartDataPoint>();
+    for (const pt of chartRaw.points) {
+      const dateKey = format(new Date(pt.date), 'dd.MM');
+      if (!byDate.has(dateKey)) byDate.set(dateKey, { date: dateKey });
+      byDate.get(dateKey)![pt.symptom_type] = pt.intensity;
+    }
+    return Array.from(byDate.values());
+  })();
+
+  const chartSymptomTypes = (() => {
+    if (!chartRaw?.points) return [];
+    return [...new Set(chartRaw.points.map((p) => p.symptom_type))];
+  })();
 
   const createMutation = useMutation({
     mutationFn: (s: Partial<SymptomRecord>) => api.post(`/api/v1/profiles/${profileId}/symptoms`, s),
@@ -162,6 +212,57 @@ export function Symptoms() {
         </div>
       )}
 
+      {/* View Tabs */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="view-toolbar">
+          <div className="view-tabs">
+            <button className={`view-tab${viewTab === 'list' ? ' active' : ''}`} onClick={() => setViewTab('list')}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+              {t('symptoms.list_view')}
+            </button>
+            <button className={`view-tab${viewTab === 'chart' ? ' active' : ''}`} onClick={() => setViewTab('chart')}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              {t('symptoms.chart_view')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart View */}
+      {viewTab === 'chart' && (
+        <div className="card chart-card">
+          <h3 style={{ marginBottom: 16 }}>{t('symptoms.intensity_over_time')}</h3>
+          {chartData.length === 0 ? (
+            <div className="chart-empty">{t('common.no_data')}</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+                <XAxis dataKey="date" fontSize={12} stroke="var(--color-text-secondary)" />
+                <YAxis fontSize={12} stroke="var(--color-text-secondary)" domain={[0, 10]} width={40} />
+                <Tooltip />
+                <Legend />
+                {chartSymptomTypes.map((type) => (
+                  <Line
+                    key={type}
+                    type="monotone"
+                    dataKey={type}
+                    stroke={SYMPTOM_COLORS[type] || '#6b7280'}
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: SYMPTOM_COLORS[type] || '#6b7280', strokeWidth: 2, stroke: 'var(--color-surface)' }}
+                    activeDot={{ r: 6 }}
+                    name={t('symptoms.type_' + type)}
+                    connectNulls
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      )}
+
+      {/* List View */}
+      {viewTab === 'list' && (
       <div className="card">
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
           <div className="timeline">
@@ -197,6 +298,7 @@ export function Symptoms() {
           </div>
         )}
       </div>
+      )}
 
       {editTarget && (
         <div className="modal-overlay" onClick={() => setEditTarget(null)}>

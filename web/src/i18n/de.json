@@ -183,7 +183,9 @@
     "mark_taken": "Als eingenommen markieren",
     "taken": "Eingenommen!", "skipped": "Ausgelassen", "scheduled": "Geplant",
     "intake_history": "Einnahme-Verlauf", "no_intakes": "Noch keine Einnahmen erfasst",
-    "details": "Details"
+    "details": "Details",
+    "adherence": "Einnahmetreue",
+    "adherence_rate": "{{rate}}% diese Woche"
   },
   "appointments": {
     "title": "Termine",
@@ -381,7 +383,10 @@
     "region_left_leg": "Linkes Bein",
     "region_right_leg": "Rechtes Bein",
     "region_general": "Allgemein",
-    "edit": "Symptom bearbeiten"
+    "edit": "Symptom bearbeiten",
+    "chart_view": "Diagramm",
+    "list_view": "Liste",
+    "intensity_over_time": "Intensität im Zeitverlauf"
   },
   "tasks": {
     "title": "Aufgaben",
@@ -499,7 +504,23 @@
     "notif_export_ready": "Export abgeschlossen",
     "notif_family_invite": "Familieneinladungen",
     "notif_session_new": "Neue Anmeldesitzungen",
-    "notif_storage_warning": "Speicherkontingent-Warnungen"
+    "notif_storage_warning": "Speicherkontingent-Warnungen",
+    "profile_management": "Profilverwaltung",
+    "archive_profile": "Profil archivieren",
+    "unarchive_profile": "Profil wiederherstellen",
+    "transfer_profile": "Eigentum übertragen",
+    "transfer_confirm": "Eigentum an diesem Profil übertragen? Dies kann nicht rückgängig gemacht werden.",
+    "archived": "Archiviert",
+    "profile_archived": "Profil archiviert",
+    "profile_unarchived": "Profil wiederhergestellt",
+    "transfer_user_id": "Benutzer-ID des neuen Eigentümers",
+    "transfer_success": "Profileigentum übertragen",
+    "grant_access": "Zugriff gewähren",
+    "revoke_access": "Zugriff widerrufen",
+    "grantee_user_id": "Benutzer-ID für Zugriff",
+    "grant_success": "Zugriff gewährt",
+    "revoke_success": "Zugriff widerrufen",
+    "no_profile_selected": "Profil zur Verwaltung auswählen"
   },
   "confirm_delete": {
     "title": "Eintrag löschen?",
@@ -594,7 +615,32 @@
     "require_symbols_desc": "Mindestens ein Symbol (!@#$%...)",
     "registration_desc": "Kontrollieren, wer Konten erstellen kann",
     "storage_desc": "Standard-Kontingent f\u00fcr neue Benutzerkonten",
-    "instance_desc": "Systeminformationen und Status"
+    "instance_desc": "Systeminformationen und Status",
+    "tab_webhooks": "Webhooks",
+    "webhook_url": "Webhook-URL",
+    "webhook_events": "Ereignisse",
+    "webhook_secret": "Secret (optional)",
+    "webhook_active": "Aktiv",
+    "create_webhook": "Webhook erstellen",
+    "test_webhook": "Testen",
+    "webhook_logs": "Zustellungsprotokolle",
+    "no_webhooks": "Keine Webhooks konfiguriert",
+    "webhook_tested": "Test gesendet",
+    "no_logs": "Keine Zustellungsprotokolle",
+    "tab_legal": "Rechtliches",
+    "legal_documents": "Rechtliche Dokumente",
+    "create_document": "Dokument erstellen",
+    "document_title": "Titel",
+    "document_content": "Inhalt",
+    "document_version": "Version",
+    "document_type": "Typ",
+    "type_privacy": "Datenschutzrichtlinie",
+    "type_terms": "Nutzungsbedingungen",
+    "type_dpa": "Auftragsverarbeitung",
+    "consent_records": "Einwilligungen",
+    "no_legal_docs": "Keine rechtlichen Dokumente",
+    "no_consent": "Keine Einwilligungen",
+    "consented_at": "Eingewilligt"
   },
   "ocr": {
     "scan_document": "Dokument scannen",

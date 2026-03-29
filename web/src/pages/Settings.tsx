@@ -8,6 +8,8 @@ import { api } from '../api/client';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useUIStore } from '../store/ui';
 import { useAuthStore } from '../store/auth';
+import { useProfiles } from '../hooks/useProfiles';
+import type { Profile } from '../api/profiles';
 import { useDateFormat } from '../hooks/useDateLocale';
 import { deriveAuthHash, clearAllKeys } from '../crypto';
 
@@ -100,10 +102,71 @@ export function Settings() {
   const { t, i18n } = useTranslation();
   const { fmt, relative } = useDateFormat();
   const { theme, toggleTheme } = useUIStore();
-  const { email, logout } = useAuthStore();
+  const { email, userId, logout } = useAuthStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Profile management state
+  const { data: profilesData } = useProfiles();
+  const profiles: Profile[] = profilesData || [];
+  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
+  const [transferUserId, setTransferUserId] = useState('');
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [grantUserId, setGrantUserId] = useState('');
+  const [revokeUserId, setRevokeUserId] = useState('');
+  const [profileMsg, setProfileMsg] = useState('');
+
+  const selectedProfile = profiles.find((p) => p.id === selectedProfileId);
+  const isProfileOwner = selectedProfile?.owner_user_id === userId;
+
+  const archiveMutation = useMutation({
+    mutationFn: (profileId: string) => api.post(`/api/v1/profiles/${profileId}/archive`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      setProfileMsg(t('settings.profile_archived'));
+    },
+  });
+
+  const unarchiveMutation = useMutation({
+    mutationFn: (profileId: string) => api.post(`/api/v1/profiles/${profileId}/unarchive`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      setProfileMsg(t('settings.profile_unarchived'));
+    },
+  });
+
+  const transferMutation = useMutation({
+    mutationFn: ({ profileId, newOwnerUserId }: { profileId: string; newOwnerUserId: string }) =>
+      api.post(`/api/v1/profiles/${profileId}/transfer`, { new_owner_user_id: newOwnerUserId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      setShowTransferModal(false);
+      setTransferUserId('');
+      setProfileMsg(t('settings.transfer_success'));
+    },
+  });
+
+  const grantMutation = useMutation({
+    mutationFn: ({ profileId, granteeUserId }: { profileId: string; granteeUserId: string }) =>
+      api.post(`/api/v1/profiles/${profileId}/grants`, {
+        grantee_user_id: granteeUserId,
+        encrypted_key: 'placeholder',
+        grant_signature: 'placeholder',
+      }),
+    onSuccess: () => {
+      setGrantUserId('');
+      setProfileMsg(t('settings.grant_success'));
+    },
+  });
+
+  const revokeGrantMutation = useMutation({
+    mutationFn: ({ profileId, granteeUserId }: { profileId: string; granteeUserId: string }) =>
+      api.delete(`/api/v1/profiles/${profileId}/grants/${granteeUserId}`),
+    onSuccess: () => {
+      setProfileMsg(t('settings.revoke_success'));
+    },
+  });
 
   // Queries
   const { data: userInfo } = useQuery({
@@ -560,6 +623,114 @@ export function Settings() {
         ))}
       </div>
 
+      {/* ── Profile Management ── */}
+      <div className="card settings-section">
+        <h3>{t('settings.profile_management')}</h3>
+
+        <div className="form-group">
+          <select
+            value={selectedProfileId}
+            onChange={(e) => { setSelectedProfileId(e.target.value); setProfileMsg(''); }}
+          >
+            <option value="">{t('settings.no_profile_selected')}</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.display_name}{p.archived_at ? ` (${t('settings.archived')})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {profileMsg && (
+          <div className="alert alert-success" style={{ marginBottom: 12 }}>{profileMsg}</div>
+        )}
+
+        {selectedProfile && (
+          <>
+            {/* Archive / Unarchive */}
+            <div style={{ marginBottom: 16 }}>
+              {selectedProfile.archived_at ? (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => unarchiveMutation.mutate(selectedProfile.id)}
+                  disabled={unarchiveMutation.isPending}
+                >
+                  {unarchiveMutation.isPending ? t('common.loading') : t('settings.unarchive_profile')}
+                </button>
+              ) : (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => archiveMutation.mutate(selectedProfile.id)}
+                  disabled={archiveMutation.isPending}
+                >
+                  {archiveMutation.isPending ? t('common.loading') : t('settings.archive_profile')}
+                </button>
+              )}
+            </div>
+
+            {/* Transfer Ownership (owner only) */}
+            {isProfileOwner && (
+              <div style={{ marginBottom: 16 }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowTransferModal(true)}
+                >
+                  {t('settings.transfer_profile')}
+                </button>
+              </div>
+            )}
+
+            {/* Grant / Revoke Access (owner only) */}
+            {isProfileOwner && (
+              <div>
+                <h4 style={{ marginBottom: 8 }}>{t('settings.grant_access')}</h4>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12 }}>
+                  <div className="form-group" style={{ flex: 1, margin: 0 }}>
+                    <label>{t('settings.grantee_user_id')}</label>
+                    <input
+                      type="text"
+                      value={grantUserId}
+                      onChange={(e) => setGrantUserId(e.target.value)}
+                      placeholder="user-uuid"
+                      style={{ fontFamily: 'monospace', fontSize: 13 }}
+                    />
+                  </div>
+                  <button
+                    className="btn btn-add"
+                    onClick={() => grantMutation.mutate({ profileId: selectedProfile.id, granteeUserId: grantUserId })}
+                    disabled={!grantUserId.trim() || grantMutation.isPending}
+                  >
+                    {grantMutation.isPending ? t('common.loading') : t('settings.grant_access')}
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                  <div className="form-group" style={{ flex: 1, margin: 0 }}>
+                    <label>{t('settings.revoke_access')}</label>
+                    <input
+                      type="text"
+                      value={revokeUserId}
+                      onChange={(e) => setRevokeUserId(e.target.value)}
+                      placeholder="user-uuid"
+                      style={{ fontFamily: 'monospace', fontSize: 13 }}
+                    />
+                  </div>
+                  <button
+                    className="btn btn-danger"
+                    onClick={() => {
+                      revokeGrantMutation.mutate({ profileId: selectedProfile.id, granteeUserId: revokeUserId });
+                      setRevokeUserId('');
+                    }}
+                    disabled={!revokeUserId.trim() || revokeGrantMutation.isPending}
+                  >
+                    {revokeGrantMutation.isPending ? t('common.loading') : t('settings.revoke_access')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* ── Delete Account ── */}
       <div className="card settings-section" style={{ borderColor: 'var(--color-danger)' }}>
         <h3 style={{ color: 'var(--color-danger)' }}>{t('settings.delete_account')}</h3>
@@ -723,6 +894,46 @@ export function Settings() {
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={handleCopyRecoveryCodes}>{t('settings.copy_codes')}</button>
               <button className="btn btn-add" onClick={() => setShowRecoveryCodes(false)}>{t('common.close')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Ownership Modal */}
+      {showTransferModal && selectedProfile && (
+        <div className="modal-overlay" onClick={() => setShowTransferModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>{t('settings.transfer_profile')}</h3>
+              <button className="modal-close" onClick={() => setShowTransferModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="alert alert-warning" style={{ marginBottom: 16 }}>
+                {t('settings.transfer_confirm')}
+              </div>
+              <div className="form-group">
+                <label>{t('settings.transfer_user_id')}</label>
+                <input
+                  type="text"
+                  value={transferUserId}
+                  onChange={(e) => setTransferUserId(e.target.value)}
+                  placeholder="user-uuid"
+                  style={{ fontFamily: 'monospace', fontSize: 13 }}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowTransferModal(false)}>
+                {t('common.cancel')}
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={() => transferMutation.mutate({ profileId: selectedProfile.id, newOwnerUserId: transferUserId })}
+                disabled={!transferUserId.trim() || transferMutation.isPending}
+              >
+                {transferMutation.isPending ? t('common.loading') : t('settings.transfer_profile')}
+              </button>
             </div>
           </div>
         </div>
