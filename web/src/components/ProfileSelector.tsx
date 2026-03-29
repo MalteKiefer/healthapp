@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useProfiles } from '../hooks/useProfiles';
 
 interface Props {
@@ -6,9 +7,10 @@ interface Props {
 }
 
 export function ProfileSelector({ selectedId, onSelect }: Props) {
+  const { t } = useTranslation();
   const { data, isLoading } = useProfiles();
 
-  if (isLoading) return <select disabled><option>Loading...</option></select>;
+  if (isLoading) return <select disabled><option>{t('common.loading')}</option></select>;
 
   const profiles = data || [];
 
@@ -18,7 +20,7 @@ export function ProfileSelector({ selectedId, onSelect }: Props) {
       value={selectedId || ''}
       onChange={(e) => onSelect(e.target.value)}
     >
-      {profiles.length === 0 && <option value="">No profiles</option>}
+      {profiles.length === 0 && <option value="">{t('common.no_profiles')}</option>}
       {profiles.map((p) => (
         <option key={p.id} value={p.id}>
           {p.display_name}

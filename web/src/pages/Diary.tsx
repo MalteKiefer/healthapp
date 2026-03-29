@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -8,11 +8,11 @@ import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { diaryApi, EVENT_TYPES, type DiaryEvent } from '../api/diary';
 
-const EVENT_ICONS: Record<string, string> = {
-  accident: '🚑', illness: '🤒', surgery: '🏥', hospital_stay: '🛏',
-  emergency: '🚨', doctor_visit: '👨‍⚕', vaccination: '💉',
-  medication_change: '💊', symptom: '📋', other: '📝',
-};
+const TIMELINE_ICON = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+  </svg>
+);
 
 function severityColor(sev?: number): string {
   if (!sev) return '';
@@ -30,6 +30,7 @@ export function Diary() {
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<DiaryEvent | null>(null);
   const queryClient = useQueryClient();
 
   const profileId = selectedProfile || profiles[0]?.id || '';
@@ -49,12 +50,36 @@ export function Diary() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<DiaryEvent> }) =>
+      diaryApi.update(profileId, id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['diary', profileId] });
+      setEditTarget(null);
+      editReset();
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => diaryApi.delete(profileId, id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['diary', profileId] }),
   });
 
   const { register, handleSubmit, reset } = useForm<Partial<DiaryEvent>>();
+  const { register: editRegister, handleSubmit: editHandleSubmit, reset: editReset } = useForm<Partial<DiaryEvent>>();
+
+  useEffect(() => {
+    if (editTarget) {
+      editReset({
+        title: editTarget.title,
+        event_type: editTarget.event_type,
+        started_at: editTarget.started_at ? editTarget.started_at.slice(0, 16) : '',
+        severity: editTarget.severity,
+        description: editTarget.description,
+        location: editTarget.location,
+      });
+    }
+  }, [editTarget, editReset]);
   const items = data?.items || [];
 
   return (
@@ -70,55 +95,66 @@ export function Diary() {
       </div>
 
       {showForm && (
-        <div className="card form-card">
-          <h3>New Diary Entry</h3>
-          <form onSubmit={handleSubmit((data) => {
-            createMutation.mutate({
-              ...data,
-              started_at: data.started_at || new Date().toISOString(),
-            });
-          })}>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Title *</label>
-                <input type="text" {...register('title')} required />
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('diary.new_entry')}</h3>
+              <button className="btn-icon-sm" onClick={() => setShowForm(false)}>×</button>
+            </div>
+            <form id="diary-create-form" onSubmit={handleSubmit((data) => {
+              const cleaned: Record<string, unknown> = { ...data };
+              // Convert datetime-local to ISO and clean empty/NaN values
+              cleaned.started_at = data.started_at ? new Date(data.started_at).toISOString() : new Date().toISOString();
+              if (typeof cleaned.severity === 'number' && isNaN(cleaned.severity as number)) delete cleaned.severity;
+              if (cleaned.severity === '' || cleaned.severity === undefined) delete cleaned.severity;
+              if (!cleaned.description) delete cleaned.description;
+              if (!cleaned.location) delete cleaned.location;
+              createMutation.mutate(cleaned as Partial<DiaryEvent>);
+            })}>
+              <div className="modal-body">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('diary.title_label')} *</label>
+                    <input type="text" {...register('title')} required />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('diary.type_label')} *</label>
+                    <select {...register('event_type')} required>
+                      {EVENT_TYPES.map((et) => (
+                        <option key={et} value={et}>{t('diary.event_' + et)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('common.date')}</label>
+                    <input type="datetime-local" {...register('started_at')} />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('diary.severity')}</label>
+                    <input type="number" min="1" max="10" {...register('severity', { valueAsNumber: true })} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>{t('diary.description')}</label>
+                  <textarea rows={3} {...register('description')} />
+                </div>
+                <div className="form-group">
+                  <label>{t('diary.location')}</label>
+                  <input type="text" {...register('location')} />
+                </div>
               </div>
-              <div className="form-group">
-                <label>Type *</label>
-                <select {...register('event_type')} required>
-                  {EVENT_TYPES.map((t) => (
-                    <option key={t} value={t}>{EVENT_ICONS[t]} {t.replace(/_/g, ' ')}</option>
-                  ))}
-                </select>
+              <div className="modal-footer">
+                <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>
+                  {t('common.save')}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
+                  {t('common.cancel')}
+                </button>
               </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Date</label>
-                <input type="datetime-local" {...register('started_at')} />
-              </div>
-              <div className="form-group">
-                <label>Severity (1-10)</label>
-                <input type="number" min="1" max="10" {...register('severity', { valueAsNumber: true })} />
-              </div>
-            </div>
-            <div className="form-group">
-              <label>Description</label>
-              <textarea rows={3} {...register('description')} />
-            </div>
-            <div className="form-group">
-              <label>Location</label>
-              <input type="text" {...register('location')} />
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>
-                {t('common.save')}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
-                {t('common.cancel')}
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
 
@@ -132,9 +168,9 @@ export function Diary() {
             {items.map((event) => (
               <div key={event.id} className="timeline-item">
                 <div className="timeline-icon">
-                  {EVENT_ICONS[event.event_type] || '📝'}
+                  {TIMELINE_ICON}
                 </div>
-                <div className="timeline-content">
+                <div className="timeline-content" style={{ cursor: 'pointer' }} onClick={() => setEditTarget(event)}>
                   <div className="timeline-header">
                     <span className="timeline-title">{event.title}</span>
                     <span className="timeline-date">
@@ -145,11 +181,11 @@ export function Diary() {
                   </div>
                   <div className="timeline-meta">
                     <span className="badge badge-info">
-                      {event.event_type.replace(/_/g, ' ')}
+                      {t('diary.event_' + event.event_type)}
                     </span>
                     {event.severity && (
                       <span className={`badge ${severityColor(event.severity)}`}>
-                        Severity: {event.severity}/10
+                        {t('diary.severity_short')}: {event.severity}/10
                       </span>
                     )}
                   </div>
@@ -172,6 +208,59 @@ export function Diary() {
           </div>
         )}
       </div>
+
+      {editTarget && (
+        <div className="modal-overlay" onClick={() => setEditTarget(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('diary.edit')}</h3>
+              <button className="btn-icon-sm" onClick={() => setEditTarget(null)}>×</button>
+            </div>
+            <form onSubmit={editHandleSubmit((data) => updateMutation.mutate({ id: editTarget.id, data }))}>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>{t('diary.title_label')} *</label>
+                  <input type="text" {...editRegister('title')} required />
+                </div>
+                <div className="form-group">
+                  <label>{t('diary.type_label')} *</label>
+                  <select {...editRegister('event_type')} required>
+                    {EVENT_TYPES.map((et) => (
+                      <option key={et} value={et}>{t('diary.event_' + et)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>{t('common.date')}</label>
+                  <input type="datetime-local" {...editRegister('started_at')} />
+                </div>
+                <div className="form-group">
+                  <label>{t('diary.severity')}</label>
+                  <input type="number" min="1" max="10" {...editRegister('severity', { valueAsNumber: true })} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>{t('diary.description')}</label>
+                <textarea rows={3} {...editRegister('description')} />
+              </div>
+              <div className="form-group">
+                <label>{t('diary.location')}</label>
+                <input type="text" {...editRegister('location')} />
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="btn btn-add" disabled={updateMutation.isPending}>
+                  {t('common.save')}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setEditTarget(null)}>
+                  {t('common.cancel')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <ConfirmDelete
         open={!!deleteTarget}

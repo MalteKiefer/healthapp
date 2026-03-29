@@ -75,29 +75,36 @@ export function Tasks() {
           <ProfileSelector selectedId={profileId} onSelect={setSelectedProfile} />
           <label className="toggle-label">
             <input type="checkbox" checked={showOpen} onChange={(e) => setShowOpen(e.target.checked)} />
-            Open only
+            {t('tasks.open_only')}
           </label>
           <button className="btn btn-add" onClick={() => setShowForm(!showForm)}>+ {t('common.add')}</button>
         </div>
       </div>
 
       {showForm && (
-        <div className="card form-card">
-          <h3>{t('tasks.add')}</h3>
-          <form onSubmit={handleSubmit((data) => createMutation.mutate({ ...data, status: 'open' }))}>
-            <div className="form-row">
-              <div className="form-group"><label>{t('common.title')} *</label><input type="text" {...register('title')} required /></div>
-              <div className="form-group"><label>{t('common.due_date')}</label><input type="date" {...register('due_date')} /></div>
-              <div className="form-group"><label>{t('common.priority')}</label>
-                <select {...register('priority')}>{PRIORITIES.map((p) => <option key={p} value={p}>{t('tasks.priority_' + p)}</option>)}</select>
-              </div>
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('tasks.add')}</h3>
+              <button className="btn-icon-sm" onClick={() => setShowForm(false)}>&times;</button>
             </div>
-            <div className="form-group"><label>{t('common.notes')}</label><textarea rows={2} {...register('notes')} /></div>
-            <div className="form-actions">
-              <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
+            <div className="modal-body">
+              <form id="task-create-form" onSubmit={handleSubmit((data) => createMutation.mutate({ ...data, status: 'open' }))}>
+                <div className="form-row">
+                  <div className="form-group"><label>{t('common.title')} *</label><input type="text" {...register('title')} required /></div>
+                  <div className="form-group"><label>{t('common.due_date')}</label><input type="date" {...register('due_date')} /></div>
+                  <div className="form-group"><label>{t('common.priority')}</label>
+                    <select {...register('priority')}>{PRIORITIES.map((p) => <option key={p} value={p}>{t('tasks.priority_' + p)}</option>)}</select>
+                  </div>
+                </div>
+                <div className="form-group"><label>{t('common.notes')}</label><textarea rows={2} {...register('notes')} /></div>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button type="submit" form="task-create-form" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
               <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
@@ -127,7 +134,7 @@ export function Tasks() {
                       {task.due_date && (
                         <span className={overdue ? 'status-abnormal' : daysLeft !== null && daysLeft <= 7 ? 'status-borderline' : ''}>
                           {fmt(task.due_date, 'dd. MMM yyyy')}
-                          {overdue && ' (overdue)'}
+                          {overdue && ` ${t('tasks.overdue')}`}
                         </span>
                       )}
                     </div>

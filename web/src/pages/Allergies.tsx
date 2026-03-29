@@ -71,29 +71,36 @@ export function Allergies() {
       </div>
 
       {showForm && (
-        <div className="card form-card">
-          <h3>Add Allergy</h3>
-          <form onSubmit={handleSubmit((data) => createMutation.mutate({ ...data, status: 'active' }))}>
-            <div className="form-row">
-              <div className="form-group"><label>Allergen *</label><input type="text" {...register('name')} required placeholder="e.g. Penicillin, Peanuts" /></div>
-              <div className="form-group"><label>Category *</label>
-                <select {...register('category')} required>{CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}</select>
-              </div>
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('allergies.add_allergy')}</h3>
+              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
             </div>
-            <div className="form-row">
-              <div className="form-group"><label>Severity</label>
-                <select {...register('severity')}><option value="">Select...</option>{SEVERITIES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}</select>
-              </div>
-              <div className="form-group"><label>Reaction Type</label>
-                <select {...register('reaction_type')}><option value="">Select...</option>{REACTIONS.map((r) => <option key={r} value={r}>{r}</option>)}</select>
-              </div>
-              <div className="form-group"><label>Diagnosed By</label><input type="text" {...register('diagnosed_by')} /></div>
+            <div className="modal-body">
+              <form id="allergy-create-form" onSubmit={handleSubmit((data) => createMutation.mutate({ ...data, status: 'active' }))}>
+                <div className="form-row">
+                  <div className="form-group"><label>{t('allergies.allergen')} *</label><input type="text" {...register('name')} required placeholder={t('allergies.allergen_placeholder')} /></div>
+                  <div className="form-group"><label>{t('allergies.category_label')} *</label>
+                    <select {...register('category')} required>{CATEGORIES.map((c) => <option key={c} value={c}>{t('allergies.cat_' + c)}</option>)}</select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group"><label>{t('allergies.severity')}</label>
+                    <select {...register('severity')}><option value="">{t('common.select')}</option>{SEVERITIES.map((s) => <option key={s} value={s}>{t('allergies.sev_' + s)}</option>)}</select>
+                  </div>
+                  <div className="form-group"><label>{t('allergies.reaction_type')}</label>
+                    <select {...register('reaction_type')}><option value="">{t('common.select')}</option>{REACTIONS.map((r) => <option key={r} value={r}>{t('allergies.react_' + r)}</option>)}</select>
+                  </div>
+                  <div className="form-group"><label>{t('allergies.diagnosed_by')}</label><input type="text" {...register('diagnosed_by')} /></div>
+                </div>
+              </form>
             </div>
-            <div className="form-actions">
-              <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
+              <button type="submit" form="allergy-create-form" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
@@ -109,7 +116,7 @@ export function Allergies() {
                   </div>
                 </div>
                 <div className="med-actions">
-                  {a.severity && <span className={`badge ${SEVERITY_COLORS[a.severity] || ''}`}>{a.severity.replace(/_/g, ' ')}</span>}
+                  {a.severity && <span className={`badge ${SEVERITY_COLORS[a.severity] || ''}`}>{t('allergies.sev_' + a.severity)}</span>}
                   <span className={`badge ${a.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>{a.status}</span>
                   <button className="btn-icon-sm" onClick={() => setDeleteTarget(a.id)} title={t('common.delete')}>×</button>
                 </div>

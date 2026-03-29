@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { api } from '../api/client';
@@ -30,6 +31,7 @@ const TYPE_ICONS: Record<string, string> = {
 };
 
 export function NotificationBell() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -69,16 +71,16 @@ export function NotificationBell() {
       {open && (
         <div className="notif-dropdown">
           <div className="notif-header">
-            <span className="notif-title">Notifications</span>
+            <span className="notif-title">{t('notifications.title')}</span>
             {unreadCount > 0 && (
               <button className="notif-mark-all" onClick={() => markAllRead.mutate()}>
-                Mark all read
+                {t('notifications.mark_all_read')}
               </button>
             )}
           </div>
 
           {items.length === 0 ? (
-            <div className="notif-empty">No notifications</div>
+            <div className="notif-empty">{t('notifications.empty')}</div>
           ) : (
             <div className="notif-list">
               {items.map((n) => (

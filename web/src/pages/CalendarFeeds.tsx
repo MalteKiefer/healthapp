@@ -76,63 +76,70 @@ export function CalendarFeeds() {
   return (
     <div className="page">
       <div className="page-header">
-        <h2>Calendar Feeds</h2>
-        <button className="btn btn-add" onClick={() => setShowForm(!showForm)}>+ New Feed</button>
+        <h2>{t('nav.calendar_feeds')}</h2>
+        <button className="btn btn-add" onClick={() => setShowForm(!showForm)}>{t('calendar.new_feed')}</button>
       </div>
 
       {newFeedUrl && (
         <div className="card" style={{ borderLeft: '4px solid var(--color-success)', marginBottom: 16 }}>
-          <h3>Feed Created</h3>
-          <p style={{ fontSize: 13 }}>Copy this URL into your calendar app's "Subscribe to calendar" function:</p>
+          <h3>{t('calendar.feed_created')}</h3>
+          <p style={{ fontSize: 13 }}>{t('calendar.copy_url_hint')}</p>
           <div className="feed-url-box">
             <code className="feed-url">{newFeedUrl}</code>
-            <button className="btn-sm" onClick={() => { navigator.clipboard.writeText(newFeedUrl); }}>Copy</button>
+            <button className="btn-sm" onClick={() => { navigator.clipboard.writeText(newFeedUrl); }}>{t('common.copy')}</button>
           </div>
           <p className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
-            This URL is shown once. You can regenerate it later from feed settings.
+            {t('calendar.url_shown_once')}
           </p>
-          <button className="btn btn-secondary" onClick={() => setNewFeedUrl(null)} style={{ marginTop: 8 }}>Dismiss</button>
+          <button className="btn btn-secondary" onClick={() => setNewFeedUrl(null)} style={{ marginTop: 8 }}>{t('common.dismiss')}</button>
         </div>
       )}
 
       {showForm && (
-        <div className="card form-card">
-          <h3>Create Calendar Feed</h3>
-          <form onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
-            <div className="form-group">
-              <label>Feed Name *</label>
-              <input type="text" {...register('name')} required placeholder="e.g. Family Health Calendar" />
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('calendar.create_feed')}</h3>
+              <button className="btn-icon-sm" onClick={() => setShowForm(false)}>×</button>
             </div>
-            <div className="form-group">
-              <label>Include</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label className="toggle-label"><input type="checkbox" {...register('include_appointments')} /> Appointments</label>
-                <label className="toggle-label"><input type="checkbox" {...register('include_tasks')} /> Task due dates</label>
-                <label className="toggle-label"><input type="checkbox" {...register('include_vaccinations')} /> Vaccination reminders</label>
-                <label className="toggle-label"><input type="checkbox" {...register('include_medications')} /> Medication reminders</label>
+            <form id="feed-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>{t('calendar.feed_name')} *</label>
+                  <input type="text" {...register('name')} required placeholder={t('calendar.feed_name_placeholder')} />
+                </div>
+                <div className="form-group">
+                  <label>{t('calendar.include')}</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label className="toggle-label"><input type="checkbox" {...register('include_appointments')} /> {t('nav.appointments')}</label>
+                    <label className="toggle-label"><input type="checkbox" {...register('include_tasks')} /> {t('calendar.task_due_dates')}</label>
+                    <label className="toggle-label"><input type="checkbox" {...register('include_vaccinations')} /> {t('calendar.vaccination_reminders')}</label>
+                    <label className="toggle-label"><input type="checkbox" {...register('include_medications')} /> {t('calendar.medication_reminders')}</label>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="toggle-label">
+                    <input type="checkbox" {...register('verbose_mode')} />
+                    {t('calendar.verbose_titles')}
+                  </label>
+                  <p className="text-muted" style={{ fontSize: 11, marginTop: 4 }}>
+                    {t('calendar.verbose_warning')}
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="form-group">
-              <label className="toggle-label">
-                <input type="checkbox" {...register('verbose_mode')} />
-                Verbose titles (show actual names instead of "Medical Appointment")
-              </label>
-              <p className="text-muted" style={{ fontSize: 11, marginTop: 4 }}>
-                If enabled, appointment details and medication names will be visible to your calendar provider.
-              </p>
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
-            </div>
-          </form>
+              <div className="modal-footer">
+                <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
       <div className="card">
-        <h3>Active Feeds</h3>
+        <h3>{t('calendar.active_feeds')}</h3>
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? (
-          <p className="text-muted">No calendar feeds configured. Create one to subscribe in your calendar app.</p>
+          <p className="text-muted">{t('calendar.no_feeds')}</p>
         ) : (
           <div className="med-list">
             {items.map((feed) => (
@@ -149,11 +156,11 @@ export function CalendarFeeds() {
                     {feed.verbose_mode && ' · verbose'}
                   </div>
                   {feed.last_polled_at && (
-                    <div className="med-meta">Last polled: {fmt(feed.last_polled_at, 'dd. MMM, HH:mm')}</div>
+                    <div className="med-meta">{t('calendar.last_polled')}: {fmt(feed.last_polled_at, 'dd. MMM, HH:mm')}</div>
                   )}
                 </div>
                 <div className="med-actions">
-                  <button className="btn-sm" onClick={() => setDeleteTarget(feed.id)}>Delete</button>
+                  <button className="btn-sm" onClick={() => setDeleteTarget(feed.id)}>{t('common.delete')}</button>
                 </div>
               </div>
             ))}

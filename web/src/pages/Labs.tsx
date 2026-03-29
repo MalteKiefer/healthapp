@@ -43,6 +43,7 @@ export function Labs() {
   const [showForm, setShowForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<LabResult | null>(null);
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -66,6 +67,16 @@ export function Labs() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['labs', profileId] }),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (data: Partial<LabResult> & { id: string }) =>
+      api.patch(`/api/v1/profiles/${profileId}/labs/${data.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['labs', profileId] });
+      setEditTarget(null);
+      editReset();
+    },
+  });
+
   const { register, handleSubmit, reset, control } = useForm<{
     lab_name: string;
     ordered_by: string;
@@ -76,6 +87,32 @@ export function Labs() {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'values' });
+
+  const {
+    register: editRegister,
+    handleSubmit: editHandleSubmit,
+    reset: editReset,
+    control: editControl,
+  } = useForm<{
+    lab_name: string;
+    ordered_by: string;
+    sample_date: string;
+    values: LabValue[];
+  }>({
+    values: editTarget ? {
+      lab_name: editTarget.lab_name ?? '',
+      ordered_by: editTarget.ordered_by ?? '',
+      sample_date: editTarget.sample_date ? editTarget.sample_date.slice(0, 10) : '',
+      values: editTarget.values?.length ? editTarget.values : [{ marker: '', unit: '' }],
+    } : undefined,
+  });
+
+  const { fields: editFields, append: editAppend, remove: editRemove } = useFieldArray({ control: editControl, name: 'values' });
+
+  const onEditSubmit = (formData: { lab_name: string; ordered_by: string; sample_date: string; values: LabValue[] }) => {
+    if (!editTarget) return;
+    updateMutation.mutate({ ...formData, id: editTarget.id });
+  };
 
   const items = data?.items || [];
 
@@ -90,35 +127,41 @@ export function Labs() {
       </div>
 
       {showForm && (
-        <div className="card form-card">
-          <h3>{t('labs.add')}</h3>
-          <form onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
-            <div className="form-row">
-              <div className="form-group"><label>{t('labs.lab_name')}</label><input type="text" {...register('lab_name')} /></div>
-              <div className="form-group"><label>{t('labs.ordered_by')}</label><input type="text" {...register('ordered_by')} /></div>
-              <div className="form-group"><label>{t('labs.sample_date')} *</label><input type="date" {...register('sample_date')} required /></div>
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
+            <div className="modal-header">
+              <h3>{t('labs.add')}</h3>
+              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
             </div>
+            <div className="modal-body">
+              <form id="lab-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
+                <div className="form-row">
+                  <div className="form-group"><label>{t('labs.lab_name')}</label><input type="text" {...register('lab_name')} /></div>
+                  <div className="form-group"><label>{t('labs.ordered_by')}</label><input type="text" {...register('ordered_by')} /></div>
+                  <div className="form-group"><label>{t('labs.sample_date')} *</label><input type="date" {...register('sample_date')} required /></div>
+                </div>
 
-            <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14 }}>{t('labs.values')}</h4>
-            {fields.map((field, index) => (
-              <div key={field.id} className="form-row" style={{ alignItems: 'flex-end' }}>
-                <div className="form-group"><label>{t('labs.marker')}</label><input type="text" {...register(`values.${index}.marker`)} placeholder="e.g. Hemoglobin" /></div>
-                <div className="form-group"><label>{t('labs.value')}</label><input type="number" step="0.01" {...register(`values.${index}.value`, { valueAsNumber: true })} /></div>
-                <div className="form-group"><label>{t('labs.unit')}</label><input type="text" {...register(`values.${index}.unit`)} placeholder="g/dL" /></div>
-                <div className="form-group"><label>{t('labs.ref_low')}</label><input type="number" step="0.01" {...register(`values.${index}.reference_low`, { valueAsNumber: true })} /></div>
-                <div className="form-group"><label>{t('labs.ref_high')}</label><input type="number" step="0.01" {...register(`values.${index}.reference_high`, { valueAsNumber: true })} /></div>
-                <button type="button" className="btn-icon-sm" onClick={() => remove(index)} style={{ marginBottom: 16 }}>×</button>
-              </div>
-            ))}
-            <button type="button" className="btn btn-secondary" onClick={() => append({ marker: '', unit: '' })} style={{ marginBottom: 16 }}>
-              + Add Marker
-            </button>
-
-            <div className="form-actions">
-              <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
+                <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14 }}>{t('labs.values')}</h4>
+                {fields.map((field, index) => (
+                  <div key={field.id} className="form-row" style={{ alignItems: 'flex-end' }}>
+                    <div className="form-group"><label>{t('labs.marker')}</label><input type="text" {...register(`values.${index}.marker`)} placeholder="e.g. Hemoglobin" /></div>
+                    <div className="form-group"><label>{t('labs.value')}</label><input type="number" step="0.01" {...register(`values.${index}.value`, { valueAsNumber: true })} /></div>
+                    <div className="form-group"><label>{t('labs.unit')}</label><input type="text" {...register(`values.${index}.unit`)} placeholder="g/dL" /></div>
+                    <div className="form-group"><label>{t('labs.ref_low')}</label><input type="number" step="0.01" {...register(`values.${index}.reference_low`, { valueAsNumber: true })} /></div>
+                    <div className="form-group"><label>{t('labs.ref_high')}</label><input type="number" step="0.01" {...register(`values.${index}.reference_high`, { valueAsNumber: true })} /></div>
+                    <button type="button" className="btn-icon-sm" onClick={() => remove(index)} style={{ marginBottom: 16 }}>×</button>
+                  </div>
+                ))}
+                <button type="button" className="btn btn-secondary" onClick={() => append({ marker: '', unit: '' })} style={{ marginBottom: 16 }}>
+                  {t('labs.add_marker')}
+                </button>
+              </form>
             </div>
-          </form>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
+              <button type="submit" form="lab-create-form" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -129,14 +172,20 @@ export function Labs() {
               <div key={lab.id} className="lab-item">
                 <div className="lab-header" onClick={() => setExpandedId(expandedId === lab.id ? null : lab.id)}>
                   <div className="lab-info">
-                    <div className="med-name">{lab.lab_name || 'Lab Result'}</div>
+                    <div className="med-name">{lab.lab_name || t('labs.lab_result')}</div>
                     <div className="med-details">
                       {fmt(lab.sample_date, 'dd. MMM yyyy')}
                       {lab.ordered_by && ` · ${lab.ordered_by}`}
-                      · {lab.values?.length || 0} markers
+                      · {lab.values?.length || 0} {t('labs.markers')}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      className="btn-icon-sm"
+                      onClick={(e) => { e.stopPropagation(); setEditTarget(lab); }}
+                      title={t('common.edit')}
+                      style={{ fontSize: 14 }}
+                    >&#9998;</button>
                     <button
                       className="btn-icon-sm"
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget(lab.id); }}
@@ -148,14 +197,14 @@ export function Labs() {
                 {expandedId === lab.id && lab.values && (
                   <div className="lab-values">
                     <table className="data-table">
-                      <thead><tr><th>{t('labs.marker')}</th><th>{t('labs.value')}</th><th>{t('labs.unit')}</th><th>{t('labs.reference')}</th><th>{t('labs.flag')}</th></tr></thead>
+                      <thead><tr><th>{t('labs.marker')}</th><th>{t('labs.value')}</th><th>{t('labs.unit')}</th><th className="hide-mobile">{t('labs.reference')}</th><th>{t('labs.flag')}</th></tr></thead>
                       <tbody>
                         {lab.values.map((v, i) => (
                           <tr key={i}>
                             <td>{v.marker}</td>
                             <td className={flagColor(v.flag)}><strong>{v.value ?? '—'}</strong></td>
                             <td>{v.unit || '—'}</td>
-                            <td className="text-muted">{v.reference_low != null && v.reference_high != null ? `${v.reference_low}–${v.reference_high}` : '—'}</td>
+                            <td className="text-muted hide-mobile">{v.reference_low != null && v.reference_high != null ? `${v.reference_low}–${v.reference_high}` : '—'}</td>
                             <td><span className={`badge ${flagColor(v.flag)}`}>{v.flag || 'normal'}</span></td>
                           </tr>
                         ))}
@@ -168,6 +217,48 @@ export function Labs() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <div className="modal-overlay" onClick={() => setEditTarget(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
+            <div className="modal-header">
+              <h3>{t('labs.edit')}</h3>
+              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <form id="lab-edit-form" onSubmit={editHandleSubmit(onEditSubmit)}>
+                <div className="form-row">
+                  <div className="form-group"><label>{t('labs.lab_name')}</label><input type="text" {...editRegister('lab_name')} /></div>
+                  <div className="form-group"><label>{t('labs.ordered_by')}</label><input type="text" {...editRegister('ordered_by')} /></div>
+                  <div className="form-group"><label>{t('labs.sample_date')} *</label><input type="date" {...editRegister('sample_date')} required /></div>
+                </div>
+
+                <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14 }}>{t('labs.values')}</h4>
+                {editFields.map((field, index) => (
+                  <div key={field.id} className="form-row" style={{ alignItems: 'flex-end' }}>
+                    <div className="form-group"><label>{t('labs.marker')}</label><input type="text" {...editRegister(`values.${index}.marker`)} placeholder="e.g. Hemoglobin" /></div>
+                    <div className="form-group"><label>{t('labs.value')}</label><input type="number" step="0.01" {...editRegister(`values.${index}.value`, { valueAsNumber: true })} /></div>
+                    <div className="form-group"><label>{t('labs.unit')}</label><input type="text" {...editRegister(`values.${index}.unit`)} placeholder="g/dL" /></div>
+                    <div className="form-group"><label>{t('labs.ref_low')}</label><input type="number" step="0.01" {...editRegister(`values.${index}.reference_low`, { valueAsNumber: true })} /></div>
+                    <div className="form-group"><label>{t('labs.ref_high')}</label><input type="number" step="0.01" {...editRegister(`values.${index}.reference_high`, { valueAsNumber: true })} /></div>
+                    <button type="button" className="btn-icon-sm" onClick={() => editRemove(index)} style={{ marginBottom: 16 }}>×</button>
+                  </div>
+                ))}
+                <button type="button" className="btn btn-secondary" onClick={() => editAppend({ marker: '', unit: '' })} style={{ marginBottom: 16 }}>
+                  {t('labs.add_marker')}
+                </button>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setEditTarget(null)}>{t('common.cancel')}</button>
+              <button type="submit" form="lab-edit-form" className="btn btn-add" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? t('common.loading') : t('common.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDelete
         open={!!deleteTarget}

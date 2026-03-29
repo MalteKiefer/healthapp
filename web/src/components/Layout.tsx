@@ -132,6 +132,15 @@ const icons = {
       <circle cx="5" cy="19" r="1" />
     </svg>
   ),
+  share: (
+    <svg {...svgProps}>
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    </svg>
+  ),
   shield: (
     <svg {...svgProps}>
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -194,6 +203,8 @@ const trackingNav: NavItem[] = [
 const manageNav: NavItem[] = [
   { path: '/documents', label: 'nav.documents', icon: icons.fileText },
   { path: '/contacts', label: 'nav.contacts', icon: icons.users },
+  { path: '/family', label: 'nav.family', icon: icons.users },
+  { path: '/shares', label: 'nav.shares', icon: icons.share },
 ];
 
 export function Layout() {
@@ -244,12 +255,17 @@ export function Layout() {
   const toggleAvatarMenu = () => setAvatarMenuOpen((prev) => !prev);
   const closeMenu = () => setAvatarMenuOpen(false);
 
+  const closeMobile = () => {
+    if (window.innerWidth <= 480 && sidebarOpen) toggleSidebar();
+  };
+
   const renderNav = (items: NavItem[]) =>
     items.map((item) => (
       <Link
         key={item.path}
         to={item.path}
         className={`nav-item${isActive(item.path) ? ' active' : ''}`}
+        onClick={closeMobile}
       >
         <span className="nav-icon">{item.icon}</span>
         {sidebarOpen && <span className="nav-label">{t(item.label)}</span>}
@@ -263,7 +279,7 @@ export function Layout() {
     <div className="app-layout" data-theme={theme}>
       <SyncIndicator />
 
-      <aside className={`sidebar${sidebarOpen ? '' : ' collapsed'}`}>
+      <aside className={`sidebar${sidebarOpen ? ' open' : ' collapsed'}`}>
         <div className="sidebar-header">
           <Link to="/" className="sidebar-brand">
             <svg className="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -278,33 +294,51 @@ export function Layout() {
 
         <nav className="sidebar-nav">
           {renderNav(mainNav)}
-          <div className="nav-divider" />
+          {sidebarOpen && <div className="nav-group-label">{t('nav.group_health')}</div>}
+          {!sidebarOpen && <div className="nav-divider" />}
           {renderNav(healthNav)}
-          <div className="nav-divider" />
+          {sidebarOpen && <div className="nav-group-label">{t('nav.group_tracking')}</div>}
+          {!sidebarOpen && <div className="nav-divider" />}
           {renderNav(trackingNav)}
-          <div className="nav-divider" />
+          {sidebarOpen && <div className="nav-group-label">{t('nav.group_manage')}</div>}
+          {!sidebarOpen && <div className="nav-divider" />}
           {renderNav(manageNav)}
         </nav>
 
         <div className="sidebar-footer">
-          <Link to="/calendar-feeds" className={`nav-item${isActive('/calendar-feeds') ? ' active' : ''}`}>
+          <Link to="/calendar-feeds" className={`nav-item${isActive('/calendar-feeds') ? ' active' : ''}`} onClick={closeMobile}>
             <span className="nav-icon">{icons.rss}</span>
-            {sidebarOpen && <span className="nav-label">Calendar Feeds</span>}
+            {sidebarOpen && <span className="nav-label">{t('nav.calendar_feeds')}</span>}
           </Link>
           {role === 'admin' && (
-            <Link to="/admin" className={`nav-item${isActive('/admin') ? ' active' : ''}`}>
+            <Link to="/admin" className={`nav-item${isActive('/admin') ? ' active' : ''}`} onClick={closeMobile}>
               <span className="nav-icon">{icons.shield}</span>
               {sidebarOpen && <span className="nav-label">{t('nav.admin')}</span>}
             </Link>
           )}
-          <Link to="/settings" className={`nav-item${isActive('/settings') ? ' active' : ''}`}>
+          <Link to="/emergency" className={`nav-item${isActive('/emergency') ? ' active' : ''}`} onClick={closeMobile}>
+            <span className="nav-icon">
+              <svg {...svgProps}>
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                <line x1="12" y1="9" x2="12" y2="15" />
+                <line x1="9" y1="12" x2="15" y2="12" />
+              </svg>
+            </span>
+            {sidebarOpen && <span className="nav-label">{t('nav.emergency')}</span>}
+          </Link>
+          <Link to="/settings" className={`nav-item${isActive('/settings') ? ' active' : ''}`} onClick={closeMobile}>
             <span className="nav-icon">{icons.settings}</span>
             {sidebarOpen && <span className="nav-label">{t('nav.settings')}</span>}
           </Link>
         </div>
       </aside>
 
+      {sidebarOpen && <div className="sidebar-backdrop" onClick={toggleSidebar} />}
+
       <header className="topbar">
+        <button className="mobile-menu-btn" onClick={toggleSidebar} aria-label="Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
         <div className="topbar-actions">
           <NotificationBell />
           <div className="avatar-menu" ref={avatarMenuRef}>

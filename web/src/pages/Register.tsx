@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { api, ApiError } from '../api/client';
 import {
   deriveAuthHash,
@@ -37,6 +38,12 @@ export function Register() {
   const navigate = useNavigate();
   const { login } = useAuthStore();
 
+  const { data: policy } = useQuery({
+    queryKey: ['auth-policy'],
+    queryFn: () => api.get<{ min_passphrase_length: number; require_uppercase: boolean; require_lowercase: boolean; require_numbers: boolean; require_symbols: boolean }>('/api/v1/auth/policy'),
+  });
+  const minPassLen = policy?.min_passphrase_length || 12;
+
   const [step, setStep] = useState<'form' | 'recovery'>('form');
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -60,8 +67,24 @@ export function Register() {
       return;
     }
 
-    if (passphrase.length < 12) {
-      setError('Passphrase must be at least 12 characters');
+    if (passphrase.length < minPassLen) {
+      setError(t('settings.passphrase_too_short', { min: minPassLen }));
+      return;
+    }
+    if (policy?.require_uppercase && !/[A-Z]/.test(passphrase)) {
+      setError(t('settings.pass_need_upper'));
+      return;
+    }
+    if (policy?.require_lowercase && !/[a-z]/.test(passphrase)) {
+      setError(t('settings.pass_need_lower'));
+      return;
+    }
+    if (policy?.require_numbers && !/[0-9]/.test(passphrase)) {
+      setError(t('settings.pass_need_number'));
+      return;
+    }
+    if (policy?.require_symbols && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(passphrase)) {
+      setError(t('settings.pass_need_symbol'));
       return;
     }
 
@@ -228,7 +251,7 @@ export function Register() {
               value={passphrase}
               onChange={(e) => setPassphrase(e.target.value)}
               required
-              minLength={12}
+              minLength={minPassLen}
               autoComplete="new-password"
             />
             <small className="text-muted" style={{ display: 'block', marginTop: 4 }}>
@@ -243,7 +266,7 @@ export function Register() {
               value={passphraseConfirm}
               onChange={(e) => setPassphraseConfirm(e.target.value)}
               required
-              minLength={12}
+              minLength={minPassLen}
               autoComplete="new-password"
             />
           </div>

@@ -42,23 +42,23 @@ function formatVitalLabel(v: {
   body_temperature?: number;
   blood_glucose?: number;
   oxygen_saturation?: number;
-}): string {
+}, t: (key: string) => string): string {
   if (v.blood_pressure_systolic && v.blood_pressure_diastolic) {
-    const parts = [`BP ${v.blood_pressure_systolic}/${v.blood_pressure_diastolic}`];
-    if (v.pulse) parts.push(`${v.pulse} bpm`);
-    return parts.join(' · ');
+    const parts = [`${t('dashboard.bp')} ${v.blood_pressure_systolic}/${v.blood_pressure_diastolic}`];
+    if (v.pulse) parts.push(`${v.pulse} ${t('dashboard.bpm')}`);
+    return parts.join(' \u00b7 ');
   }
-  if (v.weight) return `Weight ${v.weight} kg`;
-  if (v.body_temperature) return `Temp ${v.body_temperature}\u00B0C`;
-  if (v.blood_glucose) return `Glucose ${v.blood_glucose} mg/dL`;
-  if (v.oxygen_saturation) return `SpO\u2082 ${v.oxygen_saturation}%`;
-  if (v.pulse) return `Pulse ${v.pulse} bpm`;
-  return 'Vital recorded';
+  if (v.weight) return `${t('dashboard.weight')} ${v.weight} ${t('dashboard.kg')}`;
+  if (v.body_temperature) return `${t('dashboard.temp')} ${v.body_temperature}${t('dashboard.celsius')}`;
+  if (v.blood_glucose) return `${t('dashboard.glucose')} ${v.blood_glucose} ${t('dashboard.mg_dl')}`;
+  if (v.oxygen_saturation) return `${t('dashboard.spo2')} ${v.oxygen_saturation}${t('dashboard.percent')}`;
+  if (v.pulse) return `${t('dashboard.pulse')} ${v.pulse} ${t('dashboard.bpm')}`;
+  return t('dashboard.vital_recorded');
 }
 
-function getGreeting(): string {
+function getGreeting(t: (key: string) => string): string {
   const hour = new Date().getHours();
-  return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  return hour < 12 ? t('dashboard.good_morning') : hour < 18 ? t('dashboard.good_afternoon') : t('dashboard.good_evening');
 }
 
 export function Dashboard() {
@@ -142,7 +142,7 @@ export function Dashboard() {
     for (const v of recentVitals) {
       items.push({
         id: v.id,
-        label: formatVitalLabel(v),
+        label: formatVitalLabel(v, t),
         date: v.measured_at,
         type: 'vital',
         icon: '\uD83E\uDE7A',
@@ -162,13 +162,13 @@ export function Dashboard() {
     return items
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5);
-  }, [recentVitals, recentDiary]);
+  }, [recentVitals, recentDiary, t]);
 
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <h2 style={{ marginBottom: 4 }}>{getGreeting()}</h2>
+          <h2 style={{ marginBottom: 4 }}>{getGreeting(t)}</h2>
           <p className="text-muted" style={{ fontSize: 14 }}>
             {fmt(new Date(), 'EEEE, dd. MMMM yyyy')}
           </p>
@@ -195,12 +195,12 @@ export function Dashboard() {
 
         <Link to="/vitals" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="stat-value" style={{ fontSize: 20 }}>
-            {latestVital ? formatVitalLabel(latestVital) : '\u2014'}
+            {latestVital ? formatVitalLabel(latestVital, t) : '\u2014'}
           </div>
           <div className="stat-label">
             {latestVital
               ? relative(latestVital.measured_at)
-              : 'No vitals yet'}
+              : t('dashboard.no_vitals_yet')}
           </div>
         </Link>
       </div>
@@ -236,7 +236,7 @@ export function Dashboard() {
                     <span>{item.icon}</span>
                     <span>{item.title}</span>
                     <span className={`badge ${item.type === 'appointment' ? 'badge-scheduled' : item.overdue ? 'badge-missed' : 'badge-info'}`}>
-                      {item.type === 'appointment' ? 'Appt' : 'Task'}
+                      {item.type === 'appointment' ? t('dashboard.appt') : t('dashboard.task')}
                     </span>
                   </span>
                   <span className="dash-meta">
@@ -266,7 +266,7 @@ export function Dashboard() {
                     <span>{item.icon}</span>
                     <span>{item.label}</span>
                     <span className={`badge ${item.type === 'vital' ? 'badge-active' : 'badge-info'}`}>
-                      {item.type === 'vital' ? 'Vital' : 'Diary'}
+                      {item.type === 'vital' ? t('dashboard.vital') : t('dashboard.diary')}
                     </span>
                   </span>
                   <span className="dash-meta">
