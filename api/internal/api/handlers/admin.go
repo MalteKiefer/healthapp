@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -38,21 +39,22 @@ type adminUser struct {
 }
 
 type auditLogEntry struct {
-	ID        uuid.UUID       `json:"id"`
-	UserID    *uuid.UUID      `json:"user_id,omitempty"`
-	Action    string          `json:"action"`
-	Details   json.RawMessage `json:"details,omitempty"`
-	IPAddress string          `json:"ip_address,omitempty"`
-	CreatedAt time.Time       `json:"created_at"`
+	ID         uuid.UUID       `json:"id"`
+	UserID     *uuid.UUID      `json:"user_id,omitempty"`
+	Action     string          `json:"action"`
+	Resource   string          `json:"resource"`
+	ResourceID *uuid.UUID      `json:"resource_id,omitempty"`
+	IPAddress  string          `json:"ip_address,omitempty"`
+	Metadata   json.RawMessage `json:"metadata,omitempty"`
+	CreatedAt  time.Time       `json:"created_at"`
 }
 
 type backupEntry struct {
-	ID          uuid.UUID `json:"id"`
-	Type        string    `json:"type"`
-	Status      string    `json:"status"`
-	SizeBytes   int64     `json:"size_bytes"`
-	StartedAt   time.Time `json:"started_at"`
-	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	ID             uuid.UUID `json:"id"`
+	BackedUpAt     time.Time `json:"backed_up_at"`
+	FileSizeBytes  int64     `json:"file_size_bytes"`
+	Encrypted      bool      `json:"encrypted"`
+	ChecksumSHA256 string    `json:"checksum_sha256"`
 }
 
 type setQuotaRequest struct {
@@ -61,6 +63,29 @@ type setQuotaRequest struct {
 
 type updateSettingsRequest struct {
 	Settings map[string]string `json:"settings"`
+}
+
+// ── Audit Logging ──────────────────────────────────────────────────
+
+// writeAuditLog inserts an audit log entry. Errors are logged but never block
+// the calling request.
+func (h *AdminHandler) writeAuditLog(ctx context.Context, r *http.Request, userID uuid.UUID, action, resource string, resourceID *uuid.UUID, metadata map[string]interface{}) {
+	var metaJSON []byte
+	if metadata != nil {
+		var err error
+		metaJSON, err = json.Marshal(metadata)
+		if err != nil {
+			h.logger.Error("marshal audit metadata", zap.Error(err))
+		}
+	}
+	_, err := h.db.Exec(ctx,
+		`INSERT INTO audit_log (user_id, action, resource, resource_id, ip_address, user_agent, metadata)
+		 VALUES ($1, $2, $3, $4, $5::inet, $6, $7)`,
+		userID, action, resource, resourceID, r.RemoteAddr, r.UserAgent(), metaJSON,
+	)
+	if err != nil {
+		h.logger.Error("write audit log", zap.String("action", action), zap.Error(err))
+	}
 }
 
 // ── Handlers ────────────────────────────────────────────────────────
@@ -137,6 +162,25 @@ func (h *AdminHandler) HandleDisableUser(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Prevent self-disable
+	if userID == claims.UserID {
+		writeJSON(w, http.StatusBadRequest, errorResponse("cannot_disable_self"))
+		return
+	}
+
+	// Prevent disabling the last admin
+	var adminCount int
+	_ = h.db.QueryRow(r.Context(),
+		`SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_disabled = false AND id != $1`, userID,
+	).Scan(&adminCount)
+	// Check if target user is admin
+	var targetRole string
+	_ = h.db.QueryRow(r.Context(), `SELECT role FROM users WHERE id = $1`, userID).Scan(&targetRole)
+	if targetRole == "admin" && adminCount < 1 {
+		writeJSON(w, http.StatusBadRequest, errorResponse("cannot_disable_last_admin"))
+		return
+	}
+
 	tag, err := h.db.Exec(r.Context(),
 		`UPDATE users SET is_disabled = true, updated_at = $1 WHERE id = $2`,
 		time.Now().UTC(), userID,
@@ -150,6 +194,8 @@ func (h *AdminHandler) HandleDisableUser(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusNotFound, errorResponse("user_not_found"))
 		return
 	}
+
+	h.writeAuditLog(r.Context(), r, claims.UserID, "user.disable", "user", &userID, nil)
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "disabled"})
 }
@@ -187,6 +233,8 @@ func (h *AdminHandler) HandleEnableUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	h.writeAuditLog(r.Context(), r, claims.UserID, "user.enable", "user", &userID, nil)
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": "enabled"})
 }
 
@@ -215,6 +263,20 @@ func (h *AdminHandler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Prevent deleting the last admin
+	var targetRole string
+	_ = h.db.QueryRow(r.Context(), `SELECT role FROM users WHERE id = $1`, userID).Scan(&targetRole)
+	if targetRole == "admin" {
+		var adminCount int
+		_ = h.db.QueryRow(r.Context(),
+			`SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_disabled = false AND id != $1`, userID,
+		).Scan(&adminCount)
+		if adminCount < 1 {
+			writeJSON(w, http.StatusBadRequest, errorResponse("cannot_delete_last_admin"))
+			return
+		}
+	}
+
 	tag, err := h.db.Exec(r.Context(),
 		`DELETE FROM users WHERE id = $1`,
 		userID,
@@ -228,6 +290,8 @@ func (h *AdminHandler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusNotFound, errorResponse("user_not_found"))
 		return
 	}
+
+	h.writeAuditLog(r.Context(), r, claims.UserID, "user.delete", "user", &userID, nil)
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
@@ -269,10 +333,21 @@ func (h *AdminHandler) HandleGetSystem(w http.ResponseWriter, r *http.Request) {
 		redisInfo["db_size"] = dbSize
 	}
 
+	// Read registration mode from DB first, fallback to env var
+	var regMode string
+	err := h.db.QueryRow(r.Context(), `SELECT value FROM instance_settings WHERE key = 'registration_mode'`).Scan(&regMode)
+	if err != nil || regMode == "" {
+		regMode = os.Getenv("REGISTRATION_MODE")
+		if regMode == "" {
+			regMode = "invite_only"
+		}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"database": dbInfo,
-		"redis":    redisInfo,
-		"version":  "1.0.0",
+		"database":          dbInfo,
+		"redis":             redisInfo,
+		"version":           "1.0.0",
+		"registration_mode": regMode,
 	})
 }
 
@@ -304,7 +379,7 @@ func (h *AdminHandler) HandleGetAuditLog(w http.ResponseWriter, r *http.Request)
 	}
 
 	rows, err := h.db.Query(r.Context(),
-		`SELECT id, user_id, action, details, ip_address::text, created_at
+		`SELECT id, user_id, action, resource, resource_id, ip_address::text, metadata, created_at
 		 FROM audit_log
 		 ORDER BY created_at DESC
 		 LIMIT $1 OFFSET $2`,
@@ -320,7 +395,7 @@ func (h *AdminHandler) HandleGetAuditLog(w http.ResponseWriter, r *http.Request)
 	var entries []auditLogEntry
 	for rows.Next() {
 		var e auditLogEntry
-		if err := rows.Scan(&e.ID, &e.UserID, &e.Action, &e.Details, &e.IPAddress, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.UserID, &e.Action, &e.Resource, &e.ResourceID, &e.IPAddress, &e.Metadata, &e.CreatedAt); err != nil {
 			h.logger.Error("scan audit entry", zap.Error(err))
 			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 			return
@@ -407,9 +482,9 @@ func (h *AdminHandler) HandleGetBackups(w http.ResponseWriter, r *http.Request) 
 	}
 
 	rows, err := h.db.Query(r.Context(),
-		`SELECT id, type, status, size_bytes, started_at, completed_at
+		`SELECT id, backed_up_at, file_size_bytes, encrypted, checksum_sha256
 		 FROM backup_heartbeat
-		 ORDER BY started_at DESC
+		 ORDER BY backed_up_at DESC
 		 LIMIT 50`,
 	)
 	if err != nil {
@@ -422,7 +497,7 @@ func (h *AdminHandler) HandleGetBackups(w http.ResponseWriter, r *http.Request) 
 	var backups []backupEntry
 	for rows.Next() {
 		var b backupEntry
-		if err := rows.Scan(&b.ID, &b.Type, &b.Status, &b.SizeBytes, &b.StartedAt, &b.CompletedAt); err != nil {
+		if err := rows.Scan(&b.ID, &b.BackedUpAt, &b.FileSizeBytes, &b.Encrypted, &b.ChecksumSHA256); err != nil {
 			h.logger.Error("scan backup entry", zap.Error(err))
 			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 			return
@@ -461,6 +536,18 @@ func (h *AdminHandler) HandleTriggerBackup(w http.ResponseWriter, r *http.Reques
 		zap.String("user_id", claims.UserID.String()),
 		zap.Time("requested_at", time.Now().UTC()),
 	)
+
+	// Record a backup heartbeat entry so the admin UI reflects the trigger.
+	_, err := h.db.Exec(r.Context(),
+		`INSERT INTO backup_heartbeat (backed_up_at, file_size_bytes, encrypted, checksum_sha256)
+		 VALUES (NOW(), 0, false, 'manual-trigger')`)
+	if err != nil {
+		h.logger.Error("insert backup heartbeat", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	h.writeAuditLog(r.Context(), r, claims.UserID, "backup.trigger", "backup", nil, nil)
 
 	writeJSON(w, http.StatusAccepted, map[string]string{
 		"status":  "accepted",

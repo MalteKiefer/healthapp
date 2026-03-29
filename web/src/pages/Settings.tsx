@@ -99,6 +99,12 @@ export function Settings() {
     queryFn: () => api.get<{ used_bytes: number; quota_bytes: number }>('/api/v1/users/me/storage'),
   });
 
+  const { data: policy } = useQuery({
+    queryKey: ['auth-policy'],
+    queryFn: () => api.get<{ min_passphrase_length: number; require_uppercase: boolean; require_lowercase: boolean; require_numbers: boolean; require_symbols: boolean }>('/api/v1/auth/policy'),
+  });
+  const minPassLen = policy?.min_passphrase_length || 12;
+
   // Mutations
   const updatePrefs = useMutation({
     mutationFn: (data: Partial<UserPreferences>) => api.patch('/api/v1/users/me/preferences', data),
@@ -209,7 +215,11 @@ export function Settings() {
   const handleChangePass = async () => {
     setPassError('');
     if (newPass !== confirmPass) { setPassError(t('settings.passphrase_mismatch')); return; }
-    if (newPass.length < 8) { setPassError(t('settings.passphrase_too_short')); return; }
+    if (newPass.length < minPassLen) { setPassError(t('settings.passphrase_too_short', { min: minPassLen })); return; }
+    if (policy?.require_uppercase && !/[A-Z]/.test(newPass)) { setPassError(t('settings.pass_need_upper')); return; }
+    if (policy?.require_lowercase && !/[a-z]/.test(newPass)) { setPassError(t('settings.pass_need_lower')); return; }
+    if (policy?.require_numbers && !/[0-9]/.test(newPass)) { setPassError(t('settings.pass_need_number')); return; }
+    if (policy?.require_symbols && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPass)) { setPassError(t('settings.pass_need_symbol')); return; }
     try {
       const currentHash = await deriveAuthHash(currentPass, email || '');
       const newHash = await deriveAuthHash(newPass, email || '');
@@ -450,6 +460,7 @@ export function Settings() {
               <button className="modal-close" onClick={() => { setShowPassModal(false); setPassError(''); }}>&times;</button>
             </div>
             <div className="modal-body">
+              <p className="text-muted" style={{ fontSize: 13, marginBottom: 16 }}>{t('settings.passphrase_note')}</p>
               {passError && <div className="alert alert-error">{passError}</div>}
               <div className="form-group">
                 <label>{t('settings.current_passphrase')}</label>
