@@ -1,6 +1,7 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -9,9 +10,11 @@ import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ProfileSelector } from '../components/ProfileSelector';
 import { ConfirmDelete } from '../components/ConfirmDelete';
-import { useVitals, useCreateVital, useDeleteVital } from '../hooks/useVitals';
+import { useVitals, useCreateVital, useDeleteVital, useUpdateVital } from '../hooks/useVitals';
+import type { Vital } from '../api/vitals';
 import { useProfiles } from '../hooks/useProfiles';
 import { useDateFormat } from '../hooks/useDateLocale';
+import { api } from '../api/client';
 
 function toLocalDatetime(date: Date = new Date()): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
@@ -118,6 +121,18 @@ const CHART_TABS: ChartTabDef[] = [
   },
 ];
 
+type ThresholdConfig = Record<string, { low?: number | null; high?: number | null }>;
+
+const THRESHOLD_METRICS: { key: string; label: string; unit: string }[] = [
+  { key: 'blood_pressure_systolic', label: 'Systolic BP', unit: 'mmHg' },
+  { key: 'blood_pressure_diastolic', label: 'Diastolic BP', unit: 'mmHg' },
+  { key: 'pulse', label: 'Pulse', unit: 'bpm' },
+  { key: 'body_temperature', label: 'Temperature', unit: '\u00B0C' },
+  { key: 'oxygen_saturation', label: 'SpO2', unit: '%' },
+  { key: 'blood_glucose', label: 'Blood Glucose', unit: 'mmol/L' },
+  { key: 'weight', label: 'Weight', unit: 'kg' },
+];
+
 type TimeRange = '7d' | '30d' | '90d' | '1y' | 'all';
 type ViewTab = 'chart' | 'table';
 
@@ -185,14 +200,81 @@ export function Vitals() {
   const [viewTab, setViewTab] = useState<ViewTab>('chart');
   const [activeChartTab, setActiveChartTab] = useState<string>('blood_pressure');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<Vital | null>(null);
+  const [showThresholds, setShowThresholds] = useState(false);
+  const [thresholdForm, setThresholdForm] = useState<ThresholdConfig>({});
   const chartRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   const { fmt } = useDateFormat();
   const profileId = selectedProfile || profiles[0]?.id || '';
   const { data: vitalsData, isLoading } = useVitals(profileId, { limit: 200 });
   const createVital = useCreateVital(profileId);
   const deleteVital = useDeleteVital(profileId);
+  const updateVital = useUpdateVital(profileId);
   const { register, handleSubmit, reset } = useForm<VitalFormData>({ defaultValues: { measured_at: toLocalDatetime() } });
+
+  const {
+    register: editRegister,
+    handleSubmit: editHandleSubmit,
+    reset: editReset,
+  } = useForm<VitalFormData>({
+    values: editTarget ? {
+      measured_at: editTarget.measured_at ? toLocalDatetime(new Date(editTarget.measured_at)) : toLocalDatetime(),
+      blood_pressure_systolic: editTarget.blood_pressure_systolic,
+      blood_pressure_diastolic: editTarget.blood_pressure_diastolic,
+      pulse: editTarget.pulse,
+      oxygen_saturation: editTarget.oxygen_saturation,
+      weight: editTarget.weight,
+      height: editTarget.height,
+      body_temperature: editTarget.body_temperature,
+      blood_glucose: editTarget.blood_glucose,
+      sleep_duration_minutes: editTarget.sleep_duration_minutes,
+      sleep_quality: editTarget.sleep_quality,
+      notes: editTarget.notes ?? '',
+    } : undefined,
+  });
+
+  const { data: thresholds } = useQuery({
+    queryKey: ['vital-thresholds', profileId],
+    queryFn: () => api.get<ThresholdConfig>(`/api/v1/profiles/${profileId}/vital-thresholds`),
+    enabled: !!profileId && showThresholds,
+  });
+
+  const saveThresholds = useMutation({
+    mutationFn: (data: ThresholdConfig) =>
+      api.put(`/api/v1/profiles/${profileId}/vital-thresholds`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vital-thresholds'] });
+      setShowThresholds(false);
+    },
+  });
+
+  // Initialize threshold form when data loads
+  useEffect(() => {
+    if (thresholds) {
+      setThresholdForm(thresholds);
+    }
+  }, [thresholds]);
+
+  const onEditSubmit = async (data: VitalFormData) => {
+    if (!editTarget) return;
+    data.measured_at = new Date(data.measured_at).toISOString();
+    const cleaned = Object.fromEntries(
+      Object.entries(data).filter(([, v]) => {
+        if (v === '' || v === undefined || v === null) return false;
+        if (typeof v === 'number' && isNaN(v)) return false;
+        return true;
+      })
+    );
+    try {
+      await updateVital.mutateAsync({ ...cleaned, id: editTarget.id } as Partial<Vital> & { id: string });
+      setEditTarget(null);
+      editReset();
+    } catch (err) {
+      console.error('Failed to update vitals:', err);
+    }
+  };
 
   const filteredVitals = useMemo(() => {
     const items = vitalsData?.items || [];
@@ -302,6 +384,9 @@ export function Vitals() {
         <h2>{t('vitals.title')}</h2>
         <div className="page-actions">
           <ProfileSelector selectedId={profileId} onSelect={setSelectedProfile} />
+          <button className="btn btn-secondary" onClick={() => setShowThresholds(true)} title={t('vitals.thresholds')}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"/></svg>
+          </button>
           <button className="btn btn-add" onClick={openModal}>+ {t('vitals.add')}</button>
         </div>
       </div>
@@ -498,26 +583,26 @@ export function Vitals() {
                     <th>{t('vitals.blood_pressure')}</th>
                     <th>{t('vitals.pulse')}</th>
                     <th>{t('vitals.weight')}</th>
-                    <th>{t('vitals.temperature')}</th>
-                    <th>SpO2</th>
-                    <th>{t('vitals.glucose')}</th>
+                    <th className="hide-mobile">{t('vitals.temperature')}</th>
+                    <th className="hide-mobile">SpO2</th>
+                    <th className="hide-sm">{t('vitals.glucose')}</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredVitals.map((v) => (
-                    <tr key={v.id}>
+                    <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => setEditTarget(v as Vital)}>
                       <td>{fmt(v.measured_at, 'dd. MMM yy, HH:mm')}</td>
                       <td className={getBPClass(v.blood_pressure_systolic)}>{v.blood_pressure_systolic && v.blood_pressure_diastolic ? `${v.blood_pressure_systolic}/${v.blood_pressure_diastolic}` : '\u2014'}</td>
                       <td>{v.pulse ?? '\u2014'}</td>
                       <td>{v.weight != null ? `${v.weight} kg` : '\u2014'}</td>
-                      <td className={getTempClass(v.body_temperature)}>{v.body_temperature != null ? `${v.body_temperature}\u00B0` : '\u2014'}</td>
-                      <td className={getSpo2Class(v.oxygen_saturation)}>{v.oxygen_saturation != null ? `${v.oxygen_saturation}%` : '\u2014'}</td>
-                      <td>{v.blood_glucose != null ? v.blood_glucose : '\u2014'}</td>
+                      <td className={`hide-mobile ${getTempClass(v.body_temperature)}`}>{v.body_temperature != null ? `${v.body_temperature}\u00B0` : '\u2014'}</td>
+                      <td className={`hide-mobile ${getSpo2Class(v.oxygen_saturation)}`}>{v.oxygen_saturation != null ? `${v.oxygen_saturation}%` : '\u2014'}</td>
+                      <td className="hide-sm">{v.blood_glucose != null ? v.blood_glucose : '\u2014'}</td>
                       <td>
                         <button
                           className="btn-icon-sm"
-                          onClick={() => setDeleteTarget(v.id)}
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(v.id); }}
                           title={t('common.delete')}
                         >×</button>
                       </td>
@@ -527,6 +612,149 @@ export function Vitals() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <div className="modal-overlay" onClick={() => setEditTarget(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('vitals.edit')}</h3>
+              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <form id="vitals-edit-form" onSubmit={editHandleSubmit(onEditSubmit)} className="vital-form">
+                <div className="form-group">
+                  <label>{t('vitals.date_time')}</label>
+                  <input type="datetime-local" {...editRegister('measured_at')} />
+                </div>
+                <fieldset className="vital-fieldset">
+                  <legend>{t('vitals.blood_pressure')}</legend>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>{t('vitals.systolic')} (mmHg)</label>
+                      <input type="number" placeholder="120" {...editRegister('blood_pressure_systolic', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} />
+                    </div>
+                    <div className="form-group">
+                      <label>{t('vitals.diastolic')} (mmHg)</label>
+                      <input type="number" placeholder="80" {...editRegister('blood_pressure_diastolic', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} />
+                    </div>
+                  </div>
+                </fieldset>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('vitals.pulse')} (bpm)</label>
+                    <input type="number" placeholder="72" {...editRegister('pulse', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vitals.weight')} (kg)</label>
+                    <input type="text" inputMode="decimal" placeholder="70.0" {...editRegister('weight', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('vitals.temperature')} ({'\u00B0'}C)</label>
+                    <input type="text" inputMode="decimal" placeholder="36.6" {...editRegister('body_temperature', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vitals.oxygen')} (%)</label>
+                    <input type="text" inputMode="decimal" placeholder="98" {...editRegister('oxygen_saturation', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>{t('vitals.glucose')} (mmol/L)</label>
+                  <input type="text" inputMode="decimal" placeholder="5.5" {...editRegister('blood_glucose', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} />
+                </div>
+                <div className="form-group">
+                  <label>{t('vitals.notes')}</label>
+                  <textarea rows={2} placeholder="..." {...editRegister('notes')} />
+                </div>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setEditTarget(null)}>{t('common.cancel')}</button>
+              <button type="submit" form="vitals-edit-form" className="btn btn-add" disabled={updateVital.isPending}>
+                {updateVital.isPending ? t('common.loading') : t('common.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Threshold Configuration Modal */}
+      {showThresholds && (
+        <div className="modal-overlay" onClick={() => setShowThresholds(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('vitals.thresholds')}</h3>
+              <button className="modal-close" onClick={() => setShowThresholds(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p className="text-muted" style={{ marginBottom: 16, fontSize: 13 }}>{t('vitals.threshold_hint')}</p>
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>{t('vitals.title')}</th>
+                      <th>{t('vitals.threshold_low')}</th>
+                      <th>{t('vitals.threshold_high')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {THRESHOLD_METRICS.map((metric) => (
+                      <tr key={metric.key}>
+                        <td>{metric.label} <span className="text-muted">({metric.unit})</span></td>
+                        <td>
+                          <input
+                            type="number"
+                            step="any"
+                            placeholder="-"
+                            value={thresholdForm[metric.key]?.low ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                              setThresholdForm((prev) => ({
+                                ...prev,
+                                [metric.key]: { ...prev[metric.key], low: val },
+                              }));
+                            }}
+                            style={{ width: 80 }}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            step="any"
+                            placeholder="-"
+                            value={thresholdForm[metric.key]?.high ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                              setThresholdForm((prev) => ({
+                                ...prev,
+                                [metric.key]: { ...prev[metric.key], high: val },
+                              }));
+                            }}
+                            style={{ width: 80 }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowThresholds(false)}>{t('common.cancel')}</button>
+              <button
+                type="button"
+                className="btn btn-add"
+                disabled={saveThresholds.isPending}
+                onClick={() => saveThresholds.mutate(thresholdForm)}
+              >
+                {saveThresholds.isPending ? t('common.loading') : t('common.save')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

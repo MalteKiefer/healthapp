@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
 	"github.com/healthvault/healthvault/internal/domain/family"
@@ -20,10 +21,11 @@ import (
 type FamilyHandler struct {
 	familyRepo family.Repository
 	logger     *zap.Logger
+	db         *pgxpool.Pool
 }
 
-func NewFamilyHandler(fr family.Repository, logger *zap.Logger) *FamilyHandler {
-	return &FamilyHandler{familyRepo: fr, logger: logger}
+func NewFamilyHandler(fr family.Repository, logger *zap.Logger, db *pgxpool.Pool) *FamilyHandler {
+	return &FamilyHandler{familyRepo: fr, logger: logger, db: db}
 }
 
 // HandleList returns all families the authenticated user belongs to.
@@ -43,6 +45,66 @@ func (h *FamilyHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"items": families,
+	})
+}
+
+// HandleGetMembers returns members of a family with user info.
+func (h *FamilyHandler) HandleGetMembers(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	familyID, err := uuid.Parse(chi.URLParam(r, "familyID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_family_id"))
+		return
+	}
+
+	if !h.isMember(r, familyID, claims.UserID) {
+		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
+		return
+	}
+
+	memberships, err := h.familyRepo.GetMemberships(r.Context(), familyID)
+	if err != nil {
+		h.logger.Error("get memberships", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	type memberWithUser struct {
+		ID          uuid.UUID `json:"id"`
+		UserID      uuid.UUID `json:"user_id"`
+		FamilyID    uuid.UUID `json:"family_id"`
+		Role        string    `json:"role"`
+		JoinedAt    time.Time `json:"joined_at"`
+		Email       string    `json:"email"`
+		DisplayName string    `json:"display_name"`
+	}
+
+	items := make([]memberWithUser, 0, len(memberships))
+	for _, m := range memberships {
+		var email, displayName string
+		_ = h.db.QueryRow(r.Context(),
+			"SELECT email, COALESCE(display_name, '') FROM users WHERE id = $1",
+			m.UserID,
+		).Scan(&email, &displayName)
+
+		items = append(items, memberWithUser{
+			ID:          m.ID,
+			UserID:      m.UserID,
+			FamilyID:    m.FamilyID,
+			Role:        m.Role,
+			JoinedAt:    m.JoinedAt,
+			Email:       email,
+			DisplayName: displayName,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"items": items,
 	})
 }
 

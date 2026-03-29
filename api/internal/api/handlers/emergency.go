@@ -25,39 +25,33 @@ func NewEmergencyHandler(db *pgxpool.Pool, logger *zap.Logger) *EmergencyHandler
 // ── Request/Response Types ──────────────────────────────────────────
 
 type configureEmergencyAccessRequest struct {
-	Enabled           bool     `json:"enabled"`
-	WaitHours         int      `json:"wait_hours"`
-	NotifyOnRequest   bool     `json:"notify_on_request"`
-	AutoApprove       bool     `json:"auto_approve"`
-	VisibleFields     []string `json:"visible_fields"`
-	EmergencyCardData []byte   `json:"emergency_card_data"`
+	EmergencyContactUserID string   `json:"emergency_contact_user_id"`
+	WaitHours              int      `json:"wait_hours"`
+	DataFields             []string `json:"data_fields"`
+	Message                string   `json:"message"`
 }
 
 type emergencyAccessConfig struct {
-	ID              uuid.UUID `json:"id"`
-	ProfileID       uuid.UUID `json:"profile_id"`
-	Enabled         bool      `json:"enabled"`
-	WaitHours       int       `json:"wait_hours"`
-	NotifyOnRequest bool      `json:"notify_on_request"`
-	AutoApprove     bool      `json:"auto_approve"`
-	VisibleFields   []string  `json:"visible_fields"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID                     uuid.UUID `json:"id"`
+	ProfileID              uuid.UUID `json:"profile_id"`
+	Enabled                bool      `json:"enabled"`
+	EmergencyContactUserID uuid.UUID `json:"emergency_contact_user_id"`
+	WaitHours              int       `json:"wait_hours"`
+	DataFields             []string  `json:"data_fields"`
+	Message                *string   `json:"message"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }
 
 type emergencyAccessRequest struct {
 	ID            uuid.UUID  `json:"id"`
-	CardID        uuid.UUID  `json:"card_id"`
 	ProfileID     uuid.UUID  `json:"profile_id"`
-	RequesterNote string     `json:"requester_note"`
+	RequesterID   uuid.UUID  `json:"requester_id"`
 	Status        string     `json:"status"`
+	RequestedAt   time.Time  `json:"requested_at"`
+	ResolvedAt    *time.Time `json:"resolved_at,omitempty"`
+	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
 	AutoApproveAt *time.Time `json:"auto_approve_at,omitempty"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-}
-
-type requestEmergencyAccessBody struct {
-	RequesterNote string `json:"requester_note"`
 }
 
 // ── Handlers ────────────────────────────────────────────────────────
@@ -145,51 +139,52 @@ func (h *EmergencyHandler) HandleConfigureEmergencyAccess(w http.ResponseWriter,
 		return
 	}
 
-	visibleFieldsJSON, err := json.Marshal(req.VisibleFields)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_visible_fields"))
-		return
+	// Determine emergency_contact_user_id: use provided value or default to self
+	contactUserID := claims.UserID
+	if req.EmergencyContactUserID != "" {
+		parsed, parseErr := uuid.Parse(req.EmergencyContactUserID)
+		if parseErr != nil {
+			writeJSON(w, http.StatusBadRequest, errorResponse("invalid_emergency_contact_user_id"))
+			return
+		}
+		contactUserID = parsed
+	}
+
+	// Default data_fields if empty
+	dataFields := req.DataFields
+	if len(dataFields) == 0 {
+		dataFields = []string{"blood_type", "allergies", "medications", "diagnoses", "contacts"}
+	}
+
+	// Default wait_hours
+	waitHours := req.WaitHours
+	if waitHours <= 0 {
+		waitHours = 48
 	}
 
 	now := time.Now().UTC()
 	configID := uuid.New()
 
+	var message *string
+	if req.Message != "" {
+		message = &req.Message
+	}
+
 	_, err = h.db.Exec(r.Context(),
-		`INSERT INTO emergency_access_configs (id, profile_id, enabled, wait_hours, notify_on_request, auto_approve, visible_fields, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`INSERT INTO emergency_access_configs (id, profile_id, emergency_contact_user_id, wait_hours, data_fields, message, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		 ON CONFLICT (profile_id) DO UPDATE SET
-		   enabled = EXCLUDED.enabled,
+		   emergency_contact_user_id = EXCLUDED.emergency_contact_user_id,
 		   wait_hours = EXCLUDED.wait_hours,
-		   notify_on_request = EXCLUDED.notify_on_request,
-		   auto_approve = EXCLUDED.auto_approve,
-		   visible_fields = EXCLUDED.visible_fields,
+		   data_fields = EXCLUDED.data_fields,
+		   message = EXCLUDED.message,
 		   updated_at = EXCLUDED.updated_at`,
-		configID, profileID, req.Enabled, req.WaitHours, req.NotifyOnRequest,
-		req.AutoApprove, visibleFieldsJSON, now, now,
+		configID, profileID, contactUserID, waitHours, dataFields, message, now, now,
 	)
 	if err != nil {
 		h.logger.Error("configure emergency access", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
-	}
-
-	// Also upsert the emergency card if card data was provided
-	if req.EmergencyCardData != nil {
-		cardID := uuid.New()
-		_, err = h.db.Exec(r.Context(),
-			`INSERT INTO emergency_cards (id, profile_id, enabled, data, created_at, updated_at)
-			 VALUES ($1, $2, $3, $4, $5, $6)
-			 ON CONFLICT (profile_id) DO UPDATE SET
-			   enabled = EXCLUDED.enabled,
-			   data = EXCLUDED.data,
-			   updated_at = EXCLUDED.updated_at`,
-			cardID, profileID, req.Enabled, req.EmergencyCardData, now, now,
-		)
-		if err != nil {
-			h.logger.Error("upsert emergency card", zap.Error(err))
-			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-			return
-		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "configured"})
@@ -231,17 +226,19 @@ func (h *EmergencyHandler) HandleGetEmergencyAccessConfig(w http.ResponseWriter,
 	}
 
 	var cfg emergencyAccessConfig
-	var visibleFieldsJSON []byte
 	err = h.db.QueryRow(r.Context(),
-		`SELECT id, profile_id, enabled, wait_hours, notify_on_request, auto_approve, visible_fields, created_at, updated_at
+		`SELECT id, profile_id, emergency_contact_user_id, wait_hours, data_fields, message, created_at, updated_at
 		 FROM emergency_access_configs WHERE profile_id = $1`,
 		profileID,
-	).Scan(&cfg.ID, &cfg.ProfileID, &cfg.Enabled, &cfg.WaitHours,
-		&cfg.NotifyOnRequest, &cfg.AutoApprove, &visibleFieldsJSON,
-		&cfg.CreatedAt, &cfg.UpdatedAt)
+	).Scan(&cfg.ID, &cfg.ProfileID, &cfg.EmergencyContactUserID, &cfg.WaitHours,
+		&cfg.DataFields, &cfg.Message, &cfg.CreatedAt, &cfg.UpdatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			writeJSON(w, http.StatusNotFound, errorResponse("config_not_found"))
+			// No config row means emergency access is disabled
+			writeJSON(w, http.StatusOK, emergencyAccessConfig{
+				ProfileID: profileID,
+				Enabled:   false,
+			})
 			return
 		}
 		h.logger.Error("get emergency access config", zap.Error(err))
@@ -249,12 +246,8 @@ func (h *EmergencyHandler) HandleGetEmergencyAccessConfig(w http.ResponseWriter,
 		return
 	}
 
-	if visibleFieldsJSON != nil {
-		if err := json.Unmarshal(visibleFieldsJSON, &cfg.VisibleFields); err != nil {
-			h.logger.Error("unmarshal visible_fields", zap.Error(err))
-		}
-	}
-
+	// Row exists means emergency access is enabled
+	cfg.Enabled = true
 	writeJSON(w, http.StatusOK, cfg)
 }
 
@@ -349,11 +342,10 @@ func (h *EmergencyHandler) HandleRequestEmergencyAccess(w http.ResponseWriter, r
 
 	// Get wait_hours from config
 	var waitHours int
-	var autoApprove bool
 	err = h.db.QueryRow(r.Context(),
-		`SELECT wait_hours, auto_approve FROM emergency_access_configs WHERE profile_id = $1`,
+		`SELECT wait_hours FROM emergency_access_configs WHERE profile_id = $1`,
 		profileID,
-	).Scan(&waitHours, &autoApprove)
+	).Scan(&waitHours)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			writeJSON(w, http.StatusNotFound, errorResponse("emergency_access_not_configured"))
@@ -364,25 +356,19 @@ func (h *EmergencyHandler) HandleRequestEmergencyAccess(w http.ResponseWriter, r
 		return
 	}
 
-	var body requestEmergencyAccessBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		// Body is optional for this endpoint
-		body = requestEmergencyAccessBody{}
-	}
-
 	now := time.Now().UTC()
 	autoApproveAt := now.Add(time.Duration(waitHours) * time.Hour)
 	requestID := uuid.New()
 
 	status := "pending"
-	if autoApprove && waitHours == 0 {
-		status = "approved"
+	if waitHours == 0 {
+		status = "auto_approved"
 	}
 
 	_, err = h.db.Exec(r.Context(),
-		`INSERT INTO emergency_access_requests (id, card_id, profile_id, requester_note, status, auto_approve_at, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		requestID, cardID, profileID, body.RequesterNote, status, autoApproveAt, now, now,
+		`INSERT INTO emergency_access_requests (id, profile_id, requester_id, status, requested_at, auto_approve_at)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		requestID, profileID, uuid.Nil, status, now, autoApproveAt,
 	)
 	if err != nil {
 		h.logger.Error("create emergency access request", zap.Error(err))
@@ -408,11 +394,11 @@ func (h *EmergencyHandler) HandleGetPendingRequests(w http.ResponseWriter, r *ht
 	}
 
 	rows, err := h.db.Query(r.Context(),
-		`SELECT ear.id, ear.card_id, ear.profile_id, ear.requester_note, ear.status, ear.auto_approve_at, ear.created_at, ear.updated_at
+		`SELECT ear.id, ear.profile_id, ear.requester_id, ear.status, ear.requested_at, ear.resolved_at, ear.expires_at, ear.auto_approve_at
 		 FROM emergency_access_requests ear
 		 JOIN profiles p ON p.id = ear.profile_id
 		 WHERE p.owner_user_id = $1 AND ear.status = 'pending'
-		 ORDER BY ear.created_at DESC`,
+		 ORDER BY ear.requested_at DESC`,
 		claims.UserID,
 	)
 	if err != nil {
@@ -425,8 +411,8 @@ func (h *EmergencyHandler) HandleGetPendingRequests(w http.ResponseWriter, r *ht
 	var items []emergencyAccessRequest
 	for rows.Next() {
 		var req emergencyAccessRequest
-		if err := rows.Scan(&req.ID, &req.CardID, &req.ProfileID, &req.RequesterNote,
-			&req.Status, &req.AutoApproveAt, &req.CreatedAt, &req.UpdatedAt); err != nil {
+		if err := rows.Scan(&req.ID, &req.ProfileID, &req.RequesterID,
+			&req.Status, &req.RequestedAt, &req.ResolvedAt, &req.ExpiresAt, &req.AutoApproveAt); err != nil {
 			h.logger.Error("scan emergency request", zap.Error(err))
 			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 			return
@@ -488,7 +474,7 @@ func (h *EmergencyHandler) HandleApproveRequest(w http.ResponseWriter, r *http.R
 
 	now := time.Now().UTC()
 	tag, err := h.db.Exec(r.Context(),
-		`UPDATE emergency_access_requests SET status = 'approved', updated_at = $1 WHERE id = $2 AND status = 'pending'`,
+		`UPDATE emergency_access_requests SET status = 'approved', resolved_at = $1 WHERE id = $2 AND status = 'pending'`,
 		now, requestID,
 	)
 	if err != nil {
@@ -544,7 +530,7 @@ func (h *EmergencyHandler) HandleDenyRequest(w http.ResponseWriter, r *http.Requ
 
 	now := time.Now().UTC()
 	tag, err := h.db.Exec(r.Context(),
-		`UPDATE emergency_access_requests SET status = 'denied', updated_at = $1 WHERE id = $2 AND status = 'pending'`,
+		`UPDATE emergency_access_requests SET status = 'denied', resolved_at = $1 WHERE id = $2 AND status = 'pending'`,
 		now, requestID,
 	)
 	if err != nil {

@@ -31,6 +31,7 @@ export function Vaccinations() {
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<Vaccination | null>(null);
   const queryClient = useQueryClient();
 
   const profileId = selectedProfile || profiles[0]?.id || '';
@@ -56,6 +57,16 @@ export function Vaccinations() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, ...data }: Partial<Vaccination> & { id: string }) =>
+      api.patch(`/api/v1/profiles/${profileId}/vaccinations/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['vaccinations-due', profileId] });
+      setEditTarget(null);
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/vaccinations/${id}`),
     onSuccess: () => {
@@ -65,6 +76,17 @@ export function Vaccinations() {
   });
 
   const { register, handleSubmit, reset } = useForm<Partial<Vaccination>>();
+  const editForm = useForm<Partial<Vaccination>>({ values: editTarget ? {
+    vaccine_name: editTarget.vaccine_name,
+    trade_name: editTarget.trade_name || '',
+    manufacturer: editTarget.manufacturer || '',
+    administered_at: editTarget.administered_at?.slice(0, 10) || '',
+    dose_number: editTarget.dose_number,
+    lot_number: editTarget.lot_number || '',
+    administered_by: editTarget.administered_by || '',
+    next_due_at: editTarget.next_due_at?.slice(0, 10) || '',
+    site: editTarget.site || '',
+  } : undefined });
   const items = data?.items || [];
   const dueItems = dueData?.items || [];
 
@@ -80,7 +102,7 @@ export function Vaccinations() {
 
       {dueItems.length > 0 && (
         <div className="card" style={{ borderLeft: '4px solid var(--color-warning)', marginBottom: 16 }}>
-          <h3>Upcoming Boosters</h3>
+          <h3>{t('vaccinations.upcoming_boosters')}</h3>
           {dueItems.map((v) => {
             const days = v.next_due_at ? differenceInDays(new Date(v.next_due_at), new Date()) : 0;
             const overdue = v.next_due_at ? isPast(new Date(v.next_due_at)) : false;
@@ -90,8 +112,8 @@ export function Vaccinations() {
                   <div className="med-name">{v.vaccine_name}</div>
                   <div className="med-details">
                     {v.next_due_at && (overdue
-                      ? <span className="status-abnormal">Overdue by {Math.abs(days)} days</span>
-                      : <span className="status-borderline">Due in {days} days ({fmt(v.next_due_at, 'dd. MMM yyyy')})</span>
+                      ? <span className="status-abnormal">{t('vaccinations.overdue_by', { days: Math.abs(days) })}</span>
+                      : <span className="status-borderline">{t('vaccinations.due_in', { days, date: fmt(v.next_due_at, 'dd. MMM yyyy') })}</span>
                     )}
                   </div>
                 </div>
@@ -102,78 +124,85 @@ export function Vaccinations() {
       )}
 
       {showForm && (
-        <div className="card form-card">
-          <h3>Record Vaccination</h3>
-          <form onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Vaccine Name *</label>
-                <input type="text" {...register('vaccine_name')} required />
-              </div>
-              <div className="form-group">
-                <label>Trade Name</label>
-                <input type="text" {...register('trade_name')} />
-              </div>
-              <div className="form-group">
-                <label>Manufacturer</label>
-                <input type="text" {...register('manufacturer')} />
-              </div>
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('vaccinations.record')}</h3>
+              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
             </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Date Administered *</label>
-                <input type="date" {...register('administered_at')} required />
-              </div>
-              <div className="form-group">
-                <label>Dose Number</label>
-                <input type="number" min="1" {...register('dose_number', { valueAsNumber: true })} />
-              </div>
-              <div className="form-group">
-                <label>Lot Number</label>
-                <input type="text" {...register('lot_number')} />
-              </div>
+            <div className="modal-body">
+              <form id="vacc-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('vaccinations.vaccine_name')} *</label>
+                    <input type="text" {...register('vaccine_name')} required />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.trade_name')}</label>
+                    <input type="text" {...register('trade_name')} />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.manufacturer')}</label>
+                    <input type="text" {...register('manufacturer')} />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('vaccinations.date_administered')} *</label>
+                    <input type="date" {...register('administered_at')} required />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.dose_number')}</label>
+                    <input type="number" min="1" {...register('dose_number', { valueAsNumber: true })} />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.lot_number')}</label>
+                    <input type="text" {...register('lot_number')} />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('vaccinations.administered_by')}</label>
+                    <input type="text" {...register('administered_by')} />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.next_due_date')}</label>
+                    <input type="date" {...register('next_due_at')} />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.injection_site')}</label>
+                    <input type="text" {...register('site')} placeholder={t('vaccinations.site_placeholder')} />
+                  </div>
+                </div>
+              </form>
             </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Administered By</label>
-                <input type="text" {...register('administered_by')} />
-              </div>
-              <div className="form-group">
-                <label>Next Due Date</label>
-                <input type="date" {...register('next_due_at')} />
-              </div>
-              <div className="form-group">
-                <label>Injection Site</label>
-                <input type="text" {...register('site')} placeholder="e.g. left arm" />
-              </div>
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
+            <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
+              <button type="submit" form="vacc-create-form" className="btn btn-add" disabled={createMutation.isPending}>{createMutation.isPending ? t('common.loading') : t('common.save')}</button>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
       <div className="card">
-        <h3>Vaccination History</h3>
+        <h3>{t('vaccinations.history')}</h3>
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
           <div className="table-scroll">
             <table className="data-table">
-              <thead><tr><th>Date</th><th>Vaccine</th><th>Dose</th><th>Lot #</th><th>Administered By</th><th>Next Due</th><th></th></tr></thead>
+              <thead><tr><th>{t('common.date')}</th><th>{t('vaccinations.vaccine')}</th><th>{t('vaccinations.dose')}</th><th className="hide-mobile">{t('vaccinations.lot')}</th><th className="hide-mobile">{t('vaccinations.administered_by')}</th><th>{t('vaccinations.next_due')}</th><th></th></tr></thead>
               <tbody>
                 {items.map((v) => (
-                  <tr key={v.id}>
+                  <tr key={v.id} onClick={() => setEditTarget(v)} style={{ cursor: 'pointer' }}>
                     <td>{fmt(v.administered_at, 'dd. MMM yyyy')}</td>
-                    <td><strong>{v.vaccine_name}</strong>{v.trade_name && <span className="text-muted"> ({v.trade_name})</span>}</td>
+                    <td><strong>{v.vaccine_name}</strong>{v.trade_name && <span className="text-muted hide-sm"> ({v.trade_name})</span>}</td>
                     <td>{v.dose_number || '—'}</td>
-                    <td>{v.lot_number || '—'}</td>
-                    <td>{v.administered_by || '—'}</td>
+                    <td className="hide-mobile">{v.lot_number || '—'}</td>
+                    <td className="hide-mobile">{v.administered_by || '—'}</td>
                     <td>{v.next_due_at ? fmt(v.next_due_at, 'dd. MMM yyyy') : '—'}</td>
                     <td>
                       <button
                         className="btn-icon-sm"
-                        onClick={() => setDeleteTarget(v.id)}
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(v.id); }}
                         title={t('common.delete')}
                       >×</button>
                     </td>
@@ -184,6 +213,67 @@ export function Vaccinations() {
           </div>
         )}
       </div>
+
+      {editTarget && (
+        <div className="modal-overlay" onClick={() => setEditTarget(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('vaccinations.edit')}</h3>
+              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <form id="vacc-edit-form" onSubmit={editForm.handleSubmit((data) => updateMutation.mutate({ id: editTarget.id, ...data }))}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('vaccinations.vaccine_name')} *</label>
+                    <input type="text" {...editForm.register('vaccine_name')} required />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.trade_name')}</label>
+                    <input type="text" {...editForm.register('trade_name')} />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.manufacturer')}</label>
+                    <input type="text" {...editForm.register('manufacturer')} />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('vaccinations.date_administered')} *</label>
+                    <input type="date" {...editForm.register('administered_at')} required />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.dose_number')}</label>
+                    <input type="number" min="1" {...editForm.register('dose_number', { valueAsNumber: true })} />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.lot_number')}</label>
+                    <input type="text" {...editForm.register('lot_number')} />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('vaccinations.administered_by')}</label>
+                    <input type="text" {...editForm.register('administered_by')} />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.next_due_date')}</label>
+                    <input type="date" {...editForm.register('next_due_at')} />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('vaccinations.injection_site')}</label>
+                    <input type="text" {...editForm.register('site')} placeholder={t('vaccinations.site_placeholder')} />
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setEditTarget(null)}>{t('common.cancel')}</button>
+              <button type="submit" form="vacc-edit-form" className="btn btn-add" disabled={updateMutation.isPending}>{updateMutation.isPending ? t('common.loading') : t('common.save')}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDelete
         open={!!deleteTarget}
