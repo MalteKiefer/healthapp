@@ -218,7 +218,7 @@ export function Onboarding() {
     }
     setLoading(true);
     try {
-      await api.post('/api/v1/auth/2fa/verify', { code: data.totpCode });
+      await api.post('/api/v1/auth/2fa/enable', { code: data.totpCode });
       update('twoFactorEnabled', true);
       setStep(5);
     } catch (err) {

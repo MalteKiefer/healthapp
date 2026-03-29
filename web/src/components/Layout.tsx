@@ -177,6 +177,13 @@ const icons = {
       <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
   ),
+  download: (
+    <svg {...svgProps}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  ),
 };
 
 const mainNav: NavItem[] = [
@@ -205,6 +212,7 @@ const manageNav: NavItem[] = [
   { path: '/contacts', label: 'nav.contacts', icon: icons.users },
   { path: '/family', label: 'nav.family', icon: icons.users },
   { path: '/shares', label: 'nav.shares', icon: icons.share },
+  { path: '/export', label: 'nav.export', icon: icons.download },
 ];
 
 export function Layout() {

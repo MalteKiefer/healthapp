@@ -25,12 +25,22 @@ interface FeedWithToken extends CalendarFeed {
   url: string;
 }
 
+interface EditFeedForm {
+  name: string;
+  include_appointments: boolean;
+  include_tasks: boolean;
+  include_vaccinations: boolean;
+  include_medications: boolean;
+  verbose_mode: boolean;
+}
+
 export function CalendarFeeds() {
   const { t } = useTranslation();
   const { fmt } = useDateFormat();
   const [showForm, setShowForm] = useState(false);
   const [newFeedUrl, setNewFeedUrl] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [editingFeed, setEditingFeed] = useState<CalendarFeed | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -54,6 +64,15 @@ export function CalendarFeeds() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] }),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<EditFeedForm> }) =>
+      api.patch(`/api/v1/calendar/feeds/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] });
+      setEditingFeed(null);
+    },
+  });
+
   const { register, handleSubmit, reset } = useForm<{
     name: string;
     include_appointments: boolean;
@@ -70,6 +89,24 @@ export function CalendarFeeds() {
       verbose_mode: false,
     },
   });
+
+  const {
+    register: registerEdit,
+    handleSubmit: handleEditSubmit,
+    reset: resetEdit,
+  } = useForm<EditFeedForm>();
+
+  const handleOpenEdit = (feed: CalendarFeed) => {
+    setEditingFeed(feed);
+    resetEdit({
+      name: feed.name,
+      include_appointments: feed.include_appointments,
+      include_tasks: feed.include_tasks,
+      include_vaccinations: feed.include_vaccinations,
+      include_medications: feed.include_medications,
+      verbose_mode: feed.verbose_mode,
+    });
+  };
 
   const items = data?.items || [];
 
@@ -143,7 +180,7 @@ export function CalendarFeeds() {
         ) : (
           <div className="med-list">
             {items.map((feed) => (
-              <div key={feed.id} className="med-item">
+              <div key={feed.id} className="med-item" style={{ cursor: 'pointer' }} onClick={() => handleOpenEdit(feed)}>
                 <div className="med-info">
                   <div className="med-name">{feed.name}</div>
                   <div className="med-details">
@@ -160,13 +197,55 @@ export function CalendarFeeds() {
                   )}
                 </div>
                 <div className="med-actions">
-                  <button className="btn-sm" onClick={() => setDeleteTarget(feed.id)}>{t('common.delete')}</button>
+                  <button className="btn-sm" onClick={(e) => { e.stopPropagation(); handleOpenEdit(feed); }}>{t('common.edit')}</button>
+                  <button className="btn-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(feed.id); }}>{t('common.delete')}</button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {editingFeed && (
+        <div className="modal-overlay" onClick={() => setEditingFeed(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('calendar.edit_feed')}</h3>
+              <button className="btn-icon-sm" onClick={() => setEditingFeed(null)}>&times;</button>
+            </div>
+            <form id="feed-edit-form" onSubmit={handleEditSubmit((formData) => updateMutation.mutate({ id: editingFeed.id, data: formData }))}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>{t('calendar.feed_name')} *</label>
+                  <input type="text" {...registerEdit('name')} required placeholder={t('calendar.feed_name_placeholder')} />
+                </div>
+                <div className="form-group">
+                  <label>{t('calendar.include')}</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label className="toggle-label"><input type="checkbox" {...registerEdit('include_appointments')} /> {t('nav.appointments')}</label>
+                    <label className="toggle-label"><input type="checkbox" {...registerEdit('include_tasks')} /> {t('calendar.task_due_dates')}</label>
+                    <label className="toggle-label"><input type="checkbox" {...registerEdit('include_vaccinations')} /> {t('calendar.vaccination_reminders')}</label>
+                    <label className="toggle-label"><input type="checkbox" {...registerEdit('include_medications')} /> {t('calendar.medication_reminders')}</label>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="toggle-label">
+                    <input type="checkbox" {...registerEdit('verbose_mode')} />
+                    {t('calendar.verbose_titles')}
+                  </label>
+                  <p className="text-muted" style={{ fontSize: 11, marginTop: 4 }}>
+                    {t('calendar.verbose_warning')}
+                  </p>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="submit" className="btn btn-add" disabled={updateMutation.isPending}>{t('common.save')}</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setEditingFeed(null)}>{t('common.cancel')}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <ConfirmDelete
         open={!!deleteTarget}

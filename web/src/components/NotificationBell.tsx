@@ -51,6 +51,11 @@ export function NotificationBell() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
+  const deleteNotif = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/notifications/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
   const items = data?.items || [];
   const unreadCount = items.filter((n) => !n.read_at).length;
 
@@ -98,6 +103,14 @@ export function NotificationBell() {
                     </div>
                   </div>
                   {!n.read_at && <span className="notif-dot" />}
+                  <button
+                    className="btn-icon-sm notif-dismiss"
+                    onClick={(e) => { e.stopPropagation(); deleteNotif.mutate(n.id); }}
+                    title={t('common.dismiss')}
+                    style={{ flexShrink: 0, marginLeft: 4, opacity: 0.5 }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
                 </div>
               ))}
             </div>

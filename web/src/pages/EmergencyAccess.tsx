@@ -18,6 +18,19 @@ interface EmergencyConfig {
   updated_at?: string;
 }
 
+interface PendingRequest {
+  id: string;
+  profile_id: string;
+  requester_id: string;
+  requested_at: string;
+  status: string;
+}
+
+interface EmergencyCard {
+  token: string;
+  url: string;
+}
+
 const DATA_FIELD_KEYS = [
   'blood_type',
   'allergies',
@@ -85,6 +98,45 @@ export function EmergencyAccess() {
     },
   });
 
+  const enabled = config?.enabled ?? false;
+
+  const { data: pendingData } = useQuery({
+    queryKey: ['emergency-pending'],
+    queryFn: () => api.get<{ items: PendingRequest[] }>('/api/v1/emergency/pending'),
+  });
+
+  const pendingRequests = pendingData?.items || [];
+
+  const { data: cardData } = useQuery({
+    queryKey: ['emergency-card', profileId],
+    queryFn: () => api.get<EmergencyCard>(`/api/v1/profiles/${profileId}/emergency-card`),
+    enabled: !!profileId && enabled,
+  });
+
+  const [cardUrlCopied, setCardUrlCopied] = useState(false);
+
+  const approveMutation = useMutation({
+    mutationFn: (requestId: string) => api.post(`/api/v1/emergency/approve/${requestId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['emergency-pending'] });
+    },
+  });
+
+  const denyMutation = useMutation({
+    mutationFn: (requestId: string) => api.post(`/api/v1/emergency/deny/${requestId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['emergency-pending'] });
+    },
+  });
+
+  const handleCopyCardUrl = () => {
+    if (cardData?.url) {
+      navigator.clipboard.writeText(cardData.url);
+      setCardUrlCopied(true);
+      setTimeout(() => setCardUrlCopied(false), 2000);
+    }
+  };
+
   const toggleDataField = (key: string) => {
     setDataFields((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
@@ -103,8 +155,6 @@ export function EmergencyAccess() {
   const handleDisable = () => {
     disableMutation.mutate();
   };
-
-  const enabled = config?.enabled ?? false;
 
   return (
     <div className="page">
@@ -213,6 +263,78 @@ export function EmergencyAccess() {
           >
             {saveMutation.isPending ? t('common.loading') : t('emergency.save')}
           </button>
+
+          {/* Emergency Card URL */}
+          {enabled && cardData?.url && (
+            <div className="card" style={{ marginTop: 16 }}>
+              <h3>{t('emergency.card_url')}</h3>
+              <p className="text-muted" style={{ fontSize: 12, marginBottom: 8 }}>
+                {t('emergency.card_hint')}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={cardData.url}
+                  style={{ flex: 1, fontFamily: 'monospace', fontSize: 13 }}
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button className="btn btn-secondary" onClick={handleCopyCardUrl}>
+                  {cardUrlCopied ? t('common.copied') : t('common.copy')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Pending Requests */}
+          <div className="card" style={{ marginTop: 16 }}>
+            <h3>{t('emergency.pending_requests')}</h3>
+            {pendingRequests.length === 0 ? (
+              <p className="text-muted" style={{ marginTop: 8 }}>{t('emergency.no_pending')}</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+                {pendingRequests.map((req) => (
+                  <div
+                    key={req.id}
+                    className="card"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 12,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 500 }}>
+                        {t('emergency.requester')}: {req.requester_id}
+                      </div>
+                      <div className="text-muted" style={{ fontSize: 12 }}>
+                        {t('emergency.requested_at')}: {new Date(req.requested_at).toLocaleString()}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="btn"
+                        style={{ background: 'var(--color-success, #22c55e)', color: '#fff' }}
+                        onClick={() => approveMutation.mutate(req.id)}
+                        disabled={approveMutation.isPending}
+                      >
+                        {t('emergency.approve')}
+                      </button>
+                      <button
+                        className="btn"
+                        style={{ background: 'var(--color-danger, #ef4444)', color: '#fff' }}
+                        onClick={() => denyMutation.mutate(req.id)}
+                        disabled={denyMutation.isPending}
+                      >
+                        {t('emergency.deny')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>

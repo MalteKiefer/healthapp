@@ -29,7 +29,8 @@
     "emergency": "Notfall",
     "group_health": "Gesundheit",
     "group_tracking": "Erfassung",
-    "group_manage": "Verwalten"
+    "group_manage": "Verwalten",
+    "export": "Exportieren"
   },
   "auth": {
     "login": "Anmelden",
@@ -39,7 +40,8 @@
     "passphrase_warning": "Diese Passphrase kann nicht zurückgesetzt werden. Wenn du sie verlierst, sind deine Gesundheitsdaten dauerhaft unzugänglich.",
     "totp_code": "Authentifizierungscode",
     "submit": "Weiter",
-    "invalid_totp": "Ungültiger Authentifizierungscode"
+    "invalid_totp": "Ungültiger Authentifizierungscode",
+    "forgot_passphrase": "Passphrase vergessen?"
   },
   "common": {
     "save": "Speichern",
@@ -329,7 +331,8 @@
     "react_respiratory": "Atemwege",
     "react_gastrointestinal": "Magen-Darm",
     "react_skin": "Haut",
-    "react_other": "Sonstige"
+    "react_other": "Sonstige",
+    "edit": "Allergie bearbeiten"
   },
   "diagnoses": {
     "title": "Diagnosen",
@@ -428,7 +431,8 @@
     "verbose_warning": "Wenn aktiviert, werden Termindetails und Medikamentennamen für deinen Kalenderanbieter sichtbar.",
     "active_feeds": "Aktive Feeds",
     "no_feeds": "Keine Kalender-Feeds konfiguriert. Erstelle einen, um ihn in deiner Kalender-App zu abonnieren.",
-    "last_polled": "Zuletzt abgefragt"
+    "last_polled": "Zuletzt abgefragt",
+    "edit_feed": "Feed bearbeiten"
   },
   "settings": {
     "title": "Einstellungen",
@@ -478,7 +482,24 @@
     "pass_need_upper": "Muss einen Großbuchstaben enthalten",
     "pass_need_lower": "Muss einen Kleinbuchstaben enthalten",
     "pass_need_number": "Muss eine Zahl enthalten",
-    "pass_need_symbol": "Muss ein Sonderzeichen enthalten"
+    "pass_need_symbol": "Muss ein Sonderzeichen enthalten",
+    "delete_account": "Konto löschen",
+    "delete_account_title": "Konto löschen?",
+    "delete_account_message": "Dein Konto und ALLE Gesundheitsdaten werden dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
+    "display_name": "Anzeigename",
+    "profile_updated": "Profil aktualisiert",
+    "regenerate_codes": "Wiederherstellungscodes erneuern",
+    "codes_regenerated": "Neue Wiederherstellungscodes generiert. Sicher aufbewahren.",
+    "copy_codes": "Alle kopieren",
+    "notifications": "Benachrichtigungen",
+    "notif_vaccination_due": "Impferinnerungen",
+    "notif_medication_reminder": "Medikamenten-Erinnerungen",
+    "notif_lab_abnormal": "Auffällige Laborergebnisse",
+    "notif_emergency": "Notfallzugangs-Anfragen",
+    "notif_export_ready": "Export abgeschlossen",
+    "notif_family_invite": "Familieneinladungen",
+    "notif_session_new": "Neue Anmeldesitzungen",
+    "notif_storage_warning": "Speicherkontingent-Warnungen"
   },
   "confirm_delete": {
     "title": "Eintrag löschen?",
@@ -614,7 +635,13 @@
     "wait_hours_hint": "Wie lange bis der Zugang automatisch genehmigt wird (0-168 Stunden)",
     "message": "Notfallnachricht (optional)",
     "message_hint": "Eine Nachricht, die angezeigt wird, wenn jemand Notfallzugang anfordert",
-    "save": "Konfiguration speichern"
+    "save": "Konfiguration speichern",
+    "pending_requests": "Ausstehende Anfragen",
+    "no_pending": "Keine ausstehenden Anfragen",
+    "approve": "Genehmigen",
+    "deny": "Ablehnen",
+    "requester": "Anfragender",
+    "requested_at": "Angefragt"
   },
   "shares": {
     "title": "Arzt-Freigaben",
@@ -637,6 +664,15 @@
     "revoked": "Widerrufen",
     "active": "Aktiv"
   },
+  "recovery": {
+    "title": "Konto wiederherstellen",
+    "description": "Gib deine E-Mail und einen deiner Wiederherstellungscodes ein",
+    "code": "Wiederherstellungscode",
+    "submit": "Konto wiederherstellen",
+    "success": "Konto wiederhergestellt. Bitte melde dich an.",
+    "invalid": "Ungültige E-Mail oder Wiederherstellungscode",
+    "back_to_login": "Zurück zur Anmeldung"
+  },
   "family": {
     "title": "Familie",
     "create": "Familie erstellen",
@@ -658,5 +694,26 @@
     "role_member": "Mitglied",
     "no_families": "Du bist noch keiner Familie beigetreten.",
     "members": "Mitglieder"
+  },
+  "activity": {
+    "title": "Aktivit\u00e4tsprotokoll",
+    "no_entries": "Keine Aktivit\u00e4ten erfasst",
+    "action": "Aktion",
+    "resource": "Ressource",
+    "details": "Details",
+    "showing": "{{from}}\u2013{{to}}",
+    "prev": "Zur\u00fcck",
+    "next": "Weiter"
+  },
+  "export": {
+    "title": "Daten exportieren",
+    "fhir_title": "FHIR-Export",
+    "fhir_desc": "Medizinische Daten im FHIR-Format f\u00fcr Gesundheitsdienstleister",
+    "ics_title": "Kalender-Export",
+    "ics_desc": "Termine und Impfungen als Kalenderdatei",
+    "pdf_title": "PDF-Bericht",
+    "pdf_desc": "Druckbare Gesundheits\u00fcbersicht",
+    "downloading": "Wird heruntergeladen...",
+    "download": "Herunterladen"
   }
 }

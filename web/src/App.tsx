@@ -10,6 +10,7 @@ import './App.css';
 // Lazy-loaded pages — code-split per route
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register').then((m) => ({ default: m.Register })));
+const Recovery = lazy(() => import('./pages/Recovery').then((m) => ({ default: m.Recovery })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 const Vitals = lazy(() => import('./pages/Vitals').then((m) => ({ default: m.Vitals })));
 const Labs = lazy(() => import('./pages/Labs').then((m) => ({ default: m.Labs })));
@@ -33,6 +34,8 @@ const CalendarFeeds = lazy(() => import('./pages/CalendarFeeds').then((m) => ({ 
 const Family = lazy(() => import('./pages/Family').then((m) => ({ default: m.Family })));
 const DoctorShares = lazy(() => import('./pages/DoctorShares').then((m) => ({ default: m.DoctorShares })));
 const EmergencyAccess = lazy(() => import('./pages/EmergencyAccess').then((m) => ({ default: m.EmergencyAccess })));
+const Export = lazy(() => import('./pages/Export').then((m) => ({ default: m.Export })));
+const ActivityLog = lazy(() => import('./pages/ActivityLog').then((m) => ({ default: m.ActivityLog })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,6 +68,7 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/recovery" element={<Recovery />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/share/:shareID" element={<ShareView />} />
 
@@ -95,6 +99,8 @@ function App() {
                 <Route path="/family" element={<Family />} />
                 <Route path="/shares" element={<DoctorShares />} />
                 <Route path="/emergency" element={<EmergencyAccess />} />
+                <Route path="/export" element={<Export />} />
+                <Route path="/activity" element={<ActivityLog />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
 import QRCode from 'qrcode';
 import { api } from '../api/client';
+import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useUIStore } from '../store/ui';
 import { useAuthStore } from '../store/auth';
 import { useDateFormat } from '../hooks/useDateLocale';
@@ -20,6 +21,33 @@ interface UserPreferences {
   temperature_unit: string;
   blood_glucose_unit: string;
 }
+
+interface NotificationPreferences {
+  vaccination_due: boolean;
+  medication_reminder: boolean;
+  lab_result_abnormal: boolean;
+  emergency_access: boolean;
+  export_ready: boolean;
+  family_invite: boolean;
+  session_new: boolean;
+  storage_quota_warning: boolean;
+}
+
+const NOTIF_KEYS: (keyof NotificationPreferences)[] = [
+  'vaccination_due', 'medication_reminder', 'lab_result_abnormal', 'emergency_access',
+  'export_ready', 'family_invite', 'session_new', 'storage_quota_warning',
+];
+
+const NOTIF_LABEL_MAP: Record<keyof NotificationPreferences, string> = {
+  vaccination_due: 'settings.notif_vaccination_due',
+  medication_reminder: 'settings.notif_medication_reminder',
+  lab_result_abnormal: 'settings.notif_lab_abnormal',
+  emergency_access: 'settings.notif_emergency',
+  export_ready: 'settings.notif_export_ready',
+  family_invite: 'settings.notif_family_invite',
+  session_new: 'settings.notif_session_new',
+  storage_quota_warning: 'settings.notif_storage_warning',
+};
 
 interface SessionInfo {
   id: string;
@@ -105,7 +133,18 @@ export function Settings() {
   });
   const minPassLen = policy?.min_passphrase_length || 12;
 
+  const { data: notifPrefs } = useQuery({
+    queryKey: ['notification-preferences'],
+    queryFn: () => api.get<NotificationPreferences>('/api/v1/notifications/preferences'),
+  });
+
   // Mutations
+  const updateNotifPrefs = useMutation({
+    mutationFn: (data: Partial<NotificationPreferences>) =>
+      api.patch('/api/v1/notifications/preferences', data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notification-preferences'] }),
+  });
+
   const updatePrefs = useMutation({
     mutationFn: (data: Partial<UserPreferences>) => api.patch('/api/v1/users/me/preferences', data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['preferences'] }),
@@ -140,6 +179,22 @@ export function Settings() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['me'] }),
   });
 
+  const updateDisplayName = useMutation({
+    mutationFn: (data: { display_name: string }) => api.patch('/api/v1/users/me', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      setDisplayNameDirty(false);
+    },
+  });
+
+  const deleteAccountMut = useMutation({
+    mutationFn: () => api.delete('/api/v1/users/me'),
+    onSuccess: () => {
+      localStorage.clear();
+      navigate('/login');
+    },
+  });
+
   // Preferences state
   const [language, setLanguage] = useState(prefs?.language || 'en');
   const [dateFormat, setDateFormat] = useState(prefs?.date_format || 'DMY');
@@ -168,6 +223,18 @@ export function Settings() {
   const [showDisable2FA, setShowDisable2FA] = useState(false);
   const [disableCode, setDisableCode] = useState('');
 
+  // Recovery codes state
+  const [showRecoveryCodes, setShowRecoveryCodes] = useState(false);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+
+  // Display name state
+  const [displayName, setDisplayName] = useState('');
+  const [displayNameDirty, setDisplayNameDirty] = useState(false);
+
+  // Delete account state
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+
   useEffect(() => {
     if (prefs) {
       setLanguage(prefs.language);
@@ -177,6 +244,12 @@ export function Settings() {
       setGlucoseUnit(prefs.blood_glucose_unit);
     }
   }, [prefs]);
+
+  useEffect(() => {
+    if (userInfo && !displayNameDirty) {
+      setDisplayName(userInfo.display_name || '');
+    }
+  }, [userInfo, displayNameDirty]);
 
   // Handlers
   const handleSavePrefs = () => {
@@ -259,6 +332,20 @@ export function Settings() {
     } catch { /* */ }
   };
 
+  const handleRegenerateRecoveryCodes = async () => {
+    setRecoveryLoading(true);
+    try {
+      const data = await api.get<{ codes: string[] }>('/api/v1/auth/2fa/recovery-codes');
+      setRecoveryCodes(data.codes);
+      setShowRecoveryCodes(true);
+    } catch { /* */ }
+    setRecoveryLoading(false);
+  };
+
+  const handleCopyRecoveryCodes = () => {
+    navigator.clipboard.writeText(recoveryCodes.join('\n'));
+  };
+
   const initials = email ? email.charAt(0).toUpperCase() : 'U';
   const usedMB = storage ? (storage.used_bytes / 1048576).toFixed(1) : '0';
   const quotaMB = storage ? (storage.quota_bytes / 1048576).toFixed(0) : '5120';
@@ -285,6 +372,30 @@ export function Settings() {
             <span className="text-muted" style={{ fontSize: 12 }}>{t('settings.avatar_hint')}</span>
           </div>
         </div>
+      </div>
+
+      {/* ── Display Name ── */}
+      <div className="card settings-section">
+        <h3>{t('settings.display_name')}</h3>
+        <div className="form-row">
+          <div className="form-group" style={{ flex: 1 }}>
+            <label>{t('settings.display_name')}</label>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => { setDisplayName(e.target.value); setDisplayNameDirty(true); }}
+              placeholder={email || ''}
+            />
+          </div>
+        </div>
+        <button
+          className="btn btn-add"
+          style={{ width: 'auto' }}
+          onClick={() => updateDisplayName.mutate({ display_name: displayName })}
+          disabled={updateDisplayName.isPending || !displayNameDirty}
+        >
+          {updateDisplayName.isPending ? t('common.loading') : t('common.save')}
+        </button>
       </div>
 
       {/* ── Appearance ── */}
@@ -366,6 +477,26 @@ export function Settings() {
             </button>
           </div>
         </div>
+
+        {/* Recovery Codes */}
+        <div className="security-block" style={{ marginTop: 20 }}>
+          <div className="security-header">
+            <div className="security-icon">
+              <svg {...svgProps}><path d="M9 12h6m-3-3v6m-7-3a7 7 0 1 0 14 0 7 7 0 0 0-14 0z" /></svg>
+            </div>
+            <div>
+              <div className="security-title">{t('settings.regenerate_codes')}</div>
+            </div>
+            <button
+              className="btn btn-secondary"
+              style={{ marginLeft: 'auto' }}
+              onClick={handleRegenerateRecoveryCodes}
+              disabled={recoveryLoading}
+            >
+              {recoveryLoading ? t('common.loading') : t('settings.regenerate_codes')}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* ── Storage ── */}
@@ -410,6 +541,32 @@ export function Settings() {
         ) : (
           <p className="text-muted">{t('settings.no_sessions')}</p>
         )}
+      </div>
+
+      {/* ── Notifications ── */}
+      <div className="card settings-section">
+        <h3>{t('settings.notifications')}</h3>
+        {NOTIF_KEYS.map((key) => (
+          <div key={key} className="toggle-switch">
+            <div>
+              <div className="toggle-switch-label">{t(NOTIF_LABEL_MAP[key])}</div>
+            </div>
+            <input
+              type="checkbox"
+              checked={notifPrefs?.[key] ?? true}
+              onChange={(e) => updateNotifPrefs.mutate({ [key]: e.target.checked })}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* ── Delete Account ── */}
+      <div className="card settings-section" style={{ borderColor: 'var(--color-danger)' }}>
+        <h3 style={{ color: 'var(--color-danger)' }}>{t('settings.delete_account')}</h3>
+        <p className="text-muted" style={{ marginBottom: 16 }}>{t('settings.delete_account_message')}</p>
+        <button className="btn btn-danger" onClick={() => setShowDeleteAccount(true)}>
+          {t('settings.delete_account')}
+        </button>
       </div>
 
       {/* ═══ MODALS ═══ */}
@@ -543,6 +700,43 @@ export function Settings() {
           </div>
         </div>
       )}
+
+      {/* Recovery Codes Modal */}
+      {showRecoveryCodes && (
+        <div className="modal-overlay" onClick={() => setShowRecoveryCodes(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <h3>{t('settings.regenerate_codes')}</h3>
+              <button className="modal-close" onClick={() => setShowRecoveryCodes(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="alert alert-warning" style={{ marginBottom: 16 }}>{t('settings.codes_regenerated')}</div>
+              <div className="recovery-grid">
+                {recoveryCodes.map((code, i) => (
+                  <div key={i} className="recovery-code">
+                    <span className="text-muted" style={{ marginRight: 8 }}>{i + 1}.</span>
+                    {code}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={handleCopyRecoveryCodes}>{t('settings.copy_codes')}</button>
+              <button className="btn btn-add" onClick={() => setShowRecoveryCodes(false)}>{t('common.close')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Confirm Modal */}
+      <ConfirmDelete
+        open={showDeleteAccount}
+        title={t('settings.delete_account_title')}
+        message={t('settings.delete_account_message')}
+        onConfirm={() => deleteAccountMut.mutate()}
+        onCancel={() => setShowDeleteAccount(false)}
+        pending={deleteAccountMut.isPending}
+      />
     </div>
   );
 }

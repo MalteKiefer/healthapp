@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -34,6 +34,7 @@ export function Allergies() {
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<Allergy | null>(null);
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -57,7 +58,29 @@ export function Allergies() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['allergies', profileId] }),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (data: Partial<Allergy> & { id: string }) =>
+      api.patch(`/api/v1/profiles/${profileId}/allergies/${data.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allergies', profileId] });
+      setEditTarget(null);
+      editReset();
+    },
+  });
+
   const { register, handleSubmit, reset } = useForm<Partial<Allergy>>();
+  const { register: editRegister, handleSubmit: editHandleSubmit, reset: editReset, setValue: editSetValue } = useForm<Partial<Allergy>>();
+
+  useEffect(() => {
+    if (editTarget) {
+      editSetValue('name', editTarget.name);
+      editSetValue('category', editTarget.category);
+      editSetValue('severity', editTarget.severity || '');
+      editSetValue('reaction_type', editTarget.reaction_type || '');
+      editSetValue('diagnosed_by', editTarget.diagnosed_by || '');
+    }
+  }, [editTarget, editSetValue]);
+
   const items = data?.items || [];
 
   return (
@@ -108,7 +131,7 @@ export function Allergies() {
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
           <div className="med-list">
             {items.map((a) => (
-              <div key={a.id} className="med-item">
+              <div key={a.id} className="med-item" style={{ cursor: 'pointer' }} onClick={() => setEditTarget(a)}>
                 <div className="med-info">
                   <div className="med-name">{a.name}</div>
                   <div className="med-details">
@@ -118,13 +141,48 @@ export function Allergies() {
                 <div className="med-actions">
                   {a.severity && <span className={`badge ${SEVERITY_COLORS[a.severity] || ''}`}>{t('allergies.sev_' + a.severity)}</span>}
                   <span className={`badge ${a.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>{a.status}</span>
-                  <button className="btn-icon-sm" onClick={() => setDeleteTarget(a.id)} title={t('common.delete')}>×</button>
+                  <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(a.id); }} title={t('common.delete')}>×</button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <div className="modal-overlay" onClick={() => setEditTarget(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('allergies.edit')}</h3>
+              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <form id="allergy-edit-form" onSubmit={editHandleSubmit((data) => updateMutation.mutate({ ...data, id: editTarget.id }))}>
+                <div className="form-row">
+                  <div className="form-group"><label>{t('allergies.allergen')} *</label><input type="text" {...editRegister('name')} required placeholder={t('allergies.allergen_placeholder')} /></div>
+                  <div className="form-group"><label>{t('allergies.category_label')} *</label>
+                    <select {...editRegister('category')} required>{CATEGORIES.map((c) => <option key={c} value={c}>{t('allergies.cat_' + c)}</option>)}</select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group"><label>{t('allergies.severity')}</label>
+                    <select {...editRegister('severity')}><option value="">{t('common.select')}</option>{SEVERITIES.map((s) => <option key={s} value={s}>{t('allergies.sev_' + s)}</option>)}</select>
+                  </div>
+                  <div className="form-group"><label>{t('allergies.reaction_type')}</label>
+                    <select {...editRegister('reaction_type')}><option value="">{t('common.select')}</option>{REACTIONS.map((r) => <option key={r} value={r}>{t('allergies.react_' + r)}</option>)}</select>
+                  </div>
+                  <div className="form-group"><label>{t('allergies.diagnosed_by')}</label><input type="text" {...editRegister('diagnosed_by')} /></div>
+                </div>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setEditTarget(null)}>{t('common.cancel')}</button>
+              <button type="submit" form="allergy-edit-form" className="btn btn-add" disabled={updateMutation.isPending}>{t('common.save')}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDelete
         open={!!deleteTarget}

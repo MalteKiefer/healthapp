@@ -169,6 +169,9 @@ export function Login() {
         <p className="auth-tagline" style={{ marginTop: 16, marginBottom: 0 }}>
           Don&apos;t have an account? <Link to="/register" className="card-link">{t('auth.register')}</Link>
         </p>
+        <p className="auth-tagline" style={{ marginTop: 8, marginBottom: 0 }}>
+          <Link to="/recovery" className="card-link">{t('auth.forgot_passphrase')}</Link>
+        </p>
       </div>
     </div>
   );

@@ -29,7 +29,8 @@
     "emergency": "Emergency",
     "group_health": "Health",
     "group_tracking": "Tracking",
-    "group_manage": "Manage"
+    "group_manage": "Manage",
+    "export": "Export"
   },
   "auth": {
     "login": "Log In",
@@ -39,7 +40,8 @@
     "passphrase_warning": "This passphrase cannot be reset. If you lose it, your health data is permanently inaccessible.",
     "totp_code": "Authentication Code",
     "submit": "Continue",
-    "invalid_totp": "Invalid authentication code"
+    "invalid_totp": "Invalid authentication code",
+    "forgot_passphrase": "Forgot passphrase?"
   },
   "common": {
     "save": "Save",
@@ -329,7 +331,8 @@
     "react_respiratory": "Respiratory",
     "react_gastrointestinal": "Gastrointestinal",
     "react_skin": "Skin",
-    "react_other": "Other"
+    "react_other": "Other",
+    "edit": "Edit Allergy"
   },
   "diagnoses": {
     "title": "Diagnoses",
@@ -428,7 +431,8 @@
     "verbose_warning": "If enabled, appointment details and medication names will be visible to your calendar provider.",
     "active_feeds": "Active Feeds",
     "no_feeds": "No calendar feeds configured. Create one to subscribe in your calendar app.",
-    "last_polled": "Last polled"
+    "last_polled": "Last polled",
+    "edit_feed": "Edit Feed"
   },
   "settings": {
     "title": "Settings",
@@ -478,7 +482,24 @@
     "pass_need_upper": "Must contain an uppercase letter",
     "pass_need_lower": "Must contain a lowercase letter",
     "pass_need_number": "Must contain a number",
-    "pass_need_symbol": "Must contain a special character"
+    "pass_need_symbol": "Must contain a special character",
+    "delete_account": "Delete Account",
+    "delete_account_title": "Delete your account?",
+    "delete_account_message": "This will permanently delete your account and ALL health data. This cannot be undone.",
+    "display_name": "Display Name",
+    "profile_updated": "Profile updated",
+    "regenerate_codes": "Regenerate Recovery Codes",
+    "codes_regenerated": "New recovery codes generated. Save them securely.",
+    "copy_codes": "Copy All",
+    "notifications": "Notifications",
+    "notif_vaccination_due": "Vaccination reminders",
+    "notif_medication_reminder": "Medication reminders",
+    "notif_lab_abnormal": "Abnormal lab results",
+    "notif_emergency": "Emergency access requests",
+    "notif_export_ready": "Export completed",
+    "notif_family_invite": "Family invitations",
+    "notif_session_new": "New login sessions",
+    "notif_storage_warning": "Storage quota warnings"
   },
   "confirm_delete": {
     "title": "Delete entry?",
@@ -614,7 +635,13 @@
     "wait_hours_hint": "How long before access is auto-approved (0-168 hours)",
     "message": "Emergency message (optional)",
     "message_hint": "A message displayed to whoever requests emergency access",
-    "save": "Save Configuration"
+    "save": "Save Configuration",
+    "pending_requests": "Pending Requests",
+    "no_pending": "No pending requests",
+    "approve": "Approve",
+    "deny": "Deny",
+    "requester": "Requester",
+    "requested_at": "Requested"
   },
   "shares": {
     "title": "Doctor Shares",
@@ -637,6 +664,15 @@
     "revoked": "Revoked",
     "active": "Active"
   },
+  "recovery": {
+    "title": "Account Recovery",
+    "description": "Enter your email and one of your recovery codes",
+    "code": "Recovery Code",
+    "submit": "Recover Account",
+    "success": "Account recovered. Please log in.",
+    "invalid": "Invalid email or recovery code",
+    "back_to_login": "Back to Login"
+  },
   "family": {
     "title": "Family",
     "create": "Create Family",
@@ -658,5 +694,26 @@
     "role_member": "Member",
     "no_families": "You are not part of any family yet.",
     "members": "Members"
+  },
+  "activity": {
+    "title": "Activity Log",
+    "no_entries": "No activity recorded",
+    "action": "Action",
+    "resource": "Resource",
+    "details": "Details",
+    "showing": "{{from}}\u2013{{to}}",
+    "prev": "Previous",
+    "next": "Next"
+  },
+  "export": {
+    "title": "Export Data",
+    "fhir_title": "FHIR Export",
+    "fhir_desc": "Medical data in FHIR format for healthcare providers",
+    "ics_title": "Calendar Export",
+    "ics_desc": "Appointments and vaccinations as calendar file",
+    "pdf_title": "PDF Report",
+    "pdf_desc": "Printable health summary report",
+    "downloading": "Downloading...",
+    "download": "Download"
   }
 }
