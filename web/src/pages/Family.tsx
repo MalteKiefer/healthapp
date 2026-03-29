@@ -328,7 +328,7 @@ export function Family() {
       queryClient.invalidateQueries({ queryKey: ['families'] });
     },
     onError: () => {
-      setJoinError('Invalid or expired invite token');
+      setJoinError(t('family.invalid_token'));
     },
   });
 

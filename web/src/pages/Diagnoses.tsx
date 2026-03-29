@@ -128,7 +128,7 @@ export function Diagnoses() {
                   <div className="med-details">
                     {d.diagnosed_by && `${d.diagnosed_by} · `}
                     {d.diagnosed_at && fmt(d.diagnosed_at, 'dd. MMM yyyy')}
-                    {d.resolved_at && ` — resolved ${fmt(d.resolved_at, 'dd. MMM yyyy')}`}
+                    {d.resolved_at && ` — ${t('diagnoses.resolved_prefix')} ${fmt(d.resolved_at, 'dd. MMM yyyy')}`}
                   </div>
                 </div>
                 <div className="med-actions">

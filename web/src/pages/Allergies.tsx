@@ -135,12 +135,12 @@ export function Allergies() {
                 <div className="med-info">
                   <div className="med-name">{a.name}</div>
                   <div className="med-details">
-                    {a.category} {a.reaction_type && `· ${a.reaction_type}`}
+                    {t('allergies.cat_' + a.category)} {a.reaction_type && `· ${t('allergies.react_' + a.reaction_type)}`}
                   </div>
                 </div>
                 <div className="med-actions">
                   {a.severity && <span className={`badge ${SEVERITY_COLORS[a.severity] || ''}`}>{t('allergies.sev_' + a.severity)}</span>}
-                  <span className={`badge ${a.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>{a.status}</span>
+                  <span className={`badge ${a.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>{t('allergies.status_' + a.status)}</span>
                   <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(a.id); }} title={t('common.delete')}>×</button>
                 </div>
               </div>

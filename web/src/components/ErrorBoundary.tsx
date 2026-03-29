@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react';
+import i18n from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -28,12 +29,13 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
 
+      const t = i18n.t.bind(i18n);
       return (
         <div className="error-boundary">
           <div className="error-card">
-            <h2>Something went wrong</h2>
+            <h2>{t('error_boundary.title')}</h2>
             <p className="text-muted">
-              {this.state.error?.message || 'An unexpected error occurred.'}
+              {this.state.error?.message || t('error_boundary.default_message')}
             </p>
             <button
               className="btn btn-add"
@@ -42,7 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 window.location.reload();
               }}
             >
-              Reload Page
+              {t('error_boundary.reload')}
             </button>
           </div>
         </div>

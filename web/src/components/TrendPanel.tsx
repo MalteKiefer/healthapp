@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface DataPoint {
   measured_at: string;
@@ -17,6 +18,7 @@ interface TrendPanelProps {
  * No server-side analysis, no AI — purely descriptive statistics.
  */
 export function TrendPanel({ data, metricName, unit }: TrendPanelProps) {
+  const { t } = useTranslation();
   const stats = useMemo(() => {
     if (data.length < 2) return null;
 
@@ -71,7 +73,7 @@ export function TrendPanel({ data, metricName, unit }: TrendPanelProps) {
   }, [data]);
 
   if (!stats) {
-    return <p className="text-muted">Need at least 2 data points for trend analysis</p>;
+    return <p className="text-muted">{t('trend.min_data')}</p>;
   }
 
   const trendArrow = stats.trendDirection === 'up' ? '↑' : stats.trendDirection === 'down' ? '↓' : '→';
@@ -79,32 +81,32 @@ export function TrendPanel({ data, metricName, unit }: TrendPanelProps) {
 
   return (
     <div className="trend-panel">
-      <h4>Insights — {metricName}</h4>
+      <h4>{t('trend.insights', { metric: metricName })}</h4>
       <div className="trend-grid">
         <div className="trend-stat">
-          <div className="trend-label">7-day average</div>
+          <div className="trend-label">{t('trend.avg_7d')}</div>
           <div className="trend-value">{stats.avg7} {unit}</div>
         </div>
         <div className="trend-stat">
-          <div className="trend-label">30-day average</div>
+          <div className="trend-label">{t('trend.avg_30d')}</div>
           <div className="trend-value">{stats.avg30} {unit}</div>
         </div>
         <div className="trend-stat">
-          <div className="trend-label">Trend</div>
+          <div className="trend-label">{t('trend.trend')}</div>
           <div className={`trend-value ${trendColor}`}>
             {trendArrow} {Math.abs(Number(stats.trendPercent))}%
           </div>
         </div>
         <div className="trend-stat">
-          <div className="trend-label">Variability</div>
-          <div className="trend-value">{stats.variability}</div>
+          <div className="trend-label">{t('trend.variability')}</div>
+          <div className="trend-value">{t('trend.' + stats.variability)}</div>
         </div>
         <div className="trend-stat">
-          <div className="trend-label">Range</div>
+          <div className="trend-label">{t('trend.range')}</div>
           <div className="trend-value">{stats.min} – {stats.max} {unit}</div>
         </div>
         <div className="trend-stat">
-          <div className="trend-label">Measurements</div>
+          <div className="trend-label">{t('trend.measurements')}</div>
           <div className="trend-value">{stats.count}</div>
         </div>
       </div>

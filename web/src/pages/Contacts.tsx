@@ -99,7 +99,7 @@ export function Contacts() {
               <div className="modal-body">
                 <div className="form-row">
                   <div className="form-group"><label>{t('common.name')} *</label><input type="text" {...register('name')} required /></div>
-                  <div className="form-group"><label>{t('contacts.specialty')}</label><input type="text" {...register('specialty')} placeholder="e.g. Cardiology" /></div>
+                  <div className="form-group"><label>{t('contacts.specialty')}</label><input type="text" {...register('specialty')} placeholder={t('contacts.specialty_placeholder')} /></div>
                   <div className="form-group"><label>{t('contacts.facility')}</label><input type="text" {...register('facility')} /></div>
                 </div>
                 <div className="form-row">
@@ -133,7 +133,7 @@ export function Contacts() {
                     <div className="contact-name">{c.name}</div>
                     {c.specialty && <div className="text-muted" style={{ fontSize: 13 }}>{c.specialty}</div>}
                   </div>
-                  {c.is_emergency_contact && <span className="badge badge-missed" style={{ marginLeft: 'auto' }}>Emergency</span>}
+                  {c.is_emergency_contact && <span className="badge badge-missed" style={{ marginLeft: 'auto' }}>{t('contacts.emergency')}</span>}
                 </div>
                 {c.facility && <div className="contact-detail">{c.facility}</div>}
                 {c.phone && <div className="contact-detail">{c.phone}</div>}
@@ -158,7 +158,7 @@ export function Contacts() {
               <div className="modal-body">
                 <div className="form-row">
                   <div className="form-group"><label>{t('common.name')} *</label><input type="text" {...editRegister('name')} required /></div>
-                  <div className="form-group"><label>{t('contacts.specialty')}</label><input type="text" {...editRegister('specialty')} placeholder="e.g. Cardiology" /></div>
+                  <div className="form-group"><label>{t('contacts.specialty')}</label><input type="text" {...editRegister('specialty')} placeholder={t('contacts.specialty_placeholder')} /></div>
                   <div className="form-group"><label>{t('contacts.facility')}</label><input type="text" {...editRegister('facility')} /></div>
                 </div>
                 <div className="form-row">

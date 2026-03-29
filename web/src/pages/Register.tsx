@@ -62,7 +62,7 @@ export function Register() {
     setError('');
 
     if (passphrase !== passphraseConfirm) {
-      setError('Passphrases do not match');
+      setError(t('register.passphrase_mismatch'));
       return;
     }
 
@@ -134,12 +134,12 @@ export function Register() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === 'email_already_registered') {
-          setError('This email is already registered');
+          setError(t('register.email_already_registered'));
         } else {
           setError(err.code);
         }
       } else {
-        setError('Connection error');
+        setError(t('register.connection_error'));
       }
     } finally {
       setLoading(false);
@@ -177,10 +177,8 @@ export function Register() {
     return (
       <div className="onboarding-page">
         <div className="onboarding-card">
-          <h1>Recovery Codes</h1>
-          <div className="alert alert-warning" style={{ marginBottom: 20 }}>
-            Save these codes in a safe place. They are the <strong>only way</strong> to recover your account if you lose your passphrase.
-          </div>
+          <h1>{t('register.recovery_codes_title')}</h1>
+          <div className="alert alert-warning" style={{ marginBottom: 20 }} dangerouslySetInnerHTML={{ __html: t('register.recovery_codes_warning') }} />
           <div className="recovery-grid" style={{ marginBottom: 20 }}>
             {recoveryCodes.map((code, i) => (
               <div className="recovery-code" key={i}>{code}</div>
@@ -188,7 +186,7 @@ export function Register() {
           </div>
           <div className="form-actions">
             <button className="btn-secondary" onClick={handleCopyCodes} style={{ flex: 1, padding: '10px 16px' }}>
-              {copiedCodes ? 'Copied!' : 'Copy to Clipboard'}
+              {copiedCodes ? t('register.copied') : t('register.copy_to_clipboard')}
             </button>
             <button
               className="btn-add"
@@ -196,7 +194,7 @@ export function Register() {
               disabled={loading}
               style={{ flex: 1, padding: '10px 16px' }}
             >
-              {loading ? 'Logging in...' : 'Continue'}
+              {loading ? t('register.logging_in') : t('common.continue')}
             </button>
           </div>
         </div>
@@ -225,13 +223,13 @@ export function Register() {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="displayName">Display Name</label>
+            <label htmlFor="displayName">{t('register.display_name')}</label>
             <input
               id="displayName"
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder={email.split('@')[0] || 'Optional'}
+              placeholder={email.split('@')[0] || t('register.optional')}
               autoComplete="name"
             />
           </div>
@@ -251,7 +249,7 @@ export function Register() {
             </small>
           </div>
           <div className="form-group">
-            <label htmlFor="passphraseConfirm">Confirm Passphrase</label>
+            <label htmlFor="passphraseConfirm">{t('register.confirm_passphrase')}</label>
             <input
               id="passphraseConfirm"
               type="password"
@@ -268,7 +266,7 @@ export function Register() {
         </form>
 
         <p className="auth-tagline" style={{ marginTop: 16, marginBottom: 0 }}>
-          Already have an account? <Link to="/login" className="card-link">{t('auth.login')}</Link>
+          {t('register.already_have_account')} <Link to="/login" className="card-link">{t('auth.login')}</Link>
         </p>
       </div>
     </div>

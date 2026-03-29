@@ -137,7 +137,7 @@ export function Appointments() {
               </div>
               <div className="form-group">
                 <label>{t('appointments.preparation')}</label>
-                <textarea rows={2} {...register('preparation_notes')} placeholder="e.g. Arrive fasting" />
+                <textarea rows={2} {...register('preparation_notes')} placeholder={t('appointments.preparation_placeholder')} />
               </div>
               <div className="form-actions">
                 <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>
@@ -178,7 +178,7 @@ export function Appointments() {
                     {dateLabel && <span className="badge badge-info">{dateLabel}</span>}
                   </div>
                   <div className="appt-actions">
-                    <span className={`badge badge-${appt.status}`}>{appt.status}</span>
+                    <span className={`badge badge-${appt.status}`}>{t('appointments.status_' + appt.status)}</span>
                     {appt.status === 'scheduled' && (
                       <button
                         className="btn-sm"

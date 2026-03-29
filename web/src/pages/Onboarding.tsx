@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
 import { useAuthStore } from '../store/auth';
 
@@ -78,9 +79,9 @@ function checkPassphraseStrength(passphrase: string): StrengthResult {
   if (/[0-9]/.test(passphrase)) score++;
   if (/[^a-zA-Z0-9]/.test(passphrase)) score++;
 
-  if (score <= 2) return { score, label: 'Weak', color: 'var(--color-danger)' };
-  if (score <= 4) return { score, label: 'Fair', color: 'var(--color-warning)' };
-  return { score, label: 'Strong', color: 'var(--color-success)' };
+  if (score <= 2) return { score, label: 'weak', color: 'var(--color-danger)' };
+  if (score <= 4) return { score, label: 'fair', color: 'var(--color-warning)' };
+  return { score, label: 'strong', color: 'var(--color-success)' };
 }
 
 // ---- Component ----
@@ -88,6 +89,7 @@ function checkPassphraseStrength(passphrase: string): StrengthResult {
 const TOTAL_STEPS = 6;
 
 export function Onboarding() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuthStore();
 
@@ -125,15 +127,15 @@ export function Onboarding() {
   const handleAccountSetup = async () => {
     setError('');
     if (!data.email || !data.displayName || !data.passphrase) {
-      setError('All fields are required.');
+      setError(t('onboarding.all_fields_required'));
       return;
     }
     if (data.passphrase !== data.passphraseConfirm) {
-      setError('Passphrases do not match.');
+      setError(t('onboarding.passphrase_mismatch'));
       return;
     }
     if (data.passphrase.length < 8) {
-      setError('Passphrase must be at least 8 characters.');
+      setError(t('onboarding.passphrase_min_length'));
       return;
     }
 
@@ -157,7 +159,7 @@ export function Onboarding() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Connection error. Please try again.');
+        setError(t('onboarding.connection_error'));
       }
     } finally {
       setLoading(false);
@@ -203,7 +205,7 @@ export function Onboarding() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Failed to set up 2FA. Please try again.');
+        setError(t('onboarding.failed_2fa'));
       }
     } finally {
       setLoading(false);
@@ -213,7 +215,7 @@ export function Onboarding() {
   const handleVerify2FA = async () => {
     setError('');
     if (data.totpCode.length !== 6) {
-      setError('Please enter a 6-digit code.');
+      setError(t('onboarding.enter_6_digit'));
       return;
     }
     setLoading(true);
@@ -225,7 +227,7 @@ export function Onboarding() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Verification failed. Please try again.');
+        setError(t('onboarding.verification_failed'));
       }
     } finally {
       setLoading(false);
@@ -235,7 +237,7 @@ export function Onboarding() {
   const handleCreateProfile = async () => {
     setError('');
     if (!data.profileName) {
-      setError('Profile name is required.');
+      setError(t('onboarding.profile_name_required'));
       return;
     }
 
@@ -268,7 +270,7 @@ export function Onboarding() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Failed to create profile. Please try again.');
+        setError(t('onboarding.failed_create_profile'));
       }
     } finally {
       setLoading(false);
@@ -285,22 +287,17 @@ export function Onboarding() {
       case 1:
         return (
           <div>
-            <h1>Welcome to HealthVault</h1>
+            <h1>{t('onboarding.welcome_title')}</h1>
             <p className="auth-tagline" style={{ marginBottom: 16 }}>
-              Your personal health data, protected by zero-knowledge encryption.
-              Only you can access your information — not even our servers can
-              read it.
+              {t('onboarding.welcome_desc')}
             </p>
-            <div className="alert alert-warning" style={{ marginBottom: 24 }}>
-              <strong>Important:</strong> Your passphrase cannot be reset. If
-              you lose it, your data is permanently inaccessible.
-            </div>
+            <div className="alert alert-warning" style={{ marginBottom: 24 }} dangerouslySetInnerHTML={{ __html: t('onboarding.welcome_warning') }} />
             <button
               type="button"
               className="btn btn-primary"
               onClick={() => setStep(2)}
             >
-              Get Started
+              {t('onboarding.get_started')}
             </button>
           </div>
         );
@@ -308,9 +305,9 @@ export function Onboarding() {
       case 2:
         return (
           <div>
-            <h2>Account Setup</h2>
+            <h2>{t('onboarding.account_setup')}</h2>
             <div className="form-group">
-              <label htmlFor="ob-email">Email</label>
+              <label htmlFor="ob-email">{t('auth.email')}</label>
               <input
                 id="ob-email"
                 type="email"
@@ -321,7 +318,7 @@ export function Onboarding() {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="ob-display-name">Display Name</label>
+              <label htmlFor="ob-display-name">{t('register.display_name')}</label>
               <input
                 id="ob-display-name"
                 type="text"
@@ -331,7 +328,7 @@ export function Onboarding() {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="ob-passphrase">Passphrase</label>
+              <label htmlFor="ob-passphrase">{t('auth.passphrase')}</label>
               <input
                 id="ob-passphrase"
                 type="password"
@@ -370,14 +367,14 @@ export function Onboarding() {
                       />
                     </div>
                     <span style={{ color: strength.color, fontWeight: 500 }}>
-                      {strength.label}
+                      {t('onboarding.strength_' + strength.label)}
                     </span>
                   </div>
                 </div>
               )}
             </div>
             <div className="form-group">
-              <label htmlFor="ob-passphrase-confirm">Confirm Passphrase</label>
+              <label htmlFor="ob-passphrase-confirm">{t('register.confirm_passphrase')}</label>
               <input
                 id="ob-passphrase-confirm"
                 type="password"
@@ -394,8 +391,7 @@ export function Onboarding() {
                 marginBottom: 16,
               }}
             >
-              Remember: your passphrase is the only way to access your data. We
-              cannot recover it for you.
+              {t('onboarding.passphrase_remember')}
             </p>
             <button
               type="button"
@@ -403,7 +399,7 @@ export function Onboarding() {
               disabled={loading}
               onClick={handleAccountSetup}
             >
-              {loading ? 'Creating account...' : 'Continue'}
+              {loading ? t('onboarding.creating_account') : t('common.continue')}
             </button>
           </div>
         );
@@ -411,7 +407,7 @@ export function Onboarding() {
       case 3:
         return (
           <div>
-            <h2>Recovery Codes</h2>
+            <h2>{t('onboarding.recovery_codes')}</h2>
             <p
               style={{
                 fontSize: 14,
@@ -419,8 +415,7 @@ export function Onboarding() {
                 marginBottom: 16,
               }}
             >
-              Save these recovery codes in a safe place. They can be used to
-              access your account if you lose your second factor.
+              {t('onboarding.recovery_codes_desc')}
             </p>
             <div className="recovery-grid">
               {data.recoveryCodes.map((code, i) => (
@@ -445,14 +440,14 @@ export function Onboarding() {
                 className="btn btn-secondary"
                 onClick={handleCopyAll}
               >
-                Copy All
+                {t('onboarding.copy_all')}
               </button>
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={handleDownloadCodes}
               >
-                Download as .txt
+                {t('onboarding.download_txt')}
               </button>
             </div>
             <label
@@ -470,7 +465,7 @@ export function Onboarding() {
                 checked={data.codesAcknowledged}
                 onChange={(e) => update('codesAcknowledged', e.target.checked)}
               />
-              I have saved these codes in a safe place
+              {t('onboarding.codes_acknowledged')}
             </label>
             <button
               type="button"
@@ -478,7 +473,7 @@ export function Onboarding() {
               disabled={!data.codesAcknowledged}
               onClick={() => setStep(4)}
             >
-              Continue
+              {t('common.continue')}
             </button>
           </div>
         );
@@ -486,7 +481,7 @@ export function Onboarding() {
       case 4:
         return (
           <div>
-            <h2>Two-Factor Authentication</h2>
+            <h2>{t('onboarding.two_factor_title')}</h2>
             <p
               style={{
                 fontSize: 14,
@@ -494,8 +489,7 @@ export function Onboarding() {
                 marginBottom: 16,
               }}
             >
-              Add an extra layer of security to your account with a TOTP
-              authenticator app.
+              {t('onboarding.two_factor_desc')}
             </p>
 
             {!data.provisioningUri ? (
@@ -507,13 +501,13 @@ export function Onboarding() {
                   onClick={handleSetup2FA}
                   style={{ marginBottom: 12 }}
                 >
-                  {loading ? 'Setting up...' : 'Set up 2FA'}
+                  {loading ? t('onboarding.setting_up_2fa') : t('onboarding.setup_2fa')}
                 </button>
               </div>
             ) : (
               <div>
                 <div className="form-group">
-                  <label>Provisioning URI</label>
+                  <label>{t('onboarding.provisioning_uri')}</label>
                   <input
                     type="text"
                     value={data.provisioningUri}
@@ -527,12 +521,11 @@ export function Onboarding() {
                       marginTop: 4,
                     }}
                   >
-                    Copy this URI into your authenticator app, or scan the QR
-                    code (coming soon).
+                    {t('onboarding.provisioning_hint')}
                   </p>
                 </div>
                 <div className="form-group">
-                  <label htmlFor="ob-totp">Verification Code</label>
+                  <label htmlFor="ob-totp">{t('onboarding.verification_code')}</label>
                   <input
                     id="ob-totp"
                     type="text"
@@ -552,7 +545,7 @@ export function Onboarding() {
                   onClick={handleVerify2FA}
                   style={{ marginBottom: 8 }}
                 >
-                  {loading ? 'Verifying...' : 'Verify & Continue'}
+                  {loading ? t('onboarding.verifying') : t('onboarding.verify_continue')}
                 </button>
               </div>
             )}
@@ -571,7 +564,7 @@ export function Onboarding() {
                 }}
                 onClick={() => setStep(5)}
               >
-                Skip for now
+                {t('onboarding.skip_for_now')}
               </button>
             </div>
           </div>
@@ -580,7 +573,7 @@ export function Onboarding() {
       case 5:
         return (
           <div>
-            <h2>Create Your First Profile</h2>
+            <h2>{t('onboarding.create_profile')}</h2>
             <p
               style={{
                 fontSize: 14,
@@ -588,22 +581,21 @@ export function Onboarding() {
                 marginBottom: 16,
               }}
             >
-              Set up a health profile. You can add more profiles later for
-              family members.
+              {t('onboarding.create_profile_desc')}
             </p>
             <div className="form-group">
-              <label htmlFor="ob-profile-name">Profile Name</label>
+              <label htmlFor="ob-profile-name">{t('onboarding.profile_name')}</label>
               <input
                 id="ob-profile-name"
                 type="text"
                 value={data.profileName}
                 onChange={(e) => update('profileName', e.target.value)}
                 required
-                placeholder="e.g. John"
+                placeholder={t('onboarding.profile_name_placeholder')}
               />
             </div>
             <div className="form-group">
-              <label htmlFor="ob-dob">Date of Birth</label>
+              <label htmlFor="ob-dob">{t('onboarding.date_of_birth')}</label>
               <input
                 id="ob-dob"
                 type="date"
@@ -612,26 +604,26 @@ export function Onboarding() {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="ob-sex">Biological Sex</label>
+              <label htmlFor="ob-sex">{t('onboarding.biological_sex')}</label>
               <select
                 id="ob-sex"
                 value={data.biologicalSex}
                 onChange={(e) => update('biologicalSex', e.target.value)}
               >
-                <option value="unspecified">Prefer not to say</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
+                <option value="unspecified">{t('onboarding.sex_unspecified')}</option>
+                <option value="male">{t('onboarding.sex_male')}</option>
+                <option value="female">{t('onboarding.sex_female')}</option>
+                <option value="other">{t('onboarding.sex_other')}</option>
               </select>
             </div>
             <div className="form-group">
-              <label htmlFor="ob-blood-type">Blood Type</label>
+              <label htmlFor="ob-blood-type">{t('onboarding.blood_type')}</label>
               <select
                 id="ob-blood-type"
                 value={data.bloodType}
                 onChange={(e) => update('bloodType', e.target.value)}
               >
-                <option value="">Unknown</option>
+                <option value="">{t('onboarding.blood_type_unknown')}</option>
                 <option value="A+">A+</option>
                 <option value="A-">A-</option>
                 <option value="B+">B+</option>
@@ -648,7 +640,7 @@ export function Onboarding() {
               disabled={loading}
               onClick={handleCreateProfile}
             >
-              {loading ? 'Creating profile...' : 'Create Profile'}
+              {loading ? t('onboarding.creating_profile') : t('onboarding.create_profile_btn')}
             </button>
           </div>
         );
@@ -656,7 +648,7 @@ export function Onboarding() {
       case 6:
         return (
           <div style={{ textAlign: 'center' }}>
-            <h2 style={{ marginBottom: 16 }}>Setup Complete</h2>
+            <h2 style={{ marginBottom: 16 }}>{t('onboarding.setup_complete')}</h2>
             <div
               style={{
                 display: 'flex',
@@ -672,13 +664,13 @@ export function Onboarding() {
                 <span style={{ color: 'var(--color-success)', marginRight: 8 }}>
                   &#10003;
                 </span>
-                Account created
+                {t('onboarding.account_created')}
               </div>
               <div>
                 <span style={{ color: 'var(--color-success)', marginRight: 8 }}>
                   &#10003;
                 </span>
-                Recovery codes saved
+                {t('onboarding.recovery_codes_saved')}
               </div>
               <div>
                 <span
@@ -691,7 +683,7 @@ export function Onboarding() {
                 >
                   {data.twoFactorEnabled ? '\u2713' : '\u2014'}
                 </span>
-                Two-factor authentication
+                {t('onboarding.two_factor_auth')}
                 {!data.twoFactorEnabled && (
                   <span
                     style={{
@@ -700,7 +692,7 @@ export function Onboarding() {
                       marginLeft: 4,
                     }}
                   >
-                    (skipped)
+                    {t('onboarding.skipped')}
                   </span>
                 )}
               </div>
@@ -708,7 +700,7 @@ export function Onboarding() {
                 <span style={{ color: 'var(--color-success)', marginRight: 8 }}>
                   &#10003;
                 </span>
-                Health profile created
+                {t('onboarding.health_profile_created')}
               </div>
             </div>
             <button
@@ -716,7 +708,7 @@ export function Onboarding() {
               className="btn btn-primary"
               onClick={() => navigate('/')}
             >
-              Go to Dashboard
+              {t('onboarding.go_to_dashboard')}
             </button>
           </div>
         );
@@ -735,7 +727,7 @@ export function Onboarding() {
             style={{ width: `${progressPercent}%` }}
           />
         </div>
-        <div className="step-indicator">Step {step} of {TOTAL_STEPS}</div>
+        <div className="step-indicator">{t('onboarding.step_of', { step, total: TOTAL_STEPS })}</div>
         {error && <div className="alert alert-error">{error}</div>}
         {renderStep()}
       </div>

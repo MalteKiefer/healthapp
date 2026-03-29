@@ -199,7 +199,7 @@ export function Symptoms() {
                   </div>
                 </div>
                 <div className="form-group"><label>{t('symptoms.trigger_factors')} ({t('symptoms.trigger_hint')})</label>
-                  <input type="text" {...register('trigger_factors')} placeholder="e.g. stress, weather change" />
+                  <input type="text" {...register('trigger_factors')} placeholder={t('symptoms_data.trigger_placeholder')} />
                 </div>
                 <div className="form-group"><label>{t('common.notes')}</label><textarea rows={2} {...register('notes')} /></div>
               </form>
@@ -339,7 +339,7 @@ export function Symptoms() {
                   </div>
                 </div>
                 <div className="form-group"><label>{t('symptoms.trigger_factors')} ({t('symptoms.trigger_hint')})</label>
-                  <input type="text" {...editForm.register('trigger_factors')} placeholder="e.g. stress, weather change" />
+                  <input type="text" {...editForm.register('trigger_factors')} placeholder={t('symptoms_data.trigger_placeholder')} />
                 </div>
                 <div className="form-group"><label>{t('common.notes')}</label><textarea rows={2} {...editForm.register('notes')} /></div>
               </form>

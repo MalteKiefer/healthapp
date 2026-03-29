@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type SyncStatus = 'online' | 'offline' | 'syncing';
 
 export function SyncIndicator() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<SyncStatus>(navigator.onLine ? 'online' : 'offline');
 
   useEffect(() => {
@@ -24,8 +26,8 @@ export function SyncIndicator() {
     <div className={`sync-indicator sync-${status}`}>
       <span className="sync-dot" />
       <span className="sync-text">
-        {status === 'offline' && 'Offline — changes will sync when reconnected'}
-        {status === 'syncing' && 'Syncing...'}
+        {status === 'offline' && t('sync.offline')}
+        {status === 'syncing' && t('sync.syncing')}
       </span>
     </div>
   );

@@ -65,72 +65,72 @@ const CHART_TABS: ChartTabDef[] = [
     labelKey: 'vitals.blood_pressure',
     dataKeys: ['blood_pressure_systolic', 'blood_pressure_diastolic'],
     lines: [
-      { key: 'blood_pressure_systolic', label: 'Systolic', unit: 'mmHg', color: '#FF3B30' },
-      { key: 'blood_pressure_diastolic', label: 'Diastolic', unit: 'mmHg', color: '#FF9500' },
+      { key: 'blood_pressure_systolic', label: 'vitals_data.systolic', unit: 'mmHg', color: '#FF3B30' },
+      { key: 'blood_pressure_diastolic', label: 'vitals_data.diastolic', unit: 'mmHg', color: '#FF9500' },
     ],
     unit: 'mmHg',
     refLines: [
-      { value: 120, label: 'Optimal sys.', color: '#34C759' },
-      { value: 80, label: 'Optimal dia.', color: '#34C759' },
+      { value: 120, label: 'vitals_data.optimal_sys', color: '#34C759' },
+      { value: 80, label: 'vitals_data.optimal_dia', color: '#34C759' },
     ],
   },
   {
     id: 'pulse',
     labelKey: 'vitals.pulse',
     dataKeys: ['pulse'],
-    lines: [{ key: 'pulse', label: 'Pulse', unit: 'bpm', color: '#34C759' }],
+    lines: [{ key: 'pulse', label: 'vitals_data.pulse', unit: 'bpm', color: '#34C759' }],
     unit: 'bpm',
     refLines: [
-      { value: 60, label: 'Low normal', color: '#FF9500' },
-      { value: 100, label: 'High normal', color: '#FF9500' },
+      { value: 60, label: 'vitals_data.low_normal', color: '#FF9500' },
+      { value: 100, label: 'vitals_data.high_normal', color: '#FF9500' },
     ],
   },
   {
     id: 'weight',
     labelKey: 'vitals.weight',
     dataKeys: ['weight'],
-    lines: [{ key: 'weight', label: 'Weight', unit: 'kg', color: '#AF52DE' }],
+    lines: [{ key: 'weight', label: 'vitals_data.weight', unit: 'kg', color: '#AF52DE' }],
     unit: 'kg',
   },
   {
     id: 'temperature',
     labelKey: 'vitals.temperature',
     dataKeys: ['body_temperature'],
-    lines: [{ key: 'body_temperature', label: 'Temperature', unit: '\u00B0C', color: '#FF2D55' }],
+    lines: [{ key: 'body_temperature', label: 'vitals_data.temperature', unit: '\u00B0C', color: '#FF2D55' }],
     unit: '\u00B0C',
     refLines: [
-      { value: 37.5, label: 'Fever', color: '#FF9500' },
+      { value: 37.5, label: 'vitals_data.fever', color: '#FF9500' },
     ],
   },
   {
     id: 'oxygen',
     labelKey: 'vitals.oxygen',
     dataKeys: ['oxygen_saturation'],
-    lines: [{ key: 'oxygen_saturation', label: 'SpO2', unit: '%', color: '#007AFF' }],
+    lines: [{ key: 'oxygen_saturation', label: 'vitals_data.spo2', unit: '%', color: '#007AFF' }],
     unit: '%',
     refLines: [
-      { value: 95, label: 'Normal', color: '#34C759' },
+      { value: 95, label: 'vitals_data.normal', color: '#34C759' },
     ],
   },
   {
     id: 'glucose',
     labelKey: 'vitals.glucose',
     dataKeys: ['blood_glucose'],
-    lines: [{ key: 'blood_glucose', label: 'Glucose', unit: 'mmol/L', color: '#FF9500' }],
+    lines: [{ key: 'blood_glucose', label: 'vitals_data.glucose', unit: 'mmol/L', color: '#FF9500' }],
     unit: 'mmol/L',
   },
 ];
 
 type ThresholdConfig = Record<string, { low?: number | null; high?: number | null }>;
 
-const THRESHOLD_METRICS: { key: string; label: string; unit: string }[] = [
-  { key: 'blood_pressure_systolic', label: 'Systolic BP', unit: 'mmHg' },
-  { key: 'blood_pressure_diastolic', label: 'Diastolic BP', unit: 'mmHg' },
-  { key: 'pulse', label: 'Pulse', unit: 'bpm' },
-  { key: 'body_temperature', label: 'Temperature', unit: '\u00B0C' },
-  { key: 'oxygen_saturation', label: 'SpO2', unit: '%' },
-  { key: 'blood_glucose', label: 'Blood Glucose', unit: 'mmol/L' },
-  { key: 'weight', label: 'Weight', unit: 'kg' },
+const THRESHOLD_METRICS: { key: string; labelKey: string; unit: string }[] = [
+  { key: 'blood_pressure_systolic', labelKey: 'vitals_data.systolic_bp', unit: 'mmHg' },
+  { key: 'blood_pressure_diastolic', labelKey: 'vitals_data.diastolic_bp', unit: 'mmHg' },
+  { key: 'pulse', labelKey: 'vitals_data.pulse', unit: 'bpm' },
+  { key: 'body_temperature', labelKey: 'vitals_data.temperature', unit: '\u00B0C' },
+  { key: 'oxygen_saturation', labelKey: 'vitals_data.spo2', unit: '%' },
+  { key: 'blood_glucose', labelKey: 'vitals_data.blood_glucose', unit: 'mmol/L' },
+  { key: 'weight', labelKey: 'vitals_data.weight', unit: 'kg' },
 ];
 
 type TimeRange = '7d' | '30d' | '90d' | '1y' | 'all';
@@ -355,7 +355,7 @@ export function Vitals() {
           return (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-              <span>{line?.label || p.name}: <strong>{p.value}</strong> {line?.unit}</span>
+              <span>{line ? t(line.label) : p.name}: <strong>{p.value}</strong> {line?.unit}</span>
             </div>
           );
         })}
@@ -455,11 +455,11 @@ export function Vitals() {
           <div className="view-tabs">
             <button className={`view-tab${viewTab === 'chart' ? ' active' : ''}`} onClick={() => setViewTab('chart')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              {t('vitals.title')}
+              {t('vitals_data.chart_tab')}
             </button>
             <button className={`view-tab${viewTab === 'table' ? ' active' : ''}`} onClick={() => setViewTab('table')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-              {t('common.date')}
+              {t('vitals_data.table_tab')}
             </button>
           </div>
           <div className="view-toolbar-right">
@@ -473,10 +473,10 @@ export function Vitals() {
             <button
               className="btn btn-secondary"
               onClick={() => viewTab === 'chart' ? exportChartPNG(chartRef) : exportExcel(filteredVitals as unknown as Array<Record<string, unknown>>, t)}
-              title={viewTab === 'chart' ? 'Export PNG' : 'Export Excel'}
+              title={viewTab === 'chart' ? t('vitals_data.export_png') : t('vitals_data.export_excel')}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Export
+              {t('vitals_data.export')}
             </button>
           </div>
         </div>
@@ -516,7 +516,7 @@ export function Vitals() {
                             {v.value}
                           </span>
                           <span className="vital-latest-unit">{v.unit}</span>
-                          <span className="vital-latest-label">{v.label}</span>
+                          <span className="vital-latest-label">{t(v.label)}</span>
                         </div>
                       ))}
                       <span className="vital-latest-date">{latestValues.date}</span>
@@ -542,7 +542,7 @@ export function Vitals() {
                           stroke={ref.color}
                           strokeDasharray="6 4"
                           strokeOpacity={0.5}
-                          label={{ value: ref.label, position: 'insideTopRight', fontSize: 11, fill: ref.color }}
+                          label={{ value: t(ref.label), position: 'insideTopRight', fontSize: 11, fill: ref.color }}
                         />
                       ))}
                       {currentTab.lines.map((line) => (
@@ -554,7 +554,7 @@ export function Vitals() {
                           strokeWidth={2.5}
                           dot={{ r: 4, fill: line.color, strokeWidth: 2, stroke: 'var(--color-surface)' }}
                           activeDot={{ r: 6 }}
-                          name={line.label}
+                          name={t(line.label)}
                           connectNulls
                         />
                       ))}
@@ -584,7 +584,7 @@ export function Vitals() {
                     <th>{t('vitals.pulse')}</th>
                     <th>{t('vitals.weight')}</th>
                     <th className="hide-mobile">{t('vitals.temperature')}</th>
-                    <th className="hide-mobile">SpO2</th>
+                    <th className="hide-mobile">{t('vitals_data.spo2')}</th>
                     <th className="hide-sm">{t('vitals.glucose')}</th>
                     <th></th>
                   </tr>
@@ -704,7 +704,7 @@ export function Vitals() {
                   <tbody>
                     {THRESHOLD_METRICS.map((metric) => (
                       <tr key={metric.key}>
-                        <td>{metric.label} <span className="text-muted">({metric.unit})</span></td>
+                        <td>{t(metric.labelKey)} <span className="text-muted">({metric.unit})</span></td>
                         <td>
                           <input
                             type="number"

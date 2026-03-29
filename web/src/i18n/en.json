@@ -41,7 +41,10 @@
     "totp_code": "Authentication Code",
     "submit": "Continue",
     "invalid_totp": "Invalid authentication code",
-    "forgot_passphrase": "Forgot passphrase?"
+    "forgot_passphrase": "Forgot passphrase?",
+    "invalid_credentials": "Invalid email or passphrase",
+    "connection_error": "Connection error",
+    "no_account": "Don't have an account?"
   },
   "common": {
     "save": "Save",
@@ -181,8 +184,11 @@
     "started_at": "Start Date",
     "ended_at": "End Date",
     "mark_taken": "Mark as taken",
-    "taken": "Taken!", "skipped": "Skipped", "scheduled": "Scheduled",
-    "intake_history": "Intake History", "no_intakes": "No intake records yet",
+    "taken": "Taken!",
+    "skipped": "Skipped",
+    "scheduled": "Scheduled",
+    "intake_history": "Intake History",
+    "no_intakes": "No intake records yet",
     "details": "Details",
     "adherence": "Adherence",
     "adherence_rate": "{{rate}}% this week"
@@ -201,7 +207,15 @@
     "type_consultation": "Consultation",
     "type_lab": "Lab Work",
     "type_vaccination": "Vaccination",
+    "type_specialist": "Specialist",
+    "type_general_practice": "General Practice",
+    "type_therapy": "Therapy",
     "type_other": "Other",
+    "status_scheduled": "Scheduled",
+    "status_completed": "Completed",
+    "status_cancelled": "Cancelled",
+    "status_missed": "Missed",
+    "preparation_placeholder": "e.g. Arrive fasting",
     "today": "Today",
     "tomorrow": "Tomorrow",
     "past": "Past",
@@ -226,7 +240,9 @@
     "add_marker": "+ Add Marker",
     "lab_result": "Lab Result",
     "markers": "markers",
-    "edit": "Edit Lab Result"
+    "edit": "Edit Lab Result",
+    "marker_placeholder": "e.g. Hemoglobin",
+    "flag_normal": "normal"
   },
   "documents": {
     "title": "Documents",
@@ -334,7 +350,9 @@
     "react_gastrointestinal": "Gastrointestinal",
     "react_skin": "Skin",
     "react_other": "Other",
-    "edit": "Edit Allergy"
+    "edit": "Edit Allergy",
+    "status_active": "Active",
+    "status_inactive": "Inactive"
   },
   "diagnoses": {
     "title": "Diagnoses",
@@ -351,7 +369,8 @@
     "icd10_code": "ICD-10 Code",
     "icd10_placeholder": "e.g. E11, J45",
     "edit": "Edit Diagnosis",
-    "resolved_at": "Resolved Date"
+    "resolved_at": "Resolved Date",
+    "resolved_prefix": "resolved"
   },
   "symptoms": {
     "title": "Symptoms",
@@ -408,7 +427,8 @@
     "address": "Address",
     "emergency": "Emergency Contact",
     "emergency_contact": "Emergency contact",
-    "edit": "Edit Contact"
+    "edit": "Edit Contact",
+    "specialty_placeholder": "e.g. Cardiology"
   },
   "search": {
     "title": "Search",
@@ -437,7 +457,12 @@
     "active_feeds": "Active Feeds",
     "no_feeds": "No calendar feeds configured. Create one to subscribe in your calendar app.",
     "last_polled": "Last polled",
-    "edit_feed": "Edit Feed"
+    "edit_feed": "Edit Feed",
+    "detail_appointments": "appointments",
+    "detail_tasks": "tasks",
+    "detail_vaccinations": "vaccinations",
+    "detail_medications": "medications",
+    "detail_verbose": "verbose"
   },
   "settings": {
     "title": "Settings",
@@ -640,7 +665,21 @@
     "consent_records": "Consent Records",
     "no_legal_docs": "No legal documents",
     "no_consent": "No consent records",
-    "consented_at": "Consented"
+    "consented_at": "Consented",
+    "event_user_created": "User Created",
+    "event_user_updated": "User Updated",
+    "event_profile_created": "Profile Created",
+    "event_vital_created": "Vital Recorded",
+    "event_medication_created": "Medication Added",
+    "event_appointment_created": "Appointment Created",
+    "event_lab_created": "Lab Result Added",
+    "event_document_uploaded": "Document Uploaded",
+    "event_share_created": "Share Created",
+    "event_backup_completed": "Backup Completed",
+    "webhook_url_placeholder": "https://example.com/webhook",
+    "webhook_secret_placeholder": "whsec_...",
+    "role_admin": "Admin",
+    "role_user": "User"
   },
   "ocr": {
     "scan_document": "Scan Document",
@@ -739,7 +778,8 @@
     "role_admin": "Admin",
     "role_member": "Member",
     "no_families": "You are not part of any family yet.",
-    "members": "Members"
+    "members": "Members",
+    "invalid_token": "Invalid or expired invite token"
   },
   "activity": {
     "title": "Activity Log",
@@ -747,7 +787,7 @@
     "action": "Action",
     "resource": "Resource",
     "details": "Details",
-    "showing": "{{from}}\u2013{{to}}",
+    "showing": "{{from}}–{{to}}",
     "prev": "Previous",
     "next": "Next"
   },
@@ -760,6 +800,134 @@
     "pdf_title": "PDF Report",
     "pdf_desc": "Printable health summary report",
     "downloading": "Downloading...",
-    "download": "Download"
+    "download": "Download",
+    "error": "Export failed"
+  },
+  "register": {
+    "passphrase_mismatch": "Passphrases do not match",
+    "display_name": "Display Name",
+    "confirm_passphrase": "Confirm Passphrase",
+    "already_have_account": "Already have an account?",
+    "email_already_registered": "This email is already registered",
+    "connection_error": "Connection error",
+    "recovery_codes_title": "Recovery Codes",
+    "recovery_codes_warning": "Save these codes in a safe place. They are the <strong>only way</strong> to recover your account if you lose your passphrase.",
+    "copied": "Copied!",
+    "copy_to_clipboard": "Copy to Clipboard",
+    "logging_in": "Logging in...",
+    "optional": "Optional"
+  },
+  "onboarding": {
+    "step_of": "Step {{step}} of {{total}}",
+    "welcome_title": "Welcome to HealthVault",
+    "welcome_desc": "Your personal health data, protected by zero-knowledge encryption. Only you can access your information — not even our servers can read it.",
+    "welcome_warning": "<strong>Important:</strong> Your passphrase cannot be reset. If you lose it, your data is permanently inaccessible.",
+    "get_started": "Get Started",
+    "account_setup": "Account Setup",
+    "all_fields_required": "All fields are required.",
+    "passphrase_mismatch": "Passphrases do not match.",
+    "passphrase_min_length": "Passphrase must be at least 8 characters.",
+    "connection_error": "Connection error. Please try again.",
+    "creating_account": "Creating account...",
+    "passphrase_remember": "Remember: your passphrase is the only way to access your data. We cannot recover it for you.",
+    "recovery_codes": "Recovery Codes",
+    "recovery_codes_desc": "Save these recovery codes in a safe place. They can be used to access your account if you lose your second factor.",
+    "copy_all": "Copy All",
+    "download_txt": "Download as .txt",
+    "codes_acknowledged": "I have saved these codes in a safe place",
+    "two_factor_title": "Two-Factor Authentication",
+    "two_factor_desc": "Add an extra layer of security to your account with a TOTP authenticator app.",
+    "setting_up_2fa": "Setting up...",
+    "setup_2fa": "Set up 2FA",
+    "provisioning_uri": "Provisioning URI",
+    "provisioning_hint": "Copy this URI into your authenticator app, or scan the QR code (coming soon).",
+    "verification_code": "Verification Code",
+    "enter_6_digit": "Please enter a 6-digit code.",
+    "verification_failed": "Verification failed. Please try again.",
+    "verifying": "Verifying...",
+    "verify_continue": "Verify & Continue",
+    "skip_for_now": "Skip for now",
+    "failed_2fa": "Failed to set up 2FA. Please try again.",
+    "create_profile": "Create Your First Profile",
+    "create_profile_desc": "Set up a health profile. You can add more profiles later for family members.",
+    "profile_name": "Profile Name",
+    "profile_name_placeholder": "e.g. John",
+    "date_of_birth": "Date of Birth",
+    "biological_sex": "Biological Sex",
+    "sex_unspecified": "Prefer not to say",
+    "sex_male": "Male",
+    "sex_female": "Female",
+    "sex_other": "Other",
+    "blood_type": "Blood Type",
+    "blood_type_unknown": "Unknown",
+    "profile_name_required": "Profile name is required.",
+    "creating_profile": "Creating profile...",
+    "create_profile_btn": "Create Profile",
+    "failed_create_profile": "Failed to create profile. Please try again.",
+    "setup_complete": "Setup Complete",
+    "account_created": "Account created",
+    "recovery_codes_saved": "Recovery codes saved",
+    "two_factor_auth": "Two-factor authentication",
+    "skipped": "(skipped)",
+    "health_profile_created": "Health profile created",
+    "go_to_dashboard": "Go to Dashboard",
+    "strength_weak": "Weak",
+    "strength_fair": "Fair",
+    "strength_strong": "Strong"
+  },
+  "error_boundary": {
+    "title": "Something went wrong",
+    "default_message": "An unexpected error occurred.",
+    "reload": "Reload Page"
+  },
+  "sync": {
+    "offline": "Offline — changes will sync when reconnected",
+    "syncing": "Syncing..."
+  },
+  "trend": {
+    "min_data": "Need at least 2 data points for trend analysis",
+    "insights": "Insights — {{metric}}",
+    "avg_7d": "7-day average",
+    "avg_30d": "30-day average",
+    "trend": "Trend",
+    "variability": "Variability",
+    "range": "Range",
+    "measurements": "Measurements",
+    "low": "low",
+    "moderate": "moderate",
+    "high": "high"
+  },
+  "vitals_data": {
+    "chip_blood_pressure": "Blood Pressure",
+    "chip_pulse": "Pulse",
+    "chip_weight": "Weight",
+    "chip_temperature": "Temperature",
+    "chip_spo2": "SpO2",
+    "chip_glucose": "Blood Glucose",
+    "chip_sleep": "Sleep",
+    "systolic": "Systolic",
+    "diastolic": "Diastolic",
+    "pulse": "Pulse",
+    "weight": "Weight",
+    "temperature": "Temperature",
+    "spo2": "SpO2",
+    "glucose": "Glucose",
+    "systolic_bp": "Systolic BP",
+    "diastolic_bp": "Diastolic BP",
+    "blood_glucose": "Blood Glucose",
+    "optimal_sys": "Optimal sys.",
+    "optimal_dia": "Optimal dia.",
+    "low_normal": "Low normal",
+    "high_normal": "High normal",
+    "fever": "Fever",
+    "normal": "Normal",
+    "export": "Export",
+    "export_png": "Export PNG",
+    "export_excel": "Export Excel",
+    "chart_tab": "Chart",
+    "table_tab": "Table"
+  },
+  "symptoms_data": {
+    "trigger_placeholder": "e.g. stress, weather change"
   }
 }

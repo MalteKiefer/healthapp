@@ -185,12 +185,12 @@ export function CalendarFeeds() {
                   <div className="med-name">{feed.name}</div>
                   <div className="med-details">
                     {[
-                      feed.include_appointments && 'appointments',
-                      feed.include_tasks && 'tasks',
-                      feed.include_vaccinations && 'vaccinations',
-                      feed.include_medications && 'medications',
+                      feed.include_appointments && t('calendar.detail_appointments'),
+                      feed.include_tasks && t('calendar.detail_tasks'),
+                      feed.include_vaccinations && t('calendar.detail_vaccinations'),
+                      feed.include_medications && t('calendar.detail_medications'),
                     ].filter(Boolean).join(', ')}
-                    {feed.verbose_mode && ' · verbose'}
+                    {feed.verbose_mode && ` · ${t('calendar.detail_verbose')}`}
                   </div>
                   {feed.last_polled_at && (
                     <div className="med-meta">{t('calendar.last_polled')}: {fmt(feed.last_polled_at, 'dd. MMM, HH:mm')}</div>

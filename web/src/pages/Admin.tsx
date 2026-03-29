@@ -699,7 +699,7 @@ export function Admin() {
                       <div className="admin-user-info">
                         <div className="admin-user-name">
                           {u.display_name || u.email.split('@')[0]}
-                          <span className={`badge ${u.role === 'admin' ? 'badge-scheduled' : 'badge-inactive'}`} style={{ marginLeft: 8 }}>{u.role}</span>
+                          <span className={`badge ${u.role === 'admin' ? 'badge-scheduled' : 'badge-inactive'}`} style={{ marginLeft: 8 }}>{t('admin.role_' + u.role)}</span>
                           {u.is_disabled && <span className="badge badge-missed" style={{ marginLeft: 4 }}>{t('admin.disabled')}</span>}
                         </div>
                         <div className="admin-user-email">{u.email}</div>
@@ -1018,7 +1018,7 @@ export function Admin() {
                   className="form-input"
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
-                  placeholder="https://example.com/webhook"
+                  placeholder={t('admin.webhook_url_placeholder')}
                 />
               </div>
               <div className="form-group" style={{ marginBottom: 12 }}>
@@ -1031,7 +1031,7 @@ export function Admin() {
                         checked={webhookEvents.includes(event)}
                         onChange={() => toggleWebhookEvent(event)}
                       />
-                      {event}
+                      {t('admin.event_' + event.replace('.', '_'))}
                     </label>
                   ))}
                 </div>
@@ -1043,7 +1043,7 @@ export function Admin() {
                   className="form-input"
                   value={webhookSecret}
                   onChange={(e) => setWebhookSecret(e.target.value)}
-                  placeholder="whsec_..."
+                  placeholder={t('admin.webhook_secret_placeholder')}
                 />
               </div>
               <div className="toggle-switch" style={{ marginBottom: 12 }}>
@@ -1086,7 +1086,7 @@ export function Admin() {
                       <div style={{ fontWeight: 500, wordBreak: 'break-all', fontSize: 14 }}>{wh.url}</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                         {wh.events.map((ev) => (
-                          <span key={ev} className="badge badge-scheduled" style={{ fontSize: 11 }}>{ev}</span>
+                          <span key={ev} className="badge badge-scheduled" style={{ fontSize: 11 }}>{t('admin.event_' + ev.replace('.', '_'))}</span>
                         ))}
                       </div>
                     </div>

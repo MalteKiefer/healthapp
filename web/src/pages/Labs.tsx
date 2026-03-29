@@ -144,7 +144,7 @@ export function Labs() {
                 <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14 }}>{t('labs.values')}</h4>
                 {fields.map((field, index) => (
                   <div key={field.id} className="form-row" style={{ alignItems: 'flex-end' }}>
-                    <div className="form-group"><label>{t('labs.marker')}</label><input type="text" {...register(`values.${index}.marker`)} placeholder="e.g. Hemoglobin" /></div>
+                    <div className="form-group"><label>{t('labs.marker')}</label><input type="text" {...register(`values.${index}.marker`)} placeholder={t('labs.marker_placeholder')} /></div>
                     <div className="form-group"><label>{t('labs.value')}</label><input type="number" step="0.01" {...register(`values.${index}.value`, { valueAsNumber: true })} /></div>
                     <div className="form-group"><label>{t('labs.unit')}</label><input type="text" {...register(`values.${index}.unit`)} placeholder="g/dL" /></div>
                     <div className="form-group"><label>{t('labs.ref_low')}</label><input type="number" step="0.01" {...register(`values.${index}.reference_low`, { valueAsNumber: true })} /></div>
@@ -205,7 +205,7 @@ export function Labs() {
                             <td className={flagColor(v.flag)}><strong>{v.value ?? '—'}</strong></td>
                             <td>{v.unit || '—'}</td>
                             <td className="text-muted hide-mobile">{v.reference_low != null && v.reference_high != null ? `${v.reference_low}–${v.reference_high}` : '—'}</td>
-                            <td><span className={`badge ${flagColor(v.flag)}`}>{v.flag || 'normal'}</span></td>
+                            <td><span className={`badge ${flagColor(v.flag)}`}>{v.flag || t('labs.flag_normal')}</span></td>
                           </tr>
                         ))}
                       </tbody>
@@ -237,7 +237,7 @@ export function Labs() {
                 <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14 }}>{t('labs.values')}</h4>
                 {editFields.map((field, index) => (
                   <div key={field.id} className="form-row" style={{ alignItems: 'flex-end' }}>
-                    <div className="form-group"><label>{t('labs.marker')}</label><input type="text" {...editRegister(`values.${index}.marker`)} placeholder="e.g. Hemoglobin" /></div>
+                    <div className="form-group"><label>{t('labs.marker')}</label><input type="text" {...editRegister(`values.${index}.marker`)} placeholder={t('labs.marker_placeholder')} /></div>
                     <div className="form-group"><label>{t('labs.value')}</label><input type="number" step="0.01" {...editRegister(`values.${index}.value`, { valueAsNumber: true })} /></div>
                     <div className="form-group"><label>{t('labs.unit')}</label><input type="text" {...editRegister(`values.${index}.unit`)} placeholder="g/dL" /></div>
                     <div className="form-group"><label>{t('labs.ref_low')}</label><input type="number" step="0.01" {...editRegister(`values.${index}.reference_low`, { valueAsNumber: true })} /></div>

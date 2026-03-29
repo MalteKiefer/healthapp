@@ -68,9 +68,9 @@ export function Login() {
       }
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.code === 'invalid_credentials' ? 'Invalid email or passphrase' : err.code);
+        setError(err.code === 'invalid_credentials' ? t('auth.invalid_credentials') : err.code);
       } else {
-        setError('Connection error');
+        setError(t('auth.connection_error'));
       }
     } finally {
       setLoading(false);
@@ -167,7 +167,7 @@ export function Login() {
           </form>
         )}
         <p className="auth-tagline" style={{ marginTop: 16, marginBottom: 0 }}>
-          Don&apos;t have an account? <Link to="/register" className="card-link">{t('auth.register')}</Link>
+          {t('auth.no_account')} <Link to="/register" className="card-link">{t('auth.register')}</Link>
         </p>
         <p className="auth-tagline" style={{ marginTop: 8, marginBottom: 0 }}>
           <Link to="/recovery" className="card-link">{t('auth.forgot_passphrase')}</Link>

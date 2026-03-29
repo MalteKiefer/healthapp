@@ -140,7 +140,7 @@ export function Tasks() {
                     </div>
                   </div>
                   <div className="med-actions">
-                    <span className={`badge ${PRIORITY_COLORS[task.priority] || 'badge-info'}`}>{task.priority}</span>
+                    <span className={`badge ${PRIORITY_COLORS[task.priority] || 'badge-info'}`}>{t('tasks.priority_' + task.priority)}</span>
                     <button className="btn-icon-sm" onClick={() => setDeleteTarget(task.id)}>×</button>
                   </div>
                 </div>

@@ -146,7 +146,7 @@ export function Export() {
       const filename = `${profileName}-${fmt.key}${fmt.extension}`;
       await downloadExport(profileId, fmt.format, filename);
     } catch {
-      setError(t('export.fhir_title')); // generic error fallback
+      setError(t('export.error'));
     } finally {
       setDownloading(null);
     }
