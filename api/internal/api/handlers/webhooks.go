@@ -161,6 +161,17 @@ func (h *WebhookHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 		webhooks = []webhookEntry{}
 	}
 
+	// Mask secrets - only show last 4 chars
+	for i := range webhooks {
+		if webhooks[i].Secret != "" {
+			if len(webhooks[i].Secret) > 4 {
+				webhooks[i].Secret = "****" + webhooks[i].Secret[len(webhooks[i].Secret)-4:]
+			} else {
+				webhooks[i].Secret = "****"
+			}
+		}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"items": webhooks,
 	})
@@ -417,6 +428,17 @@ func (h *WebhookHandler) HandleTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate URL scheme
+	parsed, parseErr := url.Parse(wh.URL)
+	if parseErr != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_url"))
+		return
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_url_scheme"))
+		return
+	}
+
 	// Build test payload
 	testPayload := map[string]interface{}{
 		"event":      "test",
@@ -427,11 +449,23 @@ func (h *WebhookHandler) HandleTest(w http.ResponseWriter, r *http.Request) {
 	body, _ := json.Marshal(testPayload)
 
 	// Send the test request
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Re-validate redirect target to prevent SSRF bypass
+			if err := isPrivateOrLocalhost(req.URL.String()); err != nil {
+				return fmt.Errorf("redirect to non-private address blocked: %w", err)
+			}
+			if len(via) > 3 {
+				return fmt.Errorf("too many redirects")
+			}
+			return nil
+		},
+	}
 	resp, err := client.Post(wh.URL, "application/json", bytes.NewReader(body))
 
 	var statusCode *int
-	var respBody *string
+	var respSize *int64
 	var deliveryErr *string
 
 	if err != nil {
@@ -440,20 +474,17 @@ func (h *WebhookHandler) HandleTest(w http.ResponseWriter, r *http.Request) {
 	} else {
 		defer resp.Body.Close()
 		statusCode = &resp.StatusCode
-		// Read up to 4 KB of the response body
-		buf := make([]byte, 4096)
-		n, _ := resp.Body.Read(buf)
-		if n > 0 {
-			s := string(buf[:n])
-			respBody = &s
+		// Only record content length, not the full response body
+		if resp.ContentLength >= 0 {
+			respSize = &resp.ContentLength
 		}
 	}
 
-	// Record in delivery log
+	// Record in delivery log (status code and error only, no response body)
 	_, logErr := h.db.Exec(r.Context(),
 		`INSERT INTO webhook_delivery_log (webhook_id, event, status_code, response, error, delivered_at)
-		 VALUES ($1, 'test', $2, $3, $4, $5)`,
-		webhookID, statusCode, respBody, deliveryErr, time.Now().UTC(),
+		 VALUES ($1, 'test', $2, NULL, $3, $4)`,
+		webhookID, statusCode, deliveryErr, time.Now().UTC(),
 	)
 	if logErr != nil {
 		h.logger.Error("record webhook test delivery", zap.Error(logErr))
@@ -466,8 +497,8 @@ func (h *WebhookHandler) HandleTest(w http.ResponseWriter, r *http.Request) {
 	if statusCode != nil {
 		result["status_code"] = *statusCode
 	}
-	if respBody != nil {
-		result["response"] = *respBody
+	if respSize != nil {
+		result["response_size"] = *respSize
 	}
 	if deliveryErr != nil {
 		result["error"] = *deliveryErr

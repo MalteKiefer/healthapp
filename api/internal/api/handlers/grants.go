@@ -192,6 +192,32 @@ func (h *GrantHandler) HandleTransfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verify target user exists and is active
+	var targetExists bool
+	err = h.db.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND is_disabled = false)`, newOwnerID).Scan(&targetExists)
+	if err != nil {
+		h.logger.Error("check target user", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if !targetExists {
+		writeJSON(w, http.StatusBadRequest, errorResponse("target_user_not_found"))
+		return
+	}
+
+	// Verify current user is the actual owner (direct DB check)
+	var currentOwner uuid.UUID
+	err = h.db.QueryRow(r.Context(), `SELECT owner_user_id FROM profiles WHERE id = $1`, profileID).Scan(&currentOwner)
+	if err != nil {
+		h.logger.Error("check profile owner", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if currentOwner != claims.UserID {
+		writeJSON(w, http.StatusForbidden, errorResponse("only_owner_can_transfer"))
+		return
+	}
+
 	now := time.Now().UTC()
 	_, err = h.db.Exec(r.Context(),
 		`UPDATE profiles SET owner_user_id = $2, updated_at = $3 WHERE id = $1`,

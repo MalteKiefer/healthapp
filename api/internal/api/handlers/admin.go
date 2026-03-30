@@ -65,6 +65,16 @@ type updateSettingsRequest struct {
 	Settings map[string]string `json:"settings"`
 }
 
+var allowedSettings = map[string]bool{
+	"registration_mode":     true,
+	"min_passphrase_length": true,
+	"require_uppercase":     true,
+	"require_lowercase":     true,
+	"require_numbers":       true,
+	"require_symbols":       true,
+	"default_quota_mb":      true,
+}
+
 // ── Audit Logging ──────────────────────────────────────────────────
 
 // writeAuditLog inserts an audit log entry. Errors are logged but never block
@@ -448,6 +458,14 @@ func (h *AdminHandler) HandleGetSettings(w http.ResponseWriter, r *http.Request)
 	if len(req.Settings) == 0 {
 		writeJSON(w, http.StatusBadRequest, errorResponse("settings_required"))
 		return
+	}
+
+	// Reject any key not in the whitelist
+	for key := range req.Settings {
+		if !allowedSettings[key] {
+			writeJSON(w, http.StatusBadRequest, errorResponse("unknown_setting_key"))
+			return
+		}
 	}
 
 	now := time.Now().UTC()
