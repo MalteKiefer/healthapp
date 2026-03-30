@@ -284,7 +284,7 @@ export function Layout() {
   const initials = email ? email.charAt(0).toUpperCase() : 'U';
 
   return (
-    <div className="app-layout" data-theme={theme}>
+    <div className={`app-layout${sidebarOpen ? '' : ' sidebar-collapsed'}`} data-theme={theme}>
       <SyncIndicator />
 
       <aside className={`sidebar${sidebarOpen ? ' open' : ' collapsed'}`}>
