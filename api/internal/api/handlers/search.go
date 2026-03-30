@@ -97,7 +97,7 @@ func (h *SearchHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 
 	// Get all profile IDs the user has access to via profile_key_grants
 	accessibleRows, err := h.db.Query(r.Context(),
-		`SELECT DISTINCT profile_id FROM profile_key_grants WHERE grantee_user_id = $1`,
+		`SELECT DISTINCT profile_id FROM profile_key_grants WHERE grantee_user_id = $1 AND revoked_at IS NULL`,
 		claims.UserID,
 	)
 	if err != nil {

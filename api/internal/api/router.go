@@ -225,6 +225,7 @@ func (s *Server) setupRoutes() {
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.JWTAuth(s.TokenService))
 			r.Use(middleware.ConsentCheck(s.DB))
+			r.Use(middleware.SessionTimeout(s.Redis, s.Config.Instance.SessionTimeout))
 
 			// 2FA management (requires authenticated user)
 			r.Route("/auth/2fa", func(r chi.Router) {

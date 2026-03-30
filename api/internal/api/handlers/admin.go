@@ -205,6 +205,25 @@ func (h *AdminHandler) HandleDisableUser(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Revoke all active JWTs by adding their JTIs to the Redis denylist
+	sessions, err := h.db.Query(r.Context(),
+		`SELECT jti FROM user_sessions WHERE user_id = $1 AND revoked_at IS NULL`, userID)
+	if err == nil {
+		defer sessions.Close()
+		for sessions.Next() {
+			var jti string
+			if err := sessions.Scan(&jti); err == nil && jti != "" {
+				h.rdb.Set(r.Context(), "jwt:deny:"+jti, "1", 24*time.Hour)
+			}
+		}
+	}
+
+	// Also revoke all sessions in DB
+	now := time.Now().UTC()
+	h.db.Exec(r.Context(),
+		`UPDATE user_sessions SET revoked_at = $1 WHERE user_id = $2 AND revoked_at IS NULL`,
+		now, userID)
+
 	h.writeAuditLog(r.Context(), r, claims.UserID, "user.disable", "user", &userID, nil)
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "disabled"})

@@ -42,8 +42,9 @@ func (h *ExportHandler) HandleExportFHIR(w http.ResponseWriter, r *http.Request)
 	var hasAccess bool
 	err = h.db.QueryRow(r.Context(),
 		`SELECT EXISTS(
-			SELECT 1 FROM profile_key_grants
-			WHERE profile_id = $1 AND grantee_user_id = $2 AND revoked_at IS NULL
+			SELECT 1 FROM profiles WHERE id = $1 AND owner_user_id = $2
+			UNION ALL
+			SELECT 1 FROM profile_key_grants WHERE profile_id = $1 AND grantee_user_id = $2 AND revoked_at IS NULL
 		)`, profileID, claims.UserID).Scan(&hasAccess)
 	if err != nil || !hasAccess {
 		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
