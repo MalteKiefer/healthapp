@@ -32,6 +32,8 @@ export function Vaccinations() {
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Vaccination | null>(null);
+  const [sortCol, setSortCol] = useState<string>('administered_at');
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('desc');
   const queryClient = useQueryClient();
 
   const profileId = selectedProfile || profiles[0]?.id || '';
@@ -89,6 +91,16 @@ export function Vaccinations() {
   } : undefined });
   const items = data?.items || [];
   const dueItems = dueData?.items || [];
+
+  const sortedItems = [...items].sort((a, b) => {
+    const aVal = (a as unknown as Record<string,unknown>)[sortCol];
+    const bVal = (b as unknown as Record<string,unknown>)[sortCol];
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+    const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
 
   return (
     <div className="page">
@@ -189,9 +201,27 @@ export function Vaccinations() {
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
           <div className="table-scroll">
             <table className="data-table">
-              <thead><tr><th>{t('common.date')}</th><th>{t('vaccinations.vaccine')}</th><th>{t('vaccinations.dose')}</th><th className="hide-mobile">{t('vaccinations.lot')}</th><th className="hide-mobile">{t('vaccinations.administered_by')}</th><th>{t('vaccinations.next_due')}</th><th></th></tr></thead>
+              <thead><tr>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'administered_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('administered_at'); setSortDir('desc'); } }}>
+                  {t('common.date')} {sortCol === 'administered_at' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
+                </th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'vaccine_name') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('vaccine_name'); setSortDir('desc'); } }}>
+                  {t('vaccinations.vaccine')} {sortCol === 'vaccine_name' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
+                </th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'dose_number') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('dose_number'); setSortDir('desc'); } }}>
+                  {t('vaccinations.dose')} {sortCol === 'dose_number' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
+                </th>
+                <th className="hide-mobile">{t('vaccinations.lot')}</th>
+                <th className="hide-mobile" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'administered_by') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('administered_by'); setSortDir('desc'); } }}>
+                  {t('vaccinations.administered_by')} {sortCol === 'administered_by' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
+                </th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'next_due_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('next_due_at'); setSortDir('desc'); } }}>
+                  {t('vaccinations.next_due')} {sortCol === 'next_due_at' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
+                </th>
+                <th></th>
+              </tr></thead>
               <tbody>
-                {items.map((v) => (
+                {sortedItems.map((v) => (
                   <tr key={v.id} onClick={() => setEditTarget(v)} style={{ cursor: 'pointer' }}>
                     <td>{fmt(v.administered_at, 'dd. MMM yyyy')}</td>
                     <td><strong>{v.vaccine_name}</strong>{v.trade_name && <span className="text-muted hide-sm"> ({v.trade_name})</span>}</td>

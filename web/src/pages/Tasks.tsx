@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -31,6 +31,8 @@ export function Tasks() {
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showOpen, setShowOpen] = useState(true);
+  const [sortCol, setSortCol] = useState<string>('due_date');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -66,6 +68,25 @@ export function Tasks() {
 
   const { register, handleSubmit, reset } = useForm<Partial<Task>>();
   const items = data?.items || [];
+
+  const sortedItems = useMemo(() => {
+    const priorityOrder: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
+    return [...items].sort((a, b) => {
+      let aVal: unknown, bVal: unknown;
+      if (sortCol === 'priority') {
+        aVal = priorityOrder[a.priority] ?? 99;
+        bVal = priorityOrder[b.priority] ?? 99;
+      } else {
+        aVal = (a as unknown as Record<string, unknown>)[sortCol];
+        bVal = (b as unknown as Record<string, unknown>)[sortCol];
+      }
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [items, sortCol, sortDir]);
 
   return (
     <div className="page">
@@ -110,8 +131,21 @@ export function Tasks() {
 
       <div className="card">
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
+          <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+            <span className="text-muted" style={{ fontSize: 12 }}>{t('common.sort')}:</span>
+            <select className="metric-selector" value={sortCol} onChange={(e) => setSortCol(e.target.value)}>
+              <option value="title">{t('common.title')}</option>
+              <option value="due_date">{t('common.due_date')}</option>
+              <option value="priority">{t('common.priority')}</option>
+              <option value="status">{t('common.status')}</option>
+            </select>
+            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
+              {sortDir === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
           <div className="task-list">
-            {items.map((task) => {
+            {sortedItems.map((task) => {
               const overdue = task.due_date && task.status === 'open' && isPast(new Date(task.due_date));
               const daysLeft = task.due_date ? differenceInDays(new Date(task.due_date), new Date()) : null;
 
@@ -147,6 +181,7 @@ export function Tasks() {
               );
             })}
           </div>
+          </>
         )}
       </div>
 

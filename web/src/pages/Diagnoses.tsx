@@ -34,6 +34,8 @@ export function Diagnoses() {
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Diagnosis | null>(null);
+  const [sortCol, setSortCol] = useState<string>('diagnosed_at');
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('desc');
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -78,6 +80,16 @@ export function Diagnoses() {
   } : undefined });
   const items = data?.items || [];
 
+  const sortedItems = [...items].sort((a, b) => {
+    const aVal = (a as unknown as Record<string,unknown>)[sortCol];
+    const bVal = (b as unknown as Record<string,unknown>)[sortCol];
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+    const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
   return (
     <div className="page">
       <div className="page-header">
@@ -120,8 +132,20 @@ export function Diagnoses() {
 
       <div className="card">
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
+          <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <label style={{ fontSize: 14 }}>{t('common.sort_by')}:</label>
+            <select value={sortCol} onChange={(e) => setSortCol(e.target.value)} style={{ fontSize: 14 }}>
+              <option value="diagnosed_at">{t('common.date')}</option>
+              <option value="name">{t('common.name')}</option>
+              <option value="status">{t('common.status')}</option>
+            </select>
+            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} title={sortDir === 'asc' ? 'Descending' : 'Ascending'}>
+              {sortDir === 'asc' ? '\u2191' : '\u2193'}
+            </button>
+          </div>
           <div className="med-list">
-            {items.map((d) => (
+            {sortedItems.map((d) => (
               <div key={d.id} className="med-item" onClick={() => setEditTarget(d)} style={{ cursor: 'pointer' }}>
                 <div className="med-info">
                   <div className="med-name">{d.name}{d.icd10_code && <span className="text-muted"> ({d.icd10_code})</span>}</div>
@@ -138,6 +162,7 @@ export function Diagnoses() {
               </div>
             ))}
           </div>
+          </>
         )}
       </div>
 

@@ -25,6 +25,8 @@ export function Medications() {
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showActive, setShowActive] = useState(true);
+  const [sortCol, setSortCol] = useState<string>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Medication | null>(null);
@@ -107,6 +109,16 @@ export function Medications() {
   });
 
   const items = data?.items || [];
+
+  const sortedItems = [...items].sort((a, b) => {
+    const aVal = (a as unknown as Record<string, unknown>)[sortCol];
+    const bVal = (b as unknown as Record<string, unknown>)[sortCol];
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+    const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
 
   // ── Detail View ──
   if (selectedMed) {
@@ -272,18 +284,32 @@ export function Medications() {
             <table className="data-table med-table">
               <thead>
                 <tr>
-                  <th>{t('common.name')}</th>
-                  <th className="col-dosage">{t('medications.dosage')}</th>
-                  <th className="col-frequency">{t('medications.frequency')}</th>
-                  <th className="col-route">{t('medications.route')}</th>
-                  <th className="col-prescribed">{t('medications.prescribed_by')}</th>
-                  <th className="col-since">{t('common.since')}</th>
-                  <th>{t('common.status')}</th>
+                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'name') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('name'); setSortDir('asc'); } }}>
+                    {t('common.name')} {sortCol === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th className="col-dosage" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'dosage') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('dosage'); setSortDir('asc'); } }}>
+                    {t('medications.dosage')} {sortCol === 'dosage' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th className="col-frequency" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'frequency') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('frequency'); setSortDir('asc'); } }}>
+                    {t('medications.frequency')} {sortCol === 'frequency' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th className="col-route" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'route') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('route'); setSortDir('asc'); } }}>
+                    {t('medications.route')} {sortCol === 'route' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th className="col-prescribed" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'prescribed_by') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('prescribed_by'); setSortDir('asc'); } }}>
+                    {t('medications.prescribed_by')} {sortCol === 'prescribed_by' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th className="col-since" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'started_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('started_at'); setSortDir('asc'); } }}>
+                    {t('common.since')} {sortCol === 'started_at' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === 'ended_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol('ended_at'); setSortDir('asc'); } }}>
+                    {t('common.status')} {sortCol === 'ended_at' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((med) => (
+                {sortedItems.map((med) => (
                   <tr key={med.id} onClick={() => setSelectedMed(med)} style={{ cursor: 'pointer' }}>
                     <td><strong>{med.name}</strong></td>
                     <td className="col-dosage">{[med.dosage, med.unit].filter(Boolean).join(' ') || '—'}</td>

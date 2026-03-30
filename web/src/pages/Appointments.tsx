@@ -24,6 +24,8 @@ export function Appointments() {
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Appointment | null>(null);
+  const [sortCol, setSortCol] = useState<string>('scheduled_at');
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('desc');
   const queryClient = useQueryClient();
 
   const profileId = selectedProfile || profiles[0]?.id || '';
@@ -80,6 +82,16 @@ export function Appointments() {
   }, [editTarget, editReset]);
 
   const items = data?.items || [];
+
+  const sortedItems = [...items].sort((a, b) => {
+    const aVal = (a as unknown as Record<string,unknown>)[sortCol];
+    const bVal = (b as unknown as Record<string,unknown>)[sortCol];
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+    const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
 
   return (
     <div className="page">
@@ -158,8 +170,20 @@ export function Appointments() {
         ) : items.length === 0 ? (
           <p className="text-muted">{t('common.no_data')}</p>
         ) : (
+          <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <label style={{ fontSize: 14 }}>{t('common.sort_by')}:</label>
+            <select value={sortCol} onChange={(e) => setSortCol(e.target.value)} style={{ fontSize: 14 }}>
+              <option value="scheduled_at">{t('common.date')}</option>
+              <option value="title">{t('common.title')}</option>
+              <option value="appointment_type">{t('common.type')}</option>
+            </select>
+            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} title={sortDir === 'asc' ? 'Descending' : 'Ascending'}>
+              {sortDir === 'asc' ? '\u2191' : '\u2193'}
+            </button>
+          </div>
           <div className="appt-list">
-            {items.map((appt) => {
+            {sortedItems.map((appt) => {
               const date = new Date(appt.scheduled_at);
               const dateLabel = isToday(date) ? t('appointments.today') : isTomorrow(date) ? t('appointments.tomorrow')
                 : isPast(date) ? t('appointments.past') : date < addDays(new Date(), 7) ? t('appointments.this_week') : '';
@@ -197,6 +221,7 @@ export function Appointments() {
               );
             })}
           </div>
+          </>
         )}
       </div>
 

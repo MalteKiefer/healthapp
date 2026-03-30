@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -69,6 +69,7 @@ export function Symptoms() {
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [viewTab, setViewTab] = useState<ViewTab>('list');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<SymptomRecord | null>(null);
@@ -150,6 +151,13 @@ export function Symptoms() {
   } : undefined });
 
   const items = data?.items || [];
+
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      const cmp = a.recorded_at.localeCompare(b.recorded_at);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [items, sortDir]);
 
   return (
     <div className="page">
@@ -265,8 +273,18 @@ export function Symptoms() {
       {viewTab === 'list' && (
       <div className="card">
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
+          <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+            <span className="text-muted" style={{ fontSize: 12 }}>{t('common.sort')}:</span>
+            <select className="metric-selector" value="recorded_at" disabled>
+              <option value="recorded_at">{t('common.date')}</option>
+            </select>
+            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
+              {sortDir === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
           <div className="timeline">
-            {items.map((record) => (
+            {sortedItems.map((record) => (
               <div key={record.id} className="timeline-item" onClick={() => setEditTarget(record)} style={{ cursor: 'pointer' }}>
                 <div className="timeline-icon">📊</div>
                 <div className="timeline-content" style={{ position: 'relative' }}>
@@ -296,6 +314,7 @@ export function Symptoms() {
               </div>
             ))}
           </div>
+          </>
         )}
       </div>
       )}

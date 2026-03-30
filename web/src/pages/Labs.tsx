@@ -41,6 +41,8 @@ export function Labs() {
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [sortCol, setSortCol] = useState<string>('sample_date');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<LabResult | null>(null);
@@ -116,6 +118,16 @@ export function Labs() {
 
   const items = data?.items || [];
 
+  const sortedItems = [...items].sort((a, b) => {
+    const aVal = (a as unknown as Record<string, unknown>)[sortCol];
+    const bVal = (b as unknown as Record<string, unknown>)[sortCol];
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+    const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
   return (
     <div className="page">
       <div className="page-header">
@@ -167,8 +179,18 @@ export function Labs() {
 
       <div className="card">
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
+          <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <select className="metric-selector" value={sortCol} onChange={(e) => setSortCol(e.target.value)}>
+              <option value="sample_date">{t('common.date')}</option>
+              <option value="lab_name">{t('labs.lab_result')}</option>
+            </select>
+            <button className="btn-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
+              {sortDir === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
           <div className="lab-list">
-            {items.map((lab) => (
+            {sortedItems.map((lab) => (
               <div key={lab.id} className="lab-item">
                 <div className="lab-header" onClick={() => setExpandedId(expandedId === lab.id ? null : lab.id)}>
                   <div className="lab-info">
@@ -215,6 +237,7 @@ export function Labs() {
               </div>
             ))}
           </div>
+          </>
         )}
       </div>
 

@@ -90,7 +90,9 @@
     "open": "Open",
     "not_found": "Page not found",
     "go_to_dashboard": "Go to Dashboard",
-    "no_profiles": "No profiles"
+    "no_profiles": "No profiles",
+    "sort_by": "Sort by",
+    "sort": "Sort"
   },
   "notifications": {
     "title": "Notifications",

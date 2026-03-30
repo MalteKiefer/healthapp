@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -24,6 +24,8 @@ export function Contacts() {
   const { data: profilesData } = useProfiles();
   const profiles = profilesData || [];
   const [selectedProfile, setSelectedProfile] = useState('');
+  const [sortCol, setSortCol] = useState<string>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Contact | null>(null);
@@ -63,6 +65,18 @@ export function Contacts() {
   const { register, handleSubmit, reset } = useForm<Partial<Contact>>();
   const { register: editRegister, handleSubmit: editHandleSubmit, reset: editReset } = useForm<Partial<Contact>>();
   const items = data?.items || [];
+
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      const aVal = (a as unknown as Record<string, unknown>)[sortCol];
+      const bVal = (b as unknown as Record<string, unknown>)[sortCol];
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [items, sortCol, sortDir]);
 
   useEffect(() => {
     if (editTarget) {
@@ -123,8 +137,20 @@ export function Contacts() {
 
       <div className="card">
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
+          <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+            <span className="text-muted" style={{ fontSize: 12 }}>{t('common.sort')}:</span>
+            <select className="metric-selector" value={sortCol} onChange={(e) => setSortCol(e.target.value)}>
+              <option value="name">{t('common.name')}</option>
+              <option value="specialty">{t('contacts.specialty')}</option>
+              <option value="facility">{t('contacts.facility')}</option>
+            </select>
+            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
+              {sortDir === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
           <div className="contact-grid">
-            {items.map((c) => (
+            {sortedItems.map((c) => (
               <div key={c.id} className="contact-card" onClick={() => setEditTarget(c)} style={{ cursor: 'pointer', position: 'relative' }}>
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: 8, right: 8, opacity: 0.4 }}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                 <div className="contact-header">
@@ -143,6 +169,7 @@ export function Contacts() {
               </div>
             ))}
           </div>
+          </>
         )}
       </div>
 

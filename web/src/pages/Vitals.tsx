@@ -202,6 +202,8 @@ export function Vitals() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Vital | null>(null);
   const [showThresholds, setShowThresholds] = useState(false);
+  const [sortCol, setSortCol] = useState<string>('measured_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [thresholdForm, setThresholdForm] = useState<ThresholdConfig>({});
   const chartRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -574,23 +576,59 @@ export function Vitals() {
             <p>{t('common.loading')}</p>
           ) : filteredVitals.length === 0 ? (
             <p className="text-muted">{t('common.no_data')}</p>
-          ) : (
+          ) : (() => {
+            // Group vitals by timestamp (rounded to minute)
+            const grouped = new Map<string, typeof filteredVitals[0]>();
+            for (const v of filteredVitals) {
+              const key = v.measured_at.slice(0, 16); // YYYY-MM-DDTHH:MM
+              const existing = grouped.get(key);
+              if (existing) {
+                // Merge: take non-null values from both
+                if (v.blood_pressure_systolic != null) { (existing as unknown as Record<string, unknown>).blood_pressure_systolic = v.blood_pressure_systolic; (existing as unknown as Record<string, unknown>).blood_pressure_diastolic = v.blood_pressure_diastolic; }
+                if (v.pulse != null) (existing as unknown as Record<string, unknown>).pulse = v.pulse;
+                if (v.weight != null) (existing as unknown as Record<string, unknown>).weight = v.weight;
+                if (v.body_temperature != null) (existing as unknown as Record<string, unknown>).body_temperature = v.body_temperature;
+                if (v.oxygen_saturation != null) (existing as unknown as Record<string, unknown>).oxygen_saturation = v.oxygen_saturation;
+                if (v.blood_glucose != null) (existing as unknown as Record<string, unknown>).blood_glucose = v.blood_glucose;
+              } else {
+                grouped.set(key, { ...v });
+              }
+            }
+            const rows = Array.from(grouped.values());
+            // Sort
+            rows.sort((a, b) => {
+              const aVal = (a as unknown as Record<string, unknown>)[sortCol];
+              const bVal = (b as unknown as Record<string, unknown>)[sortCol];
+              if (aVal == null && bVal == null) return 0;
+              if (aVal == null) return 1;
+              if (bVal == null) return -1;
+              const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
+              return sortDir === 'asc' ? cmp : -cmp;
+            });
+
+            return (
             <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>{t('common.date')}</th>
-                    <th>{t('vitals.blood_pressure')}</th>
-                    <th>{t('vitals.pulse')}</th>
-                    <th>{t('vitals.weight')}</th>
-                    <th className="hide-mobile">{t('vitals.temperature')}</th>
-                    <th className="hide-mobile">{t('vitals_data.spo2')}</th>
-                    <th className="hide-sm">{t('vitals.glucose')}</th>
+                    {[
+                      { key: 'measured_at', label: t('common.date') },
+                      { key: 'blood_pressure_systolic', label: t('vitals.blood_pressure') },
+                      { key: 'pulse', label: t('vitals.pulse') },
+                      { key: 'weight', label: t('vitals.weight') },
+                      { key: 'body_temperature', label: t('vitals.temperature'), cls: 'hide-mobile' },
+                      { key: 'oxygen_saturation', label: t('vitals_data.spo2'), cls: 'hide-mobile' },
+                      { key: 'blood_glucose', label: t('vitals.glucose'), cls: 'hide-sm' },
+                    ].map((col) => (
+                      <th key={col.key} className={col.cls || ''} style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === col.key) setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); else { setSortCol(col.key); setSortDir('desc'); } }}>
+                        {col.label} {sortCol === col.key ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                    ))}
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredVitals.map((v) => (
+                  {rows.map((v) => (
                     <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => setEditTarget(v as Vital)}>
                       <td>{fmt(v.measured_at, 'dd. MMM yy, HH:mm')}</td>
                       <td className={getBPClass(v.blood_pressure_systolic)}>{v.blood_pressure_systolic && v.blood_pressure_diastolic ? `${v.blood_pressure_systolic}/${v.blood_pressure_diastolic}` : '\u2014'}</td>
@@ -611,7 +649,8 @@ export function Vitals() {
                 </tbody>
               </table>
             </div>
-          )}
+            );
+          })()}
         </div>
       )}
 
