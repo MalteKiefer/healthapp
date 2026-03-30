@@ -27,6 +27,8 @@ export function Medications() {
   const [showActive, setShowActive] = useState(true);
   const [sortCol, setSortCol] = useState<string>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [intakeSortCol, setIntakeSortCol] = useState<string>('date');
+  const [intakeSortDir, setIntakeSortDir] = useState<'asc' | 'desc'>('desc');
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Medication | null>(null);
@@ -178,20 +180,38 @@ export function Medications() {
           </div>
           {intakes.length === 0 ? (
             <p className="text-muted">{t('medications.no_intakes')}</p>
-          ) : (
+          ) : (() => {
+            const sortedIntakes = [...intakes].sort((a, b) => {
+              const aD = a.taken_at || a.scheduled_at;
+              const bD = b.taken_at || b.scheduled_at;
+              if (intakeSortCol === 'date') return intakeSortDir === 'desc' ? bD.localeCompare(aD) : aD.localeCompare(bD);
+              if (intakeSortCol === 'status') {
+                const aS = a.taken_at ? 0 : a.skipped_reason ? 2 : 1;
+                const bS = b.taken_at ? 0 : b.skipped_reason ? 2 : 1;
+                return intakeSortDir === 'asc' ? aS - bS : bS - aS;
+              }
+              return 0;
+            });
+            return (
             <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>{t('common.date')}</th>
-                    <th>{t('common.time')}</th>
-                    <th>{t('common.status')}</th>
+                    {[
+                      { key: 'date', label: t('common.date') },
+                      { key: 'time', label: t('common.time') },
+                      { key: 'status', label: t('common.status') },
+                    ].map((col) => (
+                      <th key={col.key} style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (intakeSortCol === col.key) setIntakeSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setIntakeSortCol(col.key); setIntakeSortDir('desc'); } }}>
+                        {col.label} {intakeSortCol === col.key ? (intakeSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                    ))}
                     <th>{t('common.notes')}</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {intakes.map((intake) => {
+                  {sortedIntakes.map((intake) => {
                     const d = intake.taken_at || intake.scheduled_at;
                     return (
                       <tr key={intake.id}>
@@ -219,7 +239,8 @@ export function Medications() {
                 </tbody>
               </table>
             </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Intake Modal */}
