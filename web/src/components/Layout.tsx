@@ -343,42 +343,41 @@ export function Layout() {
 
       {sidebarOpen && <div className="sidebar-backdrop" onClick={toggleSidebar} />}
 
-      <header className="topbar">
-        <button className="mobile-menu-btn" onClick={toggleSidebar} aria-label="Menu">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-        </button>
-        <div className="topbar-actions">
-          <NotificationBell />
-          <div className="avatar-menu" ref={avatarMenuRef}>
-            <button className="avatar-btn" onClick={toggleAvatarMenu}>
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="avatar-circle avatar-img" />
-              ) : (
-                <div className="avatar-circle">{initials}</div>
-              )}
-            </button>
-            {avatarMenuOpen && (
-              <div className="avatar-dropdown">
-                <div className="avatar-dropdown-header">
-                  <strong>{displayName}</strong>
-                  {role && <span className="user-role">{role}</span>}
-                </div>
-                <div className="avatar-dropdown-divider" />
-                <Link to="/settings" className="avatar-dropdown-item" onClick={closeMenu}>{t('nav.settings')}</Link>
-                <button className="avatar-dropdown-item" onClick={toggleTheme}>
-                  {theme === 'light' ? t('nav.dark_mode') : t('nav.light_mode')}
-                </button>
-                <div className="avatar-dropdown-divider" />
-                <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={handleLogout}>
-                  {t('nav.logout')}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
-
       <main className="main-content">
+        <header className="topbar">
+          <button className="mobile-menu-btn" onClick={toggleSidebar} aria-label="Menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </button>
+          <div className="topbar-actions">
+            <NotificationBell />
+            <div className="avatar-menu" ref={avatarMenuRef}>
+              <button className="avatar-btn" onClick={toggleAvatarMenu}>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="avatar-circle avatar-img" />
+                ) : (
+                  <div className="avatar-circle">{initials}</div>
+                )}
+              </button>
+              {avatarMenuOpen && (
+                <div className="avatar-dropdown">
+                  <div className="avatar-dropdown-header">
+                    <strong>{displayName}</strong>
+                    {role && <span className="user-role">{role}</span>}
+                  </div>
+                  <div className="avatar-dropdown-divider" />
+                  <Link to="/settings" className="avatar-dropdown-item" onClick={closeMenu}>{t('nav.settings')}</Link>
+                  <button className="avatar-dropdown-item" onClick={toggleTheme}>
+                    {theme === 'light' ? t('nav.dark_mode') : t('nav.light_mode')}
+                  </button>
+                  <div className="avatar-dropdown-divider" />
+                  <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={handleLogout}>
+                    {t('nav.logout')}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
         <Outlet />
       </main>
     </div>
