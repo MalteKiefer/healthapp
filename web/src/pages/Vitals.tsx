@@ -427,7 +427,7 @@ export function Vitals() {
                   {selectedVitals.has('pulse') && (<fieldset className="vital-fieldset"><legend>{t('vitals.pulse')}</legend><div className="form-row"><div className="form-group"><label>{t('vitals.pulse')} (bpm)</label><input type="number" placeholder="72" {...register('pulse', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} /></div></div></fieldset>)}
                   {selectedVitals.has('weight') && (<fieldset className="vital-fieldset"><legend>{t('vitals.weight')}</legend><div className="form-row"><div className="form-group"><label>{t('vitals.weight')} (kg)</label><input type="text" inputMode="decimal" placeholder="70.0" {...register('weight', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} /></div></div></fieldset>)}
                   {selectedVitals.has('temperature') && (<fieldset className="vital-fieldset"><legend>{t('vitals.temperature')}</legend><div className="form-row"><div className="form-group"><label>{t('vitals.temperature')} ({'\u00B0'}C)</label><input type="text" inputMode="decimal" placeholder="36.6" {...register('body_temperature', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} /></div></div></fieldset>)}
-                  {selectedVitals.has('oxygen') && (<fieldset className="vital-fieldset"><legend>{t('vitals.oxygen')}</legend><div className="form-row"><div className="form-group"><label>{t('vitals.oxygen')} (%)</label><input type="text" inputMode="decimal" placeholder="98" {...register('oxygen_saturation', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} /></div></div></fieldset>)}
+                  {selectedVitals.has('oxygen') && (<fieldset className="vital-fieldset"><legend>{t('vitals.oxygen')}</legend><div className="form-row"><div className="form-group"><label>{t('vitals.oxygen')} (%)</label><input type="text" inputMode="decimal" placeholder="98" {...register('oxygen_saturation', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return Math.min(100, parseFloat(String(v).replace(',', '.'))); }, max: { value: 100, message: 'Max 100%' } })} /></div></div></fieldset>)}
                   {selectedVitals.has('glucose') && (<fieldset className="vital-fieldset"><legend>{t('vitals.glucose')}</legend><div className="form-row"><div className="form-group"><label>{t('vitals.glucose')} (mmol/L)</label><input type="text" inputMode="decimal" placeholder="5.5" {...register('blood_glucose', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} /></div></div></fieldset>)}
                   {selectedVitals.has('sleep') && (<fieldset className="vital-fieldset"><legend>{t('vitals.sleep')}</legend><div className="form-row"><div className="form-group"><label>{t('vitals.sleep_duration')}</label><input type="number" placeholder="480" {...register('sleep_duration_minutes', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} /></div><div className="form-group"><label>{t('vitals.sleep_quality')}</label><input type="number" min="1" max="5" placeholder="4" {...register('sleep_quality', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} /></div></div></fieldset>)}
                   <div className="form-group"><label>{t('vitals.notes')}</label><textarea rows={2} placeholder="..." {...register('notes')} /></div>
@@ -533,7 +533,7 @@ export function Vitals() {
                         fontSize={12}
                         stroke="var(--color-text-secondary)"
                         unit={` ${currentTab.unit}`}
-                        domain={['auto', 'auto']}
+                        domain={['auto', currentTab.id === 'oxygen' ? 100 : 'auto']}
                         width={70}
                       />
                       <Tooltip content={<SingleChartTooltip />} />
@@ -698,7 +698,7 @@ export function Vitals() {
                   </div>
                   <div className="form-group">
                     <label>{t('vitals.oxygen')} (%)</label>
-                    <input type="text" inputMode="decimal" placeholder="98" {...editRegister('oxygen_saturation', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return parseFloat(String(v).replace(',', '.')); } })} />
+                    <input type="text" inputMode="decimal" placeholder="98" {...editRegister('oxygen_saturation', { setValueAs: (v: string) => { if (!v || v === '') return undefined; return Math.min(100, parseFloat(String(v).replace(',', '.'))); }, max: { value: 100, message: 'Max 100%' } })} />
                   </div>
                 </div>
                 <div className="form-group">
