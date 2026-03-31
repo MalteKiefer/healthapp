@@ -30,6 +30,8 @@
     "group_health": "Health",
     "group_tracking": "Tracking",
     "group_manage": "Manage",
+    "group_system": "System",
+    "activity": "Activity",
     "export": "Export"
   },
   "auth": {
