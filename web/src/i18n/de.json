@@ -30,6 +30,8 @@
     "group_health": "Gesundheit",
     "group_tracking": "Erfassung",
     "group_manage": "Verwalten",
+    "group_system": "System",
+    "activity": "Aktivität",
     "export": "Exportieren"
   },
   "auth": {
