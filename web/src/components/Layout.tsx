@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/auth';
@@ -13,6 +13,13 @@ interface NavItem {
   path: string;
   label: string;
   icon: ReactNode;
+}
+
+interface NavGroup {
+  key: string;
+  label: string;
+  icon: ReactNode;
+  items: NavItem[];
 }
 
 const svgProps = {
@@ -184,74 +191,151 @@ const icons = {
       <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
   ),
+  emergency: (
+    <svg {...svgProps}>
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+      <line x1="12" y1="9" x2="12" y2="15" />
+      <line x1="9" y1="12" x2="15" y2="12" />
+    </svg>
+  ),
+  menu: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M3 12h18M3 6h18M3 18h18" />
+    </svg>
+  ),
+  close: (
+    <svg {...svgProps}>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+  chevronDown: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  ),
+  collapse: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <polyline points="11 17 6 12 11 7" />
+      <polyline points="18 17 13 12 18 7" />
+    </svg>
+  ),
+  expand: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <polyline points="13 17 18 12 13 7" />
+      <polyline points="6 17 11 12 6 7" />
+    </svg>
+  ),
 };
-
-const mainNav: NavItem[] = [
-  { path: '/', label: 'nav.dashboard', icon: icons.dashboard },
-  { path: '/search', label: 'common.search', icon: icons.search },
-];
-
-const healthNav: NavItem[] = [
-  { path: '/vitals', label: 'nav.vitals', icon: icons.heart },
-  { path: '/labs', label: 'nav.labs', icon: icons.beaker },
-  { path: '/medications', label: 'nav.medications', icon: icons.pill },
-  { path: '/vaccinations', label: 'nav.vaccinations', icon: icons.syringe },
-  { path: '/allergies', label: 'nav.allergies', icon: icons.alertTriangle },
-  { path: '/diagnoses', label: 'nav.diagnoses', icon: icons.clipboardList },
-];
-
-const trackingNav: NavItem[] = [
-  { path: '/diary', label: 'nav.diary', icon: icons.bookOpen },
-  { path: '/symptoms', label: 'nav.symptoms', icon: icons.activity },
-  { path: '/appointments', label: 'nav.appointments', icon: icons.calendar },
-  { path: '/tasks', label: 'nav.tasks', icon: icons.checkSquare },
-];
-
-const manageNav: NavItem[] = [
-  { path: '/documents', label: 'nav.documents', icon: icons.fileText },
-  { path: '/contacts', label: 'nav.contacts', icon: icons.users },
-  { path: '/family', label: 'nav.family', icon: icons.users },
-  { path: '/shares', label: 'nav.shares', icon: icons.share },
-  { path: '/export', label: 'nav.export', icon: icons.download },
-];
 
 export function Layout() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, role, email } = useAuthStore();
-  const { sidebarOpen, toggleSidebar, theme, toggleTheme } = useUIStore();
+  const {
+    sidebarCollapsed, toggleSidebarCollapsed,
+    sidebarOpen, toggleSidebar,
+    activeNavGroup, setActiveNavGroup,
+    theme, toggleTheme,
+  } = useUIStore();
   useIdleTimeout();
 
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(localStorage.getItem('user_avatar'));
   const avatarMenuRef = useRef<HTMLDivElement>(null);
 
+  const navGroups: NavGroup[] = useMemo(() => [
+    {
+      key: 'health',
+      label: 'nav.group_health',
+      icon: icons.heart,
+      items: [
+        { path: '/', label: 'nav.dashboard', icon: icons.dashboard },
+        { path: '/search', label: 'common.search', icon: icons.search },
+        { path: '/vitals', label: 'nav.vitals', icon: icons.heart },
+        { path: '/labs', label: 'nav.labs', icon: icons.beaker },
+        { path: '/medications', label: 'nav.medications', icon: icons.pill },
+        { path: '/vaccinations', label: 'nav.vaccinations', icon: icons.syringe },
+        { path: '/allergies', label: 'nav.allergies', icon: icons.alertTriangle },
+        { path: '/diagnoses', label: 'nav.diagnoses', icon: icons.clipboardList },
+      ],
+    },
+    {
+      key: 'tracking',
+      label: 'nav.group_tracking',
+      icon: icons.activity,
+      items: [
+        { path: '/diary', label: 'nav.diary', icon: icons.bookOpen },
+        { path: '/symptoms', label: 'nav.symptoms', icon: icons.activity },
+        { path: '/appointments', label: 'nav.appointments', icon: icons.calendar },
+        { path: '/tasks', label: 'nav.tasks', icon: icons.checkSquare },
+      ],
+    },
+    {
+      key: 'manage',
+      label: 'nav.group_manage',
+      icon: icons.fileText,
+      items: [
+        { path: '/documents', label: 'nav.documents', icon: icons.fileText },
+        { path: '/contacts', label: 'nav.contacts', icon: icons.users },
+        { path: '/family', label: 'nav.family', icon: icons.users },
+        { path: '/shares', label: 'nav.shares', icon: icons.share },
+        { path: '/emergency', label: 'nav.emergency', icon: icons.emergency },
+      ],
+    },
+    {
+      key: 'system',
+      label: 'nav.group_system',
+      icon: icons.settings,
+      items: [
+        { path: '/settings', label: 'nav.settings', icon: icons.settings },
+        { path: '/calendar-feeds', label: 'nav.calendar_feeds', icon: icons.rss },
+        { path: '/export', label: 'nav.export', icon: icons.download },
+        { path: '/activity', label: 'nav.activity', icon: icons.activity },
+        ...(role === 'admin' ? [{ path: '/admin', label: 'nav.admin', icon: icons.shield }] : []),
+      ],
+    },
+  ], [role]);
+
+  const isActive = (path: string) =>
+    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+
+  // Auto-derive active group from current route
+  useEffect(() => {
+    for (const group of navGroups) {
+      if (group.items.some((item) => isActive(item.path))) {
+        setActiveNavGroup(group.key);
+        return;
+      }
+    }
+  }, [location.pathname, navGroups, setActiveNavGroup]);
+
+  // Close mobile menu on navigation
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Avatar menu click-outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (
-        avatarMenuRef.current &&
-        !avatarMenuRef.current.contains(event.target as Node)
-      ) {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target as Node)) {
         setAvatarMenuOpen(false);
       }
     }
     if (avatarMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [avatarMenuOpen]);
 
+  // Avatar URL sync
   useEffect(() => {
     const onAvatarChanged = () => setAvatarUrl(localStorage.getItem('user_avatar'));
     window.addEventListener('avatar-changed', onAvatarChanged);
     return () => window.removeEventListener('avatar-changed', onAvatarChanged);
   }, []);
-
-  const isActive = (path: string) =>
-    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
   const handleLogout = async () => {
     try { await api.post('/api/v1/auth/logout'); } catch { /* */ }
@@ -260,121 +344,199 @@ export function Layout() {
     navigate('/login');
   };
 
-  const toggleAvatarMenu = () => setAvatarMenuOpen((prev) => !prev);
-  const closeMenu = () => setAvatarMenuOpen(false);
-
-  const closeMobile = () => {
-    if (window.innerWidth <= 480 && sidebarOpen) toggleSidebar();
-  };
-
-  const renderNav = (items: NavItem[]) =>
-    items.map((item) => (
-      <Link
-        key={item.path}
-        to={item.path}
-        className={`nav-item${isActive(item.path) ? ' active' : ''}`}
-        onClick={closeMobile}
-      >
-        <span className="nav-icon">{item.icon}</span>
-        {sidebarOpen && <span className="nav-label">{t(item.label)}</span>}
-      </Link>
-    ));
-
   const displayName = email || 'User';
   const initials = email ? email.charAt(0).toUpperCase() : 'U';
+  const activeGroupItems = navGroups.find((g) => g.key === activeNavGroup)?.items || [];
+
+  const renderAvatar = () =>
+    avatarUrl ? (
+      <img src={avatarUrl} alt="" className="avatar-circle avatar-img" />
+    ) : (
+      <div className="avatar-circle">{initials}</div>
+    );
+
+  const renderAvatarDropdown = () =>
+    avatarMenuOpen ? (
+      <div className="avatar-dropdown">
+        <div className="avatar-dropdown-header">
+          <strong>{displayName}</strong>
+          {role && <span className="user-role">{role}</span>}
+        </div>
+        <div className="avatar-dropdown-divider" />
+        <Link to="/settings" className="avatar-dropdown-item" onClick={() => setAvatarMenuOpen(false)}>
+          {t('nav.settings')}
+        </Link>
+        <button className="avatar-dropdown-item" onClick={toggleTheme}>
+          {theme === 'light' ? t('nav.dark_mode') : t('nav.light_mode')}
+        </button>
+        <div className="avatar-dropdown-divider" />
+        <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={handleLogout}>
+          {t('nav.logout')}
+        </button>
+      </div>
+    ) : null;
 
   return (
-    <div className={`app-layout${sidebarOpen ? '' : ' sidebar-collapsed'}`} data-theme={theme}>
+    <div className={`app-layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}`} data-theme={theme}>
       <SyncIndicator />
 
-      <aside className={`sidebar${sidebarOpen ? ' open' : ' collapsed'}`}>
+      {/* ═══════════════════════════════════════════════════
+          DESKTOP SIDEBAR — hidden on tablet/mobile via CSS
+         ═══════════════════════════════════════════════════ */}
+      <aside className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
         <div className="sidebar-header">
           <Link to="/" className="sidebar-brand">
             <svg className="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
-            {sidebarOpen && <span className="brand-text">HealthVault</span>}
+            {!sidebarCollapsed && <span className="brand-text">HealthVault</span>}
           </Link>
-          <button onClick={toggleSidebar} className="btn-icon" aria-label="Toggle sidebar">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-          </button>
         </div>
 
         <nav className="sidebar-nav">
-          {renderNav(mainNav)}
-          {sidebarOpen && <div className="nav-group-label">{t('nav.group_health')}</div>}
-          {!sidebarOpen && <div className="nav-divider" />}
-          {renderNav(healthNav)}
-          {sidebarOpen && <div className="nav-group-label">{t('nav.group_tracking')}</div>}
-          {!sidebarOpen && <div className="nav-divider" />}
-          {renderNav(trackingNav)}
-          {sidebarOpen && <div className="nav-group-label">{t('nav.group_manage')}</div>}
-          {!sidebarOpen && <div className="nav-divider" />}
-          {renderNav(manageNav)}
+          {navGroups.map((group) => (
+            <div key={group.key} className="nav-group">
+              {!sidebarCollapsed && <div className="nav-group-label">{t(group.label)}</div>}
+              {sidebarCollapsed && <div className="nav-divider" />}
+              {group.items.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`nav-item${isActive(item.path) ? ' active' : ''}`}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  {!sidebarCollapsed && <span className="nav-label">{t(item.label)}</span>}
+                </Link>
+              ))}
+            </div>
+          ))}
         </nav>
 
         <div className="sidebar-footer">
-          <Link to="/calendar-feeds" className={`nav-item${isActive('/calendar-feeds') ? ' active' : ''}`} onClick={closeMobile}>
-            <span className="nav-icon">{icons.rss}</span>
-            {sidebarOpen && <span className="nav-label">{t('nav.calendar_feeds')}</span>}
-          </Link>
-          {role === 'admin' && (
-            <Link to="/admin" className={`nav-item${isActive('/admin') ? ' active' : ''}`} onClick={closeMobile}>
-              <span className="nav-icon">{icons.shield}</span>
-              {sidebarOpen && <span className="nav-label">{t('nav.admin')}</span>}
-            </Link>
-          )}
-          <Link to="/emergency" className={`nav-item${isActive('/emergency') ? ' active' : ''}`} onClick={closeMobile}>
-            <span className="nav-icon">
-              <svg {...svgProps}>
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                <line x1="12" y1="9" x2="12" y2="15" />
-                <line x1="9" y1="12" x2="15" y2="12" />
-              </svg>
-            </span>
-            {sidebarOpen && <span className="nav-label">{t('nav.emergency')}</span>}
-          </Link>
-          <Link to="/settings" className={`nav-item${isActive('/settings') ? ' active' : ''}`} onClick={closeMobile}>
-            <span className="nav-icon">{icons.settings}</span>
-            {sidebarOpen && <span className="nav-label">{t('nav.settings')}</span>}
-          </Link>
+          <button className="btn-icon sidebar-theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
+            {theme === 'light' ? icons.moon : icons.sun}
+          </button>
+          <button className="btn-icon sidebar-collapse-toggle" onClick={toggleSidebarCollapsed} aria-label="Toggle sidebar">
+            {sidebarCollapsed ? icons.expand : icons.collapse}
+          </button>
         </div>
       </aside>
 
-      {sidebarOpen && <div className="sidebar-backdrop" onClick={toggleSidebar} />}
-
-      <main className="main-content">
-        <header className="topbar">
-          <button className="mobile-menu-btn" onClick={toggleSidebar} aria-label="Menu">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-          </button>
-          <div className="topbar-actions">
+      {/* ═══════════════════════════════════════════════════
+          TABLET TOP-NAV — hidden on desktop/mobile via CSS
+         ═══════════════════════════════════════════════════ */}
+      <header className="tablet-nav">
+        <div className="tablet-nav-primary">
+          <Link to="/" className="tablet-brand">
+            <svg className="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+          </Link>
+          <nav className="tablet-nav-groups">
+            {navGroups.map((group) => (
+              <button
+                key={group.key}
+                className={`tablet-group-tab${activeNavGroup === group.key ? ' active' : ''}`}
+                onClick={() => setActiveNavGroup(group.key)}
+              >
+                {t(group.label)}
+              </button>
+            ))}
+          </nav>
+          <div className="tablet-nav-actions">
             <NotificationBell />
             <div className="avatar-menu" ref={avatarMenuRef}>
-              <button className="avatar-btn" onClick={toggleAvatarMenu}>
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="" className="avatar-circle avatar-img" />
-                ) : (
-                  <div className="avatar-circle">{initials}</div>
-                )}
+              <button className="avatar-btn" onClick={() => setAvatarMenuOpen((p) => !p)}>
+                {renderAvatar()}
               </button>
-              {avatarMenuOpen && (
-                <div className="avatar-dropdown">
-                  <div className="avatar-dropdown-header">
-                    <strong>{displayName}</strong>
-                    {role && <span className="user-role">{role}</span>}
-                  </div>
-                  <div className="avatar-dropdown-divider" />
-                  <Link to="/settings" className="avatar-dropdown-item" onClick={closeMenu}>{t('nav.settings')}</Link>
-                  <button className="avatar-dropdown-item" onClick={toggleTheme}>
-                    {theme === 'light' ? t('nav.dark_mode') : t('nav.light_mode')}
-                  </button>
-                  <div className="avatar-dropdown-divider" />
-                  <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={handleLogout}>
-                    {t('nav.logout')}
-                  </button>
+              {renderAvatarDropdown()}
+            </div>
+          </div>
+        </div>
+        <nav className="tablet-subnav">
+          {activeGroupItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`subnav-pill${isActive(item.path) ? ' active' : ''}`}
+            >
+              {t(item.label)}
+            </Link>
+          ))}
+        </nav>
+      </header>
+
+      {/* ═══════════════════════════════════════════════════
+          MOBILE HEADER — hidden on tablet/desktop via CSS
+         ═══════════════════════════════════════════════════ */}
+      <header className="mobile-header">
+        <Link to="/" className="mobile-brand">
+          <svg className="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+          <span className="brand-text">HealthVault</span>
+        </Link>
+        <div className="mobile-header-actions">
+          <NotificationBell />
+          <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Menu">
+            {icons.menu}
+          </button>
+        </div>
+      </header>
+
+      {/* ═══════════════════════════════════════════════════
+          MOBILE FULLSCREEN OVERLAY
+         ═══════════════════════════════════════════════════ */}
+      {mobileMenuOpen && (
+        <>
+          <div className="mobile-overlay-backdrop" onClick={() => setMobileMenuOpen(false)} />
+          <div className="mobile-overlay">
+            <div className="mobile-overlay-header">
+              <span className="mobile-overlay-title">Menu</span>
+              <button className="btn-icon" onClick={() => setMobileMenuOpen(false)} aria-label="Close">
+                {icons.close}
+              </button>
+            </div>
+            <nav className="mobile-overlay-nav">
+              {navGroups.map((group) => (
+                <div key={group.key} className="mobile-nav-group">
+                  <div className="nav-group-label">{t(group.label)}</div>
+                  {group.items.map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`nav-item${isActive(item.path) ? ' active' : ''}`}
+                    >
+                      <span className="nav-icon">{item.icon}</span>
+                      <span className="nav-label">{t(item.label)}</span>
+                    </Link>
+                  ))}
                 </div>
-              )}
+              ))}
+            </nav>
+            <div className="mobile-overlay-footer">
+              <button className="btn-ghost" onClick={toggleTheme}>
+                {theme === 'light' ? icons.moon : icons.sun}
+                <span>{theme === 'light' ? t('nav.dark_mode') : t('nav.light_mode')}</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════════════════
+          MAIN CONTENT
+         ═══════════════════════════════════════════════════ */}
+      <main className="main-content">
+        {/* Desktop-only topbar for notifications + avatar */}
+        <header className="topbar">
+          <div className="topbar-actions">
+            <NotificationBell />
+            <div className="avatar-menu" ref={!avatarMenuOpen ? undefined : avatarMenuRef}>
+              <button className="avatar-btn" onClick={() => setAvatarMenuOpen((p) => !p)}>
+                {renderAvatar()}
+              </button>
+              {renderAvatarDropdown()}
             </div>
           </div>
         </header>
