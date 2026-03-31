@@ -118,48 +118,50 @@ export function Appointments() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('appointments.add')}</h3>
-              <button className="btn-icon-sm" onClick={() => setShowForm(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
             </div>
-            <form id="appt-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>{t('common.title')} *</label>
-                  <input type="text" {...register('title')} required />
+            <div className="modal-body">
+              <form id="appt-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('common.title')} *</label>
+                    <input type="text" {...register('title')} required />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('common.type')} *</label>
+                    <select {...register('appointment_type')} required>
+                      {TYPES.map((type) => <option key={type} value={type}>{t('appointments.type_' + type)}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('vitals.date_time')} *</label>
+                    <input type="datetime-local" {...register('scheduled_at')} required />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('appointments.duration')}</label>
+                    <input type="number" {...register('duration_minutes', { valueAsNumber: true })} />
+                  </div>
                 </div>
                 <div className="form-group">
-                  <label>{t('common.type')} *</label>
-                  <select {...register('appointment_type')} required>
-                    {TYPES.map((type) => <option key={type} value={type}>{t('appointments.type_' + type)}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>{t('vitals.date_time')} *</label>
-                  <input type="datetime-local" {...register('scheduled_at')} required />
+                  <label>{t('appointments.location')}</label>
+                  <input type="text" {...register('location')} />
                 </div>
                 <div className="form-group">
-                  <label>{t('appointments.duration')}</label>
-                  <input type="number" {...register('duration_minutes', { valueAsNumber: true })} />
+                  <label>{t('appointments.preparation')}</label>
+                  <textarea rows={2} {...register('preparation_notes')} placeholder={t('appointments.preparation_placeholder')} />
                 </div>
-              </div>
-              <div className="form-group">
-                <label>{t('appointments.location')}</label>
-                <input type="text" {...register('location')} />
-              </div>
-              <div className="form-group">
-                <label>{t('appointments.preparation')}</label>
-                <textarea rows={2} {...register('preparation_notes')} placeholder={t('appointments.preparation_placeholder')} />
-              </div>
-              <div className="form-actions">
-                <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>
-                  {t('common.save')}
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
-                  {t('common.cancel')}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
+                {t('common.cancel')}
+              </button>
+              <button type="submit" form="appt-create-form" className="btn btn-add" disabled={createMutation.isPending}>
+                {t('common.save')}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -230,48 +232,50 @@ export function Appointments() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('appointments.edit')}</h3>
-              <button className="btn-icon-sm" onClick={() => setEditTarget(null)}>×</button>
+              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
             </div>
-            <form onSubmit={editHandleSubmit((data) => updateMutation.mutate({ id: editTarget.id, data }))}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>{t('common.title')} *</label>
-                  <input type="text" {...editRegister('title')} required />
+            <div className="modal-body">
+              <form id="appt-edit-form" onSubmit={editHandleSubmit((data) => updateMutation.mutate({ id: editTarget.id, data }))}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('common.title')} *</label>
+                    <input type="text" {...editRegister('title')} required />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('common.type')} *</label>
+                    <select {...editRegister('appointment_type')} required>
+                      {TYPES.map((type) => <option key={type} value={type}>{t('appointments.type_' + type)}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('vitals.date_time')} *</label>
+                    <input type="datetime-local" {...editRegister('scheduled_at')} required />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('appointments.duration')}</label>
+                    <input type="number" {...editRegister('duration_minutes', { valueAsNumber: true })} />
+                  </div>
                 </div>
                 <div className="form-group">
-                  <label>{t('common.type')} *</label>
-                  <select {...editRegister('appointment_type')} required>
-                    {TYPES.map((type) => <option key={type} value={type}>{t('appointments.type_' + type)}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>{t('vitals.date_time')} *</label>
-                  <input type="datetime-local" {...editRegister('scheduled_at')} required />
+                  <label>{t('appointments.location')}</label>
+                  <input type="text" {...editRegister('location')} />
                 </div>
                 <div className="form-group">
-                  <label>{t('appointments.duration')}</label>
-                  <input type="number" {...editRegister('duration_minutes', { valueAsNumber: true })} />
+                  <label>{t('appointments.preparation')}</label>
+                  <textarea rows={2} {...editRegister('preparation_notes')} />
                 </div>
-              </div>
-              <div className="form-group">
-                <label>{t('appointments.location')}</label>
-                <input type="text" {...editRegister('location')} />
-              </div>
-              <div className="form-group">
-                <label>{t('appointments.preparation')}</label>
-                <textarea rows={2} {...editRegister('preparation_notes')} />
-              </div>
-              <div className="form-actions">
-                <button type="submit" className="btn btn-add" disabled={updateMutation.isPending}>
-                  {t('common.save')}
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={() => setEditTarget(null)}>
-                  {t('common.cancel')}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setEditTarget(null)}>
+                {t('common.cancel')}
+              </button>
+              <button type="submit" form="appt-edit-form" className="btn btn-add" disabled={updateMutation.isPending}>
+                {t('common.save')}
+              </button>
+            </div>
           </div>
         </div>
       )}
