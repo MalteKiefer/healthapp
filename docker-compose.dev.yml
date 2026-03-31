@@ -4,21 +4,21 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./proxy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - ./proxy/Caddyfile.dev:/etc/caddy/Caddyfile:ro,z
 
   web:
     build:
       context: ./web
       dockerfile: Dockerfile.dev
     volumes:
-      - ./web/src:/app/src
-      - ./web/public:/app/public
-      - ./web/index.html:/app/index.html
-      - ./web/vite.config.ts:/app/vite.config.ts
+      - ./web/src:/app/src:z
+      - ./web/public:/app/public:z
+      - ./web/index.html:/app/index.html:z
+      - ./web/vite.config.ts:/app/vite.config.ts:z
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:8080
+      - VITE_API_URL=http://localhost:8081
     networks:
       - frontend
 
@@ -27,7 +27,7 @@ services:
       context: ./api
       dockerfile: Dockerfile.dev
     volumes:
-      - ./api:/app
+      - ./api:/app:z
     environment:
       - DB_SSLMODE=disable
       - INSTANCE_HOSTNAME=localhost
