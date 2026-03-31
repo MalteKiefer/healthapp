@@ -7,6 +7,7 @@ export interface Appointment {
   appointment_type: string;
   scheduled_at: string;
   duration_minutes?: number;
+  doctor_id?: string;
   location?: string;
   preparation_notes?: string;
   status: string;

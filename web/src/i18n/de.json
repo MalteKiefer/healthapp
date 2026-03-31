@@ -202,6 +202,8 @@
     "add": "Termin planen",
     "upcoming_only": "Nur bevorstehende",
     "complete": "Erledigt",
+    "doctor": "Arzt / Kontakt",
+    "doctor_placeholder": "Name eingeben oder auswählen...",
     "location": "Ort",
     "duration": "Dauer (Min.)",
     "preparation": "Vorbereitungshinweise",

@@ -8,6 +8,9 @@ import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { appointmentsApi, type Appointment } from '../api/appointments';
+import { api } from '../api/client';
+
+interface Contact { id: string; name: string; specialty?: string }
 
 const TYPES = [
   'examination', 'surgery', 'vaccination', 'follow_up', 'lab',
@@ -35,6 +38,13 @@ export function Appointments() {
     queryFn: () => showUpcoming ? appointmentsApi.upcoming(profileId) : appointmentsApi.list(profileId),
     enabled: !!profileId,
   });
+
+  const { data: contactsData } = useQuery({
+    queryKey: ['contacts', profileId],
+    queryFn: () => api.get<{ items: Contact[] }>(`/api/v1/profiles/${profileId}/contacts`),
+    enabled: !!profileId,
+  });
+  const contacts = contactsData?.items || [];
 
   const createMutation = useMutation({
     mutationFn: (appt: Partial<Appointment>) => appointmentsApi.create(profileId, appt),
@@ -75,6 +85,7 @@ export function Appointments() {
         appointment_type: editTarget.appointment_type,
         scheduled_at: editTarget.scheduled_at ? editTarget.scheduled_at.slice(0, 16) : '',
         duration_minutes: editTarget.duration_minutes,
+        doctor_id: editTarget.doctor_id,
         location: editTarget.location,
         preparation_notes: editTarget.preparation_notes,
       });
@@ -144,9 +155,18 @@ export function Appointments() {
                     <input type="number" {...register('duration_minutes', { valueAsNumber: true })} />
                   </div>
                 </div>
-                <div className="form-group">
-                  <label>{t('appointments.location')}</label>
-                  <input type="text" {...register('location')} />
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('appointments.doctor')}</label>
+                    <input type="text" {...register('doctor_id')} list="appt-contacts-list" autoComplete="off" placeholder={t('appointments.doctor_placeholder')} />
+                    <datalist id="appt-contacts-list">
+                      {contacts.map((c) => <option key={c.id} value={c.id}>{c.specialty ? `${c.name} — ${c.specialty}` : c.name}</option>)}
+                    </datalist>
+                  </div>
+                  <div className="form-group">
+                    <label>{t('appointments.location')}</label>
+                    <input type="text" {...register('location')} />
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>{t('appointments.preparation')}</label>
@@ -200,6 +220,7 @@ export function Appointments() {
                   <div className="appt-info" style={{ cursor: 'pointer' }} onClick={() => setEditTarget(appt)}>
                     <div className="appt-title">{appt.title}</div>
                     <div className="appt-type">{t('appointments.type_' + appt.appointment_type)}</div>
+                    {appt.doctor_id && (() => { const doc = contacts.find(c => c.id === appt.doctor_id); return doc ? <div className="appt-location">{doc.name}{doc.specialty ? ` — ${doc.specialty}` : ''}</div> : null; })()}
                     {appt.location && <div className="appt-location">{appt.location}</div>}
                     {dateLabel && <span className="badge badge-info">{dateLabel}</span>}
                   </div>
@@ -258,9 +279,18 @@ export function Appointments() {
                     <input type="number" {...editRegister('duration_minutes', { valueAsNumber: true })} />
                   </div>
                 </div>
-                <div className="form-group">
-                  <label>{t('appointments.location')}</label>
-                  <input type="text" {...editRegister('location')} />
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('appointments.doctor')}</label>
+                    <input type="text" {...editRegister('doctor_id')} list="appt-edit-contacts-list" autoComplete="off" placeholder={t('appointments.doctor_placeholder')} />
+                    <datalist id="appt-edit-contacts-list">
+                      {contacts.map((c) => <option key={c.id} value={c.id}>{c.specialty ? `${c.name} — ${c.specialty}` : c.name}</option>)}
+                    </datalist>
+                  </div>
+                  <div className="form-group">
+                    <label>{t('appointments.location')}</label>
+                    <input type="text" {...editRegister('location')} />
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>{t('appointments.preparation')}</label>

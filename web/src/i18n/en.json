@@ -202,6 +202,8 @@
     "add": "Schedule Appointment",
     "upcoming_only": "Upcoming only",
     "complete": "Complete",
+    "doctor": "Doctor / Contact",
+    "doctor_placeholder": "Select or type name...",
     "location": "Location",
     "duration": "Duration (min)",
     "preparation": "Preparation Notes",
