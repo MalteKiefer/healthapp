@@ -533,8 +533,9 @@ export function Vitals() {
                         fontSize={12}
                         stroke="var(--color-text-secondary)"
                         unit={` ${currentTab.unit}`}
-                        domain={['auto', currentTab.id === 'oxygen' ? 100 : 'auto']}
+                        domain={[currentTab.id === 'oxygen' ? 90 : 'auto', currentTab.id === 'oxygen' ? 100 : 'auto']}
                         width={70}
+                        {...(currentTab.id === 'oxygen' ? { ticks: [90, 90.5, 91, 91.5, 92, 92.5, 93, 93.5, 94, 94.5, 95, 95.5, 96, 96.5, 97, 97.5, 98, 98.5, 99, 99.5, 100] } : {})}
                       />
                       <Tooltip content={<SingleChartTooltip />} />
                       {currentTab.refLines?.map((ref) => (
