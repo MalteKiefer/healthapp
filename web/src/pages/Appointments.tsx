@@ -52,6 +52,10 @@ export function Appointments() {
     if (!cleaned.location) delete cleaned.location;
     if (!cleaned.preparation_notes) delete cleaned.preparation_notes;
     if (!cleaned.duration_minutes) delete cleaned.duration_minutes;
+    // datetime-local gives "2026-04-01T10:00" — backend needs full ISO 8601
+    if (cleaned.scheduled_at && !cleaned.scheduled_at.includes('Z') && !cleaned.scheduled_at.includes('+')) {
+      cleaned.scheduled_at = new Date(cleaned.scheduled_at).toISOString();
+    }
     return cleaned;
   };
 
