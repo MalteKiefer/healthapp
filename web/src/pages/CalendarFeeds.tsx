@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useDateFormat } from '../hooks/useDateLocale';
+import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
 
 interface CalendarFeed {
@@ -37,6 +38,8 @@ interface EditFeedForm {
 export function CalendarFeeds() {
   const { t } = useTranslation();
   const { fmt } = useDateFormat();
+  const { data: profilesData } = useProfiles();
+  const profiles = profilesData || [];
   const [showForm, setShowForm] = useState(false);
   const [newFeedUrl, setNewFeedUrl] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -50,7 +53,10 @@ export function CalendarFeeds() {
 
   const createMutation = useMutation({
     mutationFn: (feed: Partial<CalendarFeed>) =>
-      api.post<FeedWithToken>('/api/v1/calendar/feeds', feed),
+      api.post<FeedWithToken>('/api/v1/calendar/feeds', {
+        ...feed,
+        profile_ids: profiles.map((p) => p.id),
+      }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] });
       setNewFeedUrl(data.url);
