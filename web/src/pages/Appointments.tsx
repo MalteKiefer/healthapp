@@ -46,8 +46,17 @@ export function Appointments() {
   });
   const contacts = contactsData?.items || [];
 
+  const cleanAppt = (appt: Partial<Appointment>) => {
+    const cleaned = { ...appt };
+    if (!cleaned.doctor_id) delete cleaned.doctor_id;
+    if (!cleaned.location) delete cleaned.location;
+    if (!cleaned.preparation_notes) delete cleaned.preparation_notes;
+    if (!cleaned.duration_minutes) delete cleaned.duration_minutes;
+    return cleaned;
+  };
+
   const createMutation = useMutation({
-    mutationFn: (appt: Partial<Appointment>) => appointmentsApi.create(profileId, appt),
+    mutationFn: (appt: Partial<Appointment>) => appointmentsApi.create(profileId, cleanAppt(appt)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments', profileId] });
       setShowForm(false);
@@ -58,7 +67,7 @@ export function Appointments() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Appointment> }) =>
-      appointmentsApi.update(profileId, id, data),
+      appointmentsApi.update(profileId, id, cleanAppt(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments', profileId] });
       setEditTarget(null);

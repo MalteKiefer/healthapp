@@ -16,6 +16,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/appointments"
 	"github.com/healthvault/healthvault/internal/domain/calendar"
+	"github.com/healthvault/healthvault/internal/domain/contacts"
 	"github.com/healthvault/healthvault/internal/domain/tasks"
 	"github.com/healthvault/healthvault/internal/domain/vaccinations"
 )
@@ -26,6 +27,7 @@ type CalendarHandler struct {
 	apptRepo    appointments.Repository
 	taskRepo    tasks.Repository
 	vaccRepo    vaccinations.Repository
+	contactRepo contacts.Repository
 	logger      *zap.Logger
 	hostname    string
 }
@@ -35,12 +37,13 @@ func NewCalendarHandler(
 	ar appointments.Repository,
 	tr tasks.Repository,
 	vr vaccinations.Repository,
+	cr contacts.Repository,
 	logger *zap.Logger,
 	hostname string,
 ) *CalendarHandler {
 	return &CalendarHandler{
 		feedRepo: fr, apptRepo: ar, taskRepo: tr, vaccRepo: vr,
-		logger: logger, hostname: hostname,
+		contactRepo: cr, logger: logger, hostname: hostname,
 	}
 }
 
@@ -222,8 +225,14 @@ func (h *CalendarHandler) HandleICSFeed(w http.ResponseWriter, r *http.Request) 
 						if a.PreparationNotes != nil {
 							desc = *a.PreparationNotes
 						}
-						if a.Location != nil {
-							loc = *a.Location
+					}
+					// Location is always included (not sensitive)
+					if a.Location != nil && *a.Location != "" {
+						loc = *a.Location
+					} else if a.DoctorID != nil {
+						// Fall back to doctor's address
+						if doc, err := h.contactRepo.GetByID(r.Context(), *a.DoctorID); err == nil && doc.Address != nil {
+							loc = *doc.Address
 						}
 					}
 

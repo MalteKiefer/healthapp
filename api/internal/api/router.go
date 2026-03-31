@@ -93,7 +93,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	calRepo := postgres.NewCalendarRepo(db)
 	apptRepo := postgres.NewAppointmentRepo(db)
 	taskRepo := postgres.NewTaskRepo(db)
-	calHandler := handlers.NewCalendarHandler(calRepo, apptRepo, taskRepo, vaccRepo, logger, cfg.Instance.Hostname)
+	calHandler := handlers.NewCalendarHandler(calRepo, apptRepo, taskRepo, vaccRepo, contactRepo, logger, cfg.Instance.Hostname)
 
 	contactHandler := handlers.NewContactHandler(contactRepo, profileRepo, logger)
 	taskHandler := handlers.NewTaskHandler(taskRepo, profileRepo, logger)
