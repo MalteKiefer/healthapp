@@ -68,8 +68,7 @@ setup:
 	docker compose up -d
 
 deploy:
-	rsync -avz --exclude='node_modules' --exclude='.git' --exclude='web/dist' --exclude='tmp' --exclude='.env' -e ssh . home:/srv/healthvault/
-	ssh home "bash -c 'cd /srv/healthvault && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build'"
+	git push origin main
 
 version:
 	@echo "$(VERSION)"
