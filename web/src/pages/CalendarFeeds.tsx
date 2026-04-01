@@ -35,6 +35,29 @@ interface EditFeedForm {
   verbose_mode: boolean;
 }
 
+// Store feed tokens locally so the URL can be shown later
+function saveFeedToken(feedId: string, token: string) {
+  const tokens = JSON.parse(localStorage.getItem('feed_tokens') || '{}');
+  tokens[feedId] = token;
+  localStorage.setItem('feed_tokens', JSON.stringify(tokens));
+}
+
+function getFeedToken(feedId: string): string | null {
+  const tokens = JSON.parse(localStorage.getItem('feed_tokens') || '{}');
+  return tokens[feedId] || null;
+}
+
+function removeFeedToken(feedId: string) {
+  const tokens = JSON.parse(localStorage.getItem('feed_tokens') || '{}');
+  delete tokens[feedId];
+  localStorage.setItem('feed_tokens', JSON.stringify(tokens));
+}
+
+function buildFeedUrl(token: string): string {
+  const base = import.meta.env.VITE_API_URL || window.location.origin;
+  return `${base}/cal/${token}.ics`;
+}
+
 export function CalendarFeeds() {
   const { t } = useTranslation();
   const { fmt } = useDateFormat();
@@ -59,7 +82,8 @@ export function CalendarFeeds() {
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] });
-      setNewFeedUrl(data.url);
+      saveFeedToken(data.id, data.token);
+      setNewFeedUrl(buildFeedUrl(data.token));
       setShowForm(false);
       reset();
     },
@@ -67,7 +91,10 @@ export function CalendarFeeds() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/calendar/feeds/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] }),
+    onSuccess: (_data, id) => {
+      removeFeedToken(id);
+      queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] });
+    },
   });
 
   const updateMutation = useMutation({
@@ -124,16 +151,13 @@ export function CalendarFeeds() {
       </div>
 
       {newFeedUrl && (
-        <div className="card" style={{ borderLeft: '4px solid var(--color-success)', marginBottom: 16 }}>
+        <div className="card" style={{ borderLeft: '4px solid var(--success)' }}>
           <h3>{t('calendar.feed_created')}</h3>
           <p style={{ fontSize: 13 }}>{t('calendar.copy_url_hint')}</p>
           <div className="feed-url-box">
             <code className="feed-url">{newFeedUrl}</code>
             <button className="btn-sm" onClick={() => { navigator.clipboard.writeText(newFeedUrl); }}>{t('common.copy')}</button>
           </div>
-          <p className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
-            {t('calendar.url_shown_once')}
-          </p>
           <button className="btn btn-secondary" onClick={() => setNewFeedUrl(null)} style={{ marginTop: 8 }}>{t('common.dismiss')}</button>
         </div>
       )}
@@ -143,10 +167,10 @@ export function CalendarFeeds() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('calendar.create_feed')}</h3>
-              <button className="btn-icon-sm" onClick={() => setShowForm(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
             </div>
-            <form id="feed-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
-              <div className="modal-body">
+            <div className="modal-body">
+              <form id="feed-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
                 <div className="form-group">
                   <label>{t('calendar.feed_name')} *</label>
                   <input type="text" {...register('name')} required placeholder={t('calendar.feed_name_placeholder')} />
@@ -169,12 +193,12 @@ export function CalendarFeeds() {
                     {t('calendar.verbose_warning')}
                   </p>
                 </div>
-              </div>
-              <div className="modal-footer">
-                <button type="submit" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
-              </div>
-            </form>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
+              <button type="submit" form="feed-create-form" className="btn btn-add" disabled={createMutation.isPending}>{t('common.save')}</button>
+            </div>
           </div>
         </div>
       )}
@@ -185,29 +209,39 @@ export function CalendarFeeds() {
           <p className="text-muted">{t('calendar.no_feeds')}</p>
         ) : (
           <div className="med-list">
-            {items.map((feed) => (
-              <div key={feed.id} className="med-item" style={{ cursor: 'pointer' }} onClick={() => handleOpenEdit(feed)}>
-                <div className="med-info">
-                  <div className="med-name">{feed.name}</div>
-                  <div className="med-details">
-                    {[
-                      feed.include_appointments && t('calendar.detail_appointments'),
-                      feed.include_tasks && t('calendar.detail_tasks'),
-                      feed.include_vaccinations && t('calendar.detail_vaccinations'),
-                      feed.include_medications && t('calendar.detail_medications'),
-                    ].filter(Boolean).join(', ')}
-                    {feed.verbose_mode && ` · ${t('calendar.detail_verbose')}`}
+            {items.map((feed) => {
+              const token = getFeedToken(feed.id);
+              const feedUrl = token ? buildFeedUrl(token) : null;
+              return (
+                <div key={feed.id} className="med-item" style={{ cursor: 'pointer' }} onClick={() => handleOpenEdit(feed)}>
+                  <div className="med-info">
+                    <div className="med-name">{feed.name}</div>
+                    <div className="med-details">
+                      {[
+                        feed.include_appointments && t('calendar.detail_appointments'),
+                        feed.include_tasks && t('calendar.detail_tasks'),
+                        feed.include_vaccinations && t('calendar.detail_vaccinations'),
+                        feed.include_medications && t('calendar.detail_medications'),
+                      ].filter(Boolean).join(', ')}
+                      {feed.verbose_mode && ` · ${t('calendar.detail_verbose')}`}
+                    </div>
+                    {feedUrl && (
+                      <div className="feed-url-box" style={{ marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
+                        <code className="feed-url" style={{ fontSize: 11 }}>{feedUrl}</code>
+                        <button className="btn-sm" onClick={() => navigator.clipboard.writeText(feedUrl)}>{t('common.copy')}</button>
+                      </div>
+                    )}
+                    {feed.last_polled_at && (
+                      <div className="med-meta">{t('calendar.last_polled')}: {fmt(feed.last_polled_at, 'dd. MMM, HH:mm')}</div>
+                    )}
                   </div>
-                  {feed.last_polled_at && (
-                    <div className="med-meta">{t('calendar.last_polled')}: {fmt(feed.last_polled_at, 'dd. MMM, HH:mm')}</div>
-                  )}
+                  <div className="med-actions">
+                    <button className="btn-sm" onClick={(e) => { e.stopPropagation(); handleOpenEdit(feed); }}>{t('common.edit')}</button>
+                    <button className="btn-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(feed.id); }}>{t('common.delete')}</button>
+                  </div>
                 </div>
-                <div className="med-actions">
-                  <button className="btn-sm" onClick={(e) => { e.stopPropagation(); handleOpenEdit(feed); }}>{t('common.edit')}</button>
-                  <button className="btn-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(feed.id); }}>{t('common.delete')}</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -217,10 +251,10 @@ export function CalendarFeeds() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('calendar.edit_feed')}</h3>
-              <button className="btn-icon-sm" onClick={() => setEditingFeed(null)}>&times;</button>
+              <button className="modal-close" onClick={() => setEditingFeed(null)}>&times;</button>
             </div>
-            <form id="feed-edit-form" onSubmit={handleEditSubmit((formData) => updateMutation.mutate({ id: editingFeed.id, data: formData }))}>
-              <div className="modal-body">
+            <div className="modal-body">
+              <form id="feed-edit-form" onSubmit={handleEditSubmit((formData) => updateMutation.mutate({ id: editingFeed.id, data: formData }))}>
                 <div className="form-group">
                   <label>{t('calendar.feed_name')} *</label>
                   <input type="text" {...registerEdit('name')} required placeholder={t('calendar.feed_name_placeholder')} />
@@ -243,12 +277,12 @@ export function CalendarFeeds() {
                     {t('calendar.verbose_warning')}
                   </p>
                 </div>
-              </div>
-              <div className="modal-footer">
-                <button type="submit" className="btn btn-add" disabled={updateMutation.isPending}>{t('common.save')}</button>
-                <button type="button" className="btn btn-secondary" onClick={() => setEditingFeed(null)}>{t('common.cancel')}</button>
-              </div>
-            </form>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setEditingFeed(null)}>{t('common.cancel')}</button>
+              <button type="submit" form="feed-edit-form" className="btn btn-add" disabled={updateMutation.isPending}>{t('common.save')}</button>
+            </div>
           </div>
         </div>
       )}
