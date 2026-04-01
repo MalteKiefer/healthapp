@@ -434,7 +434,18 @@
     "emergency": "Emergency Contact",
     "emergency_contact": "Emergency contact",
     "edit": "Edit Contact",
-    "specialty_placeholder": "e.g. Cardiology"
+    "specialty_placeholder": "e.g. Cardiology",
+    "type_medical": "Medical",
+    "type_personal": "Personal",
+    "street": "Street",
+    "postal_code": "Postal Code",
+    "city": "City",
+    "country": "Country",
+    "notes": "Notes",
+    "search_address": "Search Address",
+    "search_placeholder": "Search for an address...",
+    "show_route": "Show route",
+    "no_results": "No results found"
   },
   "search": {
     "title": "Search",
