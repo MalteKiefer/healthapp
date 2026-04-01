@@ -434,7 +434,18 @@
     "emergency": "Notfallkontakt",
     "emergency_contact": "Notfallkontakt",
     "edit": "Kontakt bearbeiten",
-    "specialty_placeholder": "z.B. Kardiologie"
+    "specialty_placeholder": "z.B. Kardiologie",
+    "type_medical": "Medizinisch",
+    "type_personal": "Persönlich",
+    "street": "Straße",
+    "postal_code": "PLZ",
+    "city": "Ort",
+    "country": "Land",
+    "notes": "Notizen",
+    "search_address": "Adresse suchen",
+    "search_placeholder": "Adresse suchen...",
+    "show_route": "Route anzeigen",
+    "no_results": "Keine Ergebnisse gefunden"
   },
   "search": {
     "title": "Suche",

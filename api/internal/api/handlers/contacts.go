@@ -87,6 +87,7 @@ func (h *ContactHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c.ProfileID = profileID
+	c.ComputeAddress()
 
 	if err := h.contactRepo.Create(r.Context(), &c); err != nil {
 		h.logger.Error("create contact", zap.Error(err))
@@ -138,6 +139,8 @@ func (h *ContactHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
 		return
 	}
+
+	existing.ComputeAddress()
 
 	if err := h.contactRepo.Update(r.Context(), existing); err != nil {
 		h.logger.Error("update contact", zap.Error(err))
