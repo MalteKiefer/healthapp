@@ -1,4 +1,4 @@
-.PHONY: build test lint dev up down clean migrate
+.PHONY: build test lint dev up down clean migrate deploy
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
@@ -66,6 +66,10 @@ setup:
 	@until docker compose exec db pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
 	docker compose run --rm api healthvault setup
 	docker compose up -d
+
+deploy:
+	rsync -avz --exclude='node_modules' --exclude='.git' --exclude='web/dist' --exclude='tmp' --exclude='.env' -e ssh . home:/srv/healthvault/
+	ssh home "bash -c 'cd /srv/healthvault && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build'"
 
 version:
 	@echo "$(VERSION)"
