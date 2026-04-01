@@ -235,7 +235,6 @@ export function Layout() {
   const { logout, role, email } = useAuthStore();
   const {
     sidebarCollapsed, toggleSidebarCollapsed,
-    sidebarOpen, toggleSidebar,
     activeNavGroup, setActiveNavGroup,
     theme, toggleTheme,
   } = useUIStore();
