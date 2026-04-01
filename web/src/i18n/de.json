@@ -442,8 +442,8 @@
     "city": "Ort",
     "country": "Land",
     "notes": "Notizen",
-    "search_address": "Adresse suchen",
-    "search_placeholder": "Adresse suchen...",
+    "search_address": "Adresse / Einrichtung suchen",
+    "search_placeholder": "Adresse oder Einrichtung (z.B. Krankenhaus Bamberg)...",
     "show_route": "Route anzeigen",
     "no_results": "Keine Ergebnisse gefunden"
   },

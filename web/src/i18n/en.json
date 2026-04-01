@@ -442,8 +442,8 @@
     "city": "City",
     "country": "Country",
     "notes": "Notes",
-    "search_address": "Search Address",
-    "search_placeholder": "Search for an address...",
+    "search_address": "Search Address / Facility",
+    "search_placeholder": "Address or facility (e.g. Hospital Bamberg)...",
     "show_route": "Show route",
     "no_results": "No results found"
   },

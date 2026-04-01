@@ -142,13 +142,13 @@ export function Contacts() {
     }
   }, [editTarget, editReset]);
 
-  // OSM search
+  // OSM search — supports addresses AND POIs (hospitals, clinics, etc.)
   const searchOsm = async () => {
     if (osmQuery.length < 3) return;
     setOsmLoading(true);
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(osmQuery)}&format=jsonv2&addressdetails=1&limit=5`,
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(osmQuery)}&format=jsonv2&addressdetails=1&namedetails=1&extratags=1&limit=8`,
         { headers: { 'User-Agent': 'HealthVault/1.0' } }
       );
       const data = await res.json();
@@ -157,6 +157,25 @@ export function Contacts() {
       setOsmResults([]);
     }
     setOsmLoading(false);
+  };
+
+  const getOsmCategory = (r: any): string | null => {
+    const cat = r.category;
+    const type = r.type;
+    if (cat === 'amenity' && ['hospital', 'clinic', 'doctors', 'dentist', 'pharmacy', 'veterinary'].includes(type)) return type;
+    if (cat === 'healthcare') return type;
+    if (cat === 'building' && type === 'hospital') return 'hospital';
+    return null;
+  };
+
+  const getOsmDisplayType = (r: any): string | null => {
+    const cat = getOsmCategory(r);
+    if (!cat) return null;
+    const map: Record<string, string> = {
+      hospital: 'Krankenhaus', clinic: 'Klinik', doctors: 'Arztpraxis',
+      dentist: 'Zahnarzt', pharmacy: 'Apotheke', veterinary: 'Tierarzt',
+    };
+    return map[cat] || cat;
   };
 
   const selectOsmResult = (r: any) => {
@@ -170,6 +189,32 @@ export function Contacts() {
     if (addr.country) setVal('country', addr.country);
     if (r.lat) setVal('latitude', parseFloat(r.lat));
     if (r.lon) setVal('longitude', parseFloat(r.lon));
+
+    // For medical contacts: auto-fill name/facility from POI data
+    const poiName = r.namedetails?.name || r.name || '';
+    const currentType = osmOpen === 'create' ? createType : editTarget?.contact_type;
+    if (currentType === 'medical' && poiName && getOsmCategory(r)) {
+      setVal('facility', poiName);
+      // If name field is empty, use POI name as contact name too
+      const nameField = document.querySelector<HTMLInputElement>(
+        osmOpen === 'create' ? '#contact-create-form input[name="name"]' : '#contact-edit-form input[name="name"]'
+      );
+      if (nameField && !nameField.value) {
+        setVal('name', poiName);
+      }
+      // Extract phone/website from extratags if available
+      const tags = r.extratags || {};
+      if (tags.phone && !document.querySelector<HTMLInputElement>(`#contact-${osmOpen}-form input[name="phone"]`)?.value) {
+        setVal('phone', tags.phone);
+      }
+      if (tags.email && !document.querySelector<HTMLInputElement>(`#contact-${osmOpen}-form input[name="email"]`)?.value) {
+        setVal('email', tags.email);
+      }
+      if (tags.website) {
+        setVal('notes', tags.website);
+      }
+    }
+
     setOsmOpen(null);
     setOsmResults([]);
     setOsmQuery('');
@@ -460,7 +505,7 @@ export function Contacts() {
       {/* OSM Search Overlay */}
       {osmOpen && (
         <div className="modal-overlay" onClick={closeOsm}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
             <div className="modal-header">
               <h3>{t('contacts.search_address')}</h3>
               <button className="modal-close" onClick={closeOsm}>&times;</button>
@@ -478,15 +523,40 @@ export function Contacts() {
               </div>
               {osmLoading && <p className="text-muted">{t('common.loading')}</p>}
               {osmResults.length > 0 && (
-                <div className="med-list">
-                  {osmResults.map((r, i) => (
-                    <div key={i} className="med-item" style={{ cursor: 'pointer' }} onClick={() => selectOsmResult(r)}>
-                      <div className="med-info">
-                        <div className="med-name" style={{ fontSize: 13 }}>{r.display_name}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <>
+                  {/* Map preview */}
+                  <div style={{ borderRadius: 'var(--radius)', overflow: 'hidden', marginBottom: 12, border: '1px solid var(--border)' }}>
+                    <img
+                      src={`https://staticmap.openstreetmap.de/staticmap.php?center=${osmResults[0].lat},${osmResults[0].lon}&zoom=13&size=520x180&maptype=osmarenderer${osmResults.map((r: any, i: number) => `&markers=${r.lat},${r.lon},ol-marker-gold`).join('')}`}
+                      alt="Map"
+                      style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }}
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </div>
+                  <div className="med-list">
+                    {osmResults.map((r: any, i: number) => {
+                      const poiType = getOsmDisplayType(r);
+                      const poiName = r.namedetails?.name || r.name || '';
+                      return (
+                        <div key={i} className="med-item" style={{ cursor: 'pointer' }} onClick={() => selectOsmResult(r)}>
+                          <div className="med-info">
+                            {poiName && poiType ? (
+                              <>
+                                <div className="med-name" style={{ fontSize: 13 }}>{poiName}</div>
+                                <div className="med-details">
+                                  <span className="badge badge-info" style={{ marginRight: 6 }}>{poiType}</span>
+                                  {r.display_name}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="med-name" style={{ fontSize: 13 }}>{r.display_name}</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
               {!osmLoading && osmResults.length === 0 && osmQuery.length > 2 && (
                 <p className="text-muted">{t('contacts.no_results')}</p>
