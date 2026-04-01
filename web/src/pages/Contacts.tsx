@@ -526,11 +526,12 @@ export function Contacts() {
                 <>
                   {/* Map preview */}
                   <div style={{ borderRadius: 'var(--radius)', overflow: 'hidden', marginBottom: 12, border: '1px solid var(--border)' }}>
-                    <img
-                      src={`https://staticmap.openstreetmap.de/staticmap.php?center=${osmResults[0].lat},${osmResults[0].lon}&zoom=13&size=520x180&maptype=osmarenderer${osmResults.map((r: any, i: number) => `&markers=${r.lat},${r.lon},ol-marker-gold`).join('')}`}
-                      alt="Map"
-                      style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }}
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    <iframe
+                      title="Map"
+                      width="100%"
+                      height="180"
+                      style={{ border: 'none', display: 'block' }}
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(osmResults[0].lon) - 0.02},${parseFloat(osmResults[0].lat) - 0.01},${parseFloat(osmResults[0].lon) + 0.02},${parseFloat(osmResults[0].lat) + 0.01}&layer=mapnik&marker=${osmResults[0].lat},${osmResults[0].lon}`}
                     />
                   </div>
                   <div className="med-list">
