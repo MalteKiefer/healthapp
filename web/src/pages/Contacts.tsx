@@ -279,6 +279,11 @@ export function Contacts() {
                 </div>
                 <input type="hidden" {...register('contact_type')} />
 
+                <button type="button" className="btn btn-secondary" onClick={() => setOsmOpen('create')} style={{ width: '100%', marginBottom: 16, gap: 8 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                  {t('contacts.search_address')}
+                </button>
+
                 <div className="form-group">
                   <label>{t('common.name')} *</label>
                   <input type="text" {...register('name')} required />
@@ -309,14 +314,9 @@ export function Contacts() {
                 </div>
 
                 {/* Address fields */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'end' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>{t('contacts.street')}</label>
-                    <input type="text" {...register('street')} />
-                  </div>
-                  <button type="button" className="btn btn-secondary" onClick={() => setOsmOpen('create')} style={{ height: 38 }} title={t('contacts.search_address')}>
-                    &#128269;
-                  </button>
+                <div className="form-group">
+                  <label>{t('contacts.street')}</label>
+                  <input type="text" {...register('street')} />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -422,6 +422,11 @@ export function Contacts() {
               <form id="contact-edit-form" onSubmit={editHandleSubmit((data) => updateMutation.mutate({ ...data, id: editTarget.id }))}>
                 <input type="hidden" {...editRegister('contact_type')} />
 
+                <button type="button" className="btn btn-secondary" onClick={() => setOsmOpen('edit')} style={{ width: '100%', marginBottom: 16, gap: 8 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                  {t('contacts.search_address')}
+                </button>
+
                 <div className="form-group">
                   <label>{t('common.name')} *</label>
                   <input type="text" {...editRegister('name')} required />
@@ -452,14 +457,9 @@ export function Contacts() {
                 </div>
 
                 {/* Address fields */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'end' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>{t('contacts.street')}</label>
-                    <input type="text" {...editRegister('street')} />
-                  </div>
-                  <button type="button" className="btn btn-secondary" onClick={() => setOsmOpen('edit')} style={{ height: 38 }} title={t('contacts.search_address')}>
-                    &#128269;
-                  </button>
+                <div className="form-group">
+                  <label>{t('contacts.street')}</label>
+                  <input type="text" {...editRegister('street')} />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
