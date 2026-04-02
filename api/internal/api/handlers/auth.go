@@ -624,9 +624,7 @@ func (h *AuthHandler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 	setAuthCookies(w, pair.AccessToken, pair.RefreshToken, h.secureCookies)
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"access_token":  pair.AccessToken,
-		"refresh_token": pair.RefreshToken,
-		"expires_at":    pair.ExpiresAt,
+		"expires_at": pair.ExpiresAt,
 	})
 }
 
@@ -797,8 +795,6 @@ func (h *AuthHandler) completeLogin(w http.ResponseWriter, r *http.Request, u *u
 	setAuthCookies(w, pair.AccessToken, pair.RefreshToken, h.secureCookies)
 
 	writeJSON(w, http.StatusOK, loginResponse{
-		AccessToken:        pair.AccessToken,
-		RefreshToken:       pair.RefreshToken,
 		ExpiresAt:          pair.ExpiresAt,
 		UserID:             u.ID.String(),
 		Role:               u.Role,

@@ -25,8 +25,6 @@ interface RegisterCompleteResponse {
 }
 
 interface LoginResponse {
-  access_token: string;
-  refresh_token: string;
   expires_at: number;
   user_id: string;
   pek_salt?: string;
@@ -161,10 +159,8 @@ export function Register() {
         auth_hash: registeredAuthHash,
       });
 
-      if (res.access_token && res.refresh_token) {
-        login(res.user_id, 'user');
-        navigate('/');
-      }
+      login(res.user_id, 'user');
+      navigate('/');
     } catch {
       // Login failed, redirect to login page
       navigate('/login');

@@ -6,8 +6,6 @@ import { api, ApiError } from '../api/client';
 import { deriveAuthHash, derivePEK, setPEK } from '../crypto';
 
 interface LoginResponse {
-  access_token?: string;
-  refresh_token?: string;
   expires_at?: number;
   user_id: string;
   role?: string;
@@ -58,14 +56,12 @@ export function Login() {
         return;
       }
 
-      if (res.access_token && res.refresh_token) {
-        if (res.pek_salt) {
-          const pekKey = await derivePEK(passphrase, res.pek_salt);
-          setPEK(pekKey);
-        }
-        login(res.user_id, res.role || 'user', email);
-        navigate('/');
+      if (res.pek_salt) {
+        const pekKey = await derivePEK(passphrase, res.pek_salt);
+        setPEK(pekKey);
       }
+      login(res.user_id, res.role || 'user', email);
+      navigate('/');
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.code === 'invalid_credentials' ? t('auth.invalid_credentials') : err.code);
@@ -89,17 +85,15 @@ export function Login() {
         challenge_token: challengeToken,
       });
 
-      if (res.access_token && res.refresh_token) {
-        // Derive PEK with passphrase still in memory
-        const pekSalt = localStorage.getItem('_pek_salt_tmp') || res.pek_salt;
-        if (pekSalt && passphrase) {
-          const pekKey = await derivePEK(passphrase, pekSalt);
-          setPEK(pekKey);
-        }
-        localStorage.removeItem('_pek_salt_tmp');
-        login(res.user_id, res.role || 'user', email);
-        navigate('/');
+      // Derive PEK with passphrase still in memory
+      const pekSalt = localStorage.getItem('_pek_salt_tmp') || res.pek_salt;
+      if (pekSalt && passphrase) {
+        const pekKey = await derivePEK(passphrase, pekSalt);
+        setPEK(pekKey);
       }
+      localStorage.removeItem('_pek_salt_tmp');
+      login(res.user_id, res.role || 'user', email);
+      navigate('/');
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.code === 'invalid_totp_code' ? t('auth.invalid_totp') : err.code);
