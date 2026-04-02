@@ -8,8 +8,8 @@ import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { medicationsApi, type Medication } from '../api/medications';
 import { api } from '../api/client';
+import { ContactPicker } from '../components/ContactPicker';
 
-interface Contact { id: string; name: string; specialty?: string }
 interface MedIntake { id: string; medication_id: string; scheduled_at: string; taken_at?: string; skipped_reason?: string; notes?: string; created_at: string }
 
 const ROUTES = ['oral', 'injection', 'topical', 'inhalation', 'sublingual', 'rectal', 'other'];
@@ -47,12 +47,6 @@ export function Medications() {
     queryFn: () => showActive ? medicationsApi.active(profileId) : medicationsApi.list(profileId),
     enabled: !!profileId,
   });
-  const { data: contactsData } = useQuery({
-    queryKey: ['contacts', profileId],
-    queryFn: () => api.get<{ items: Contact[] }>(`/api/v1/profiles/${profileId}/contacts`),
-    enabled: !!profileId && (showForm || !!editTarget),
-  });
-  const contacts = contactsData?.items || [];
   const { data: intakeData } = useQuery({
     queryKey: ['med-intake', profileId, selectedMed?.id],
     queryFn: () => api.get<{ items: MedIntake[]; total: number }>(`/api/v1/profiles/${profileId}/medications/${selectedMed!.id}/intake?limit=200`),
@@ -99,8 +93,8 @@ export function Medications() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['med-intake'] }),
   });
 
-  const { register, handleSubmit, reset } = useForm<Partial<Medication>>();
-  const { register: editRegister, handleSubmit: editHandleSubmit, reset: editReset } = useForm<Partial<Medication>>({
+  const { register, handleSubmit, reset, setValue, watch } = useForm<Partial<Medication>>();
+  const { register: editRegister, handleSubmit: editHandleSubmit, reset: editReset, setValue: editSetValue, watch: editWatch } = useForm<Partial<Medication>>({
     values: editTarget ? {
       name: editTarget.name, dosage: editTarget.dosage ?? '', unit: editTarget.unit ?? '',
       frequency: editTarget.frequency ?? '', route: editTarget.route ?? '',
@@ -380,10 +374,7 @@ export function Medications() {
                   <div className="form-group"><label>{t('medications.route')}</label>
                     <select {...register('route')}><option value="">{t('common.select')}</option>{ROUTES.map((r) => <option key={r} value={r}>{t('medications.route_' + r)}</option>)}</select>
                   </div>
-                  <div className="form-group"><label>{t('medications.prescribed_by')}</label>
-                    <input type="text" {...register('prescribed_by')} list="contacts-list" autoComplete="off" />
-                    <datalist id="contacts-list">{contacts.map((c) => <option key={c.id} value={c.name}>{c.specialty ? `${c.name} — ${c.specialty}` : c.name}</option>)}</datalist>
-                  </div>
+                  <ContactPicker profileId={profileId} value={watch('prescribed_by')} onChange={(name) => setValue('prescribed_by', name)} label={t('medications.prescribed_by')} />
                 </div>
                 <div className="form-group"><label>{t('medications.reason')}</label><input type="text" {...register('reason')} /></div>
               </form>
@@ -449,9 +440,7 @@ export function Medications() {
                 <div className="form-group"><label>{t('medications.route')}</label>
                   <select {...editRegister('route')}><option value="">{t('common.select')}</option>{ROUTES.map((r) => <option key={r} value={r}>{t('medications.route_' + r)}</option>)}</select>
                 </div>
-                <div className="form-group"><label>{t('medications.prescribed_by')}</label><input type="text" {...editRegister('prescribed_by')} list="edit-contacts-list" autoComplete="off" />
-                  <datalist id="edit-contacts-list">{contacts.map((c) => <option key={c.id} value={c.name}>{c.specialty ? `${c.name} — ${c.specialty}` : c.name}</option>)}</datalist>
-                </div>
+                <ContactPicker profileId={profileId} value={editWatch('prescribed_by')} onChange={(name) => editSetValue('prescribed_by', name)} label={t('medications.prescribed_by')} />
               </div>
               <div className="form-group"><label>{t('medications.reason')}</label><input type="text" {...editRegister('reason')} /></div>
               <div className="form-row">

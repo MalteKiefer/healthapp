@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { isPast, isToday, isTomorrow, addDays } from 'date-fns';
 import { ProfileSelector } from '../components/ProfileSelector';
 import { useDateFormat } from '../hooks/useDateLocale';
+import { ContactPicker } from '../components/ContactPicker';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { appointmentsApi, type Appointment } from '../api/appointments';
@@ -65,7 +66,7 @@ export function Appointments() {
       queryClient.invalidateQueries({ queryKey: ['appointments', profileId] });
       setShowForm(false);
       reset();
-      setDoctorSearch('');
+      setDoctorDisplay('');
     },
   });
 
@@ -91,19 +92,8 @@ export function Appointments() {
 
   const { register, handleSubmit, reset, setValue } = useForm<Partial<Appointment>>();
   const { register: editRegister, handleSubmit: editHandleSubmit, reset: editReset, setValue: editSetValue } = useForm<Partial<Appointment>>();
-  const [doctorSearch, setDoctorSearch] = useState('');
-  const [editDoctorSearch, setEditDoctorSearch] = useState('');
-
-  const handleDoctorSelect = (name: string, setSearch: (v: string) => void, setVal: (field: 'doctor_id' | 'location', v: string) => void) => {
-    setSearch(name);
-    const match = contacts.find((c) => c.name === name || `${c.name} — ${c.specialty}` === name);
-    if (match) {
-      setVal('doctor_id', match.id);
-      if (match.address) setVal('location', match.address);
-    } else {
-      setVal('doctor_id', '');
-    }
-  };
+  const [doctorDisplay, setDoctorDisplay] = useState('');
+  const [editDoctorDisplay, setEditDoctorDisplay] = useState('');
 
   useEffect(() => {
     if (editTarget) {
@@ -117,7 +107,7 @@ export function Appointments() {
         preparation_notes: editTarget.preparation_notes,
       });
       const doc = contacts.find((c) => c.id === editTarget.doctor_id);
-      setEditDoctorSearch(doc ? (doc.specialty ? `${doc.name} — ${doc.specialty}` : doc.name) : '');
+      setEditDoctorDisplay(doc ? (doc.specialty ? `${doc.name} — ${doc.specialty}` : doc.name) : '');
     }
   }, [editTarget, editReset, contacts]);
 
@@ -185,21 +175,16 @@ export function Appointments() {
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="form-group">
-                    <label>{t('appointments.doctor')}</label>
-                    <input
-                      type="text"
-                      value={doctorSearch}
-                      onChange={(e) => handleDoctorSelect(e.target.value, setDoctorSearch, setValue as (f: 'doctor_id' | 'location', v: string) => void)}
-                      list="appt-contacts-list"
-                      autoComplete="off"
-                      placeholder={t('appointments.doctor_placeholder')}
-                    />
-                    <datalist id="appt-contacts-list">
-                      {contacts.map((c) => <option key={c.id} value={c.specialty ? `${c.name} — ${c.specialty}` : c.name} />)}
-                    </datalist>
-                    <input type="hidden" {...register('doctor_id')} />
-                  </div>
+                  <ContactPicker
+                    profileId={profileId}
+                    value={doctorDisplay}
+                    onChange={(name, contact) => {
+                      setDoctorDisplay(name);
+                      setValue('doctor_id', contact?.id || '');
+                      if (contact?.address) setValue('location', contact.address);
+                    }}
+                    label={t('appointments.doctor')}
+                  />
                   <div className="form-group">
                     <label>{t('appointments.location')}</label>
                     <input type="text" {...register('location')} />
@@ -317,21 +302,16 @@ export function Appointments() {
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="form-group">
-                    <label>{t('appointments.doctor')}</label>
-                    <input
-                      type="text"
-                      value={editDoctorSearch}
-                      onChange={(e) => handleDoctorSelect(e.target.value, setEditDoctorSearch, editSetValue as (f: 'doctor_id' | 'location', v: string) => void)}
-                      list="appt-edit-contacts-list"
-                      autoComplete="off"
-                      placeholder={t('appointments.doctor_placeholder')}
-                    />
-                    <datalist id="appt-edit-contacts-list">
-                      {contacts.map((c) => <option key={c.id} value={c.specialty ? `${c.name} — ${c.specialty}` : c.name} />)}
-                    </datalist>
-                    <input type="hidden" {...editRegister('doctor_id')} />
-                  </div>
+                  <ContactPicker
+                    profileId={profileId}
+                    value={editDoctorDisplay}
+                    onChange={(name, contact) => {
+                      setEditDoctorDisplay(name);
+                      editSetValue('doctor_id', contact?.id || '');
+                      if (contact?.address) editSetValue('location', contact.address);
+                    }}
+                    label={t('appointments.doctor')}
+                  />
                   <div className="form-group">
                     <label>{t('appointments.location')}</label>
                     <input type="text" {...editRegister('location')} />
