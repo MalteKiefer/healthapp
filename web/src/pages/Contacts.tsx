@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { compareByColumn } from '../utils/sorting';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -6,6 +7,30 @@ import { ProfileSelector } from '../components/ProfileSelector';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
+
+interface OSMResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  type: string;
+  class: string;
+  address?: {
+    road?: string;
+    house_number?: string;
+    postcode?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    state?: string;
+    country?: string;
+  };
+  namedetails?: { name?: string };
+  name?: string;
+  extratags?: Record<string, string>;
+  category?: string;
+}
 
 interface Contact {
   id: string;
@@ -64,7 +89,7 @@ export function Contacts() {
   // OSM search state
   const [osmOpen, setOsmOpen] = useState<'create' | 'edit' | null>(null);
   const [osmQuery, setOsmQuery] = useState('');
-  const [osmResults, setOsmResults] = useState<any[]>([]);
+  const [osmResults, setOsmResults] = useState<OSMResult[]>([]);
   const [osmLoading, setOsmLoading] = useState(false);
 
   const queryClient = useQueryClient();
@@ -105,17 +130,10 @@ export function Contacts() {
 
   const items = data?.items || [];
 
-  const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
-      const aVal = (a as unknown as Record<string, unknown>)[sortCol];
-      const bVal = (b as unknown as Record<string, unknown>)[sortCol];
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
-      const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
-      return sortDir === 'asc' ? cmp : -cmp;
-    });
-  }, [items, sortCol, sortDir]);
+  const sortedItems = useMemo(
+    () => [...items].sort((a, b) => compareByColumn(a, b, sortCol, sortDir)),
+    [items, sortCol, sortDir]
+  );
 
   const filteredItems = useMemo(() => {
     return sortedItems.filter(c => c.contact_type === activeTab);
@@ -159,7 +177,7 @@ export function Contacts() {
     setOsmLoading(false);
   };
 
-  const getOsmCategory = (r: any): string | null => {
+  const getOsmCategory = (r: OSMResult): string | null => {
     const cat = r.category;
     const type = r.type;
     if (cat === 'amenity' && ['hospital', 'clinic', 'doctors', 'dentist', 'pharmacy', 'veterinary'].includes(type)) return type;
@@ -168,7 +186,7 @@ export function Contacts() {
     return null;
   };
 
-  const getOsmDisplayType = (r: any): string | null => {
+  const getOsmDisplayType = (r: OSMResult): string | null => {
     const cat = getOsmCategory(r);
     if (!cat) return null;
     const map: Record<string, string> = {
@@ -178,7 +196,7 @@ export function Contacts() {
     return map[cat] || cat;
   };
 
-  const selectOsmResult = (r: any) => {
+  const selectOsmResult = (r: OSMResult) => {
     const addr = r.address || {};
     const street = [addr.road, addr.house_number].filter(Boolean).join(' ');
     const city = addr.city || addr.town || addr.village || addr.municipality || '';
@@ -535,7 +553,7 @@ export function Contacts() {
                     />
                   </div>
                   <div className="med-list">
-                    {osmResults.map((r: any, i: number) => {
+                    {osmResults.map((r: OSMResult, i: number) => {
                       const poiType = getOsmDisplayType(r);
                       const poiName = r.namedetails?.name || r.name || '';
                       return (

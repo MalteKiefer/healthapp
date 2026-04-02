@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { compareByColumn } from '../utils/sorting';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -106,15 +107,10 @@ export function Medications() {
 
   const items = data?.items || [];
 
-  const sortedItems = [...items].sort((a, b) => {
-    const aVal = (a as unknown as Record<string, unknown>)[sortCol];
-    const bVal = (b as unknown as Record<string, unknown>)[sortCol];
-    if (aVal == null && bVal == null) return 0;
-    if (aVal == null) return 1;
-    if (bVal == null) return -1;
-    const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
-    return sortDir === 'asc' ? cmp : -cmp;
-  });
+  const sortedItems = useMemo(
+    () => [...items].sort((a, b) => compareByColumn(a, b, sortCol, sortDir)),
+    [items, sortCol, sortDir]
+  );
 
   // ── Detail View ──
   if (selectedMed) {
@@ -325,7 +321,7 @@ export function Medications() {
               </thead>
               <tbody>
                 {sortedItems.map((med) => (
-                  <tr key={med.id} onClick={() => setSelectedMed(med)} style={{ cursor: 'pointer' }}>
+                  <tr key={med.id} onClick={() => setSelectedMed(med)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedMed(med); } }} tabIndex={0} style={{ cursor: 'pointer' }}>
                     <td><strong>{med.name}</strong></td>
                     <td className="col-dosage">{[med.dosage, med.unit].filter(Boolean).join(' ') || '—'}</td>
                     <td className="col-frequency">{med.frequency || '—'}</td>

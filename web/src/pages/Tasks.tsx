@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { compareByColumn } from '../utils/sorting';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -91,8 +92,7 @@ export function Tasks() {
         aVal = priorityOrder[a.priority] ?? 99;
         bVal = priorityOrder[b.priority] ?? 99;
       } else {
-        aVal = (a as unknown as Record<string, unknown>)[sortCol];
-        bVal = (b as unknown as Record<string, unknown>)[sortCol];
+        return compareByColumn(a, b, sortCol, sortDir);
       }
       if (aVal == null && bVal == null) return 0;
       if (aVal == null) return 1;

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { compareByColumn } from '../utils/sorting';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -597,15 +598,7 @@ export function Vitals() {
             }
             const rows = Array.from(grouped.values());
             // Sort
-            rows.sort((a, b) => {
-              const aVal = (a as unknown as Record<string, unknown>)[sortCol];
-              const bVal = (b as unknown as Record<string, unknown>)[sortCol];
-              if (aVal == null && bVal == null) return 0;
-              if (aVal == null) return 1;
-              if (bVal == null) return -1;
-              const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
-              return sortDir === 'asc' ? cmp : -cmp;
-            });
+            rows.sort((a, b) => compareByColumn(a, b, sortCol, sortDir));
 
             return (
             <div className="table-scroll">
