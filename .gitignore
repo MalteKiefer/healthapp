@@ -24,7 +24,7 @@ redis-data/
 pgbouncer-data/
 backup-data/
 uploads/
-documents/
+/documents/
 *.log
 logs/
 .idea/ .vscode/ *.swp *.swo .DS_Store Thumbs.db
