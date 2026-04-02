@@ -170,7 +170,14 @@ export function Diary() {
                 <div className="timeline-icon">
                   {TIMELINE_ICON}
                 </div>
-                <div className="timeline-content" style={{ cursor: 'pointer' }} onClick={() => setEditTarget(event)}>
+                <div
+                  className="timeline-content"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setEditTarget(event)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditTarget(event); } }}
+                  role="button"
+                  tabIndex={0}
+                >
                   <div className="timeline-header">
                     <span className="timeline-title">{event.title}</span>
                     <span className="timeline-date">

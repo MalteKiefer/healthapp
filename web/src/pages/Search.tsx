@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -76,14 +76,16 @@ export function Search() {
     enabled: debouncedQuery.length >= 2,
   });
 
-  const handleSearch = (value: string) => {
-    setQuery(value);
-    // Simple debounce
-    clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).__searchTimer);
-    (window as unknown as Record<string, ReturnType<typeof setTimeout>>).__searchTimer = setTimeout(() => {
-      setDebouncedQuery(value);
-    }, 300);
-  };
+  useEffect(() => {
+    if (!query.trim()) {
+      setDebouncedQuery('');
+      return;
+    }
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const results = data?.results || {};
   const hasResults = Object.values(results).some((items) => items && items.length > 0);
@@ -98,7 +100,7 @@ export function Search() {
           className="search-input"
           placeholder={t('search.placeholder')}
           value={query}
-          onChange={(e) => handleSearch(e.target.value)}
+          onChange={(e) => setQuery(e.target.value)}
           autoFocus
         />
       </div>

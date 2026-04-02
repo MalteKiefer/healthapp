@@ -239,7 +239,14 @@ export function Appointments() {
                     <div className="appt-month">{fmt(date, 'MMM')}</div>
                     <div className="appt-time">{fmt(date, 'HH:mm')}</div>
                   </div>
-                  <div className="appt-info" style={{ cursor: 'pointer' }} onClick={() => setEditTarget(appt)}>
+                  <div
+                    className="appt-info"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setEditTarget(appt)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditTarget(appt); } }}
+                    role="button"
+                    tabIndex={0}
+                  >
                     <div className="appt-title">{appt.title}</div>
                     <div className="appt-type">{t('appointments.type_' + appt.appointment_type)}</div>
                     {appt.doctor_id && (() => { const doc = contacts.find(c => c.id === appt.doctor_id); return doc ? <div className="appt-location">{doc.name}{doc.specialty ? ` — ${doc.specialty}` : ''}</div> : null; })()}

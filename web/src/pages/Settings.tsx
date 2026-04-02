@@ -169,7 +169,7 @@ export function Settings() {
   });
 
   // Queries
-  const { data: userInfo } = useQuery({
+  const { data: userInfo, isLoading: userInfoLoading, isError: userInfoError } = useQuery({
     queryKey: ['me'],
     queryFn: () => api.get<UserInfo>('/api/v1/users/me'),
   });
@@ -414,6 +414,9 @@ export function Settings() {
   const quotaMB = storage ? (storage.quota_bytes / 1048576).toFixed(0) : '5120';
   const usagePercent = storage ? (storage.used_bytes / storage.quota_bytes * 100) : 0;
   const is2FA = userInfo?.totp_enabled ?? false;
+
+  if (userInfoLoading) return <p>{t('common.loading')}</p>;
+  if (userInfoError) return <p className="text-muted">{t('common.error')}</p>;
 
   return (
     <div className="page">

@@ -72,22 +72,22 @@ export function Dashboard() {
 
   // Fetch dashboard data
   const { data: vitalsData } = useVitals(profileId, { limit: 5 });
-  const { data: tasksData } = useQuery({
+  const { data: tasksData, isLoading: tasksLoading, isError: tasksError } = useQuery({
     queryKey: ['tasks-open', profileId],
     queryFn: () => api.get<{ items: Task[] }>(`/api/v1/profiles/${profileId}/tasks/open`),
     enabled: !!profileId,
   });
-  const { data: apptsData } = useQuery({
+  const { data: apptsData, isLoading: apptsLoading, isError: apptsError } = useQuery({
     queryKey: ['appointments-upcoming', profileId],
     queryFn: () => api.get<{ items: Appointment[] }>(`/api/v1/profiles/${profileId}/appointments/upcoming`),
     enabled: !!profileId,
   });
-  const { data: medsData } = useQuery({
+  const { data: medsData, isLoading: medsLoading, isError: medsError } = useQuery({
     queryKey: ['medications-active', profileId],
     queryFn: () => api.get<{ items: Medication[] }>(`/api/v1/profiles/${profileId}/medications/active`),
     enabled: !!profileId,
   });
-  const { data: diaryData } = useQuery({
+  const { data: diaryData, isLoading: diaryLoading, isError: diaryError } = useQuery({
     queryKey: ['diary-recent', profileId],
     queryFn: () => diaryApi.list(profileId, { limit: 5 }),
     enabled: !!profileId,
@@ -163,6 +163,12 @@ export function Dashboard() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5);
   }, [recentVitals, recentDiary, t]);
+
+  const isLoading = tasksLoading || apptsLoading || medsLoading || diaryLoading;
+  const isError = tasksError || apptsError || medsError || diaryError;
+
+  if (isLoading) return <p>{t('common.loading')}</p>;
+  if (isError) return <p className="text-muted">{t('common.error')}</p>;
 
   return (
     <div className="page">
