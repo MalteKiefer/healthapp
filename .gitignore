@@ -9,8 +9,10 @@
 *.prof
 coverage/
 .env
-.env.*
+.env.local
+.env.production
 *.env
+!.env.example
 config.local.yaml
 secrets/
 *.pem

@@ -1,32 +1,8 @@
 services:
-  proxy:
-    build: ./proxy
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - caddy-data:/data
-      - caddy-config:/config
-    environment:
-      - INSTANCE_HOSTNAME=${INSTANCE_HOSTNAME}
-      - ACME_EMAIL=${ACME_EMAIL:-}
-    networks:
-      - frontend
-    depends_on:
-      api:
-        condition: service_healthy
-      web:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   web:
     build: ./web
+    ports:
+      - "127.0.0.1:3100:80"
     networks:
       - frontend
     restart: unless-stopped
@@ -38,6 +14,8 @@ services:
 
   api:
     build: ./api
+    ports:
+      - "127.0.0.1:3101:8080"
     environment:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8080
@@ -197,5 +175,3 @@ volumes:
   backup-data:
   uploads:
   jwt-keys:
-  caddy-data:
-  caddy-config:
