@@ -3079,6 +3079,87 @@ img.avatar-img { object-fit: cover; padding: 0; }
 }
 
 /* --------------------------------------------------------------------------
+   LAB TRENDS
+   -------------------------------------------------------------------------- */
+
+.lab-trends-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.lab-trend-card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.lab-trend-card:hover {
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.lab-trend-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-2);
+}
+.lab-trend-card-marker {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.lab-trend-card-value {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 2px 0;
+}
+.lab-trend-card-unit {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: 4px;
+  font-weight: 400;
+}
+.lab-trend-card-trend {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.lab-trend-expanded {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+.lab-trend-expanded-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+.lab-trend-expanded-content {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .lab-trends-grid { grid-template-columns: repeat(2, 1fr); }
+  .lab-trend-expanded-content { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .lab-trends-grid { grid-template-columns: 1fr; }
+}
+
+/* --------------------------------------------------------------------------
    45. OCR UPLOAD
    -------------------------------------------------------------------------- */
 

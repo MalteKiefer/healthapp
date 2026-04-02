@@ -45,3 +45,19 @@ type ReferenceRange struct {
 	Source string  `json:"source"`
 	Notes  string  `json:"notes"`
 }
+
+// TrendDataPoint represents a single measurement of a marker over time.
+type TrendDataPoint struct {
+	Date  time.Time `json:"date"`
+	Value float64   `json:"value"`
+	Flag  *string   `json:"flag,omitempty"`
+}
+
+// MarkerTrend represents the time series for a single lab marker.
+type MarkerTrend struct {
+	Marker        string           `json:"marker"`
+	Unit          *string          `json:"unit,omitempty"`
+	ReferenceLow  *float64         `json:"reference_low,omitempty"`
+	ReferenceHigh *float64         `json:"reference_high,omitempty"`
+	DataPoints    []TrendDataPoint `json:"data_points"`
+}

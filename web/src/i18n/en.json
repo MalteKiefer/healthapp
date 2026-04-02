@@ -248,7 +248,11 @@
     "markers": "markers",
     "edit": "Edit Lab Result",
     "marker_placeholder": "e.g. Hemoglobin",
-    "flag_normal": "normal"
+    "flag_normal": "normal",
+    "view_list": "List",
+    "view_trends": "Trends",
+    "no_trends": "Not enough data for trend display",
+    "data_points": "data points"
   },
   "documents": {
     "title": "Documents",

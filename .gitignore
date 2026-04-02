@@ -37,3 +37,4 @@ build/
 __snapshots__/
 playwright-report/
 test-results/
+.superpowers/

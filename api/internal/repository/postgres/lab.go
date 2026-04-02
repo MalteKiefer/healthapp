@@ -268,3 +268,88 @@ func (r *LabRepo) getValues(ctx context.Context, labResultID uuid.UUID) ([]labs.
 
 	return values, nil
 }
+
+func (r *LabRepo) ListTrends(ctx context.Context, profileID uuid.UUID, from, to *time.Time) ([]labs.MarkerTrend, error) {
+	query := `
+		SELECT lv.marker, lv.value, lv.unit, lv.reference_low, lv.reference_high, lv.flag, lr.sample_date
+		FROM lab_values lv
+		JOIN lab_results lr ON lv.lab_result_id = lr.id
+		WHERE lr.profile_id = $1
+		  AND lr.is_current = TRUE
+		  AND lr.deleted_at IS NULL
+		  AND lv.value IS NOT NULL`
+
+	args := []interface{}{profileID}
+	argIdx := 2
+
+	if from != nil {
+		query += fmt.Sprintf(" AND lr.sample_date >= $%d", argIdx)
+		args = append(args, *from)
+		argIdx++
+	}
+	if to != nil {
+		query += fmt.Sprintf(" AND lr.sample_date <= $%d", argIdx)
+		args = append(args, *to)
+		argIdx++
+	}
+
+	query += " ORDER BY lv.marker ASC, lr.sample_date ASC LIMIT 10000"
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query lab trends: %w", err)
+	}
+	defer rows.Close()
+
+	// Group rows by marker
+	trendsMap := make(map[string]*labs.MarkerTrend)
+	var order []string
+
+	for rows.Next() {
+		var (
+			marker     string
+			value      float64
+			unit       *string
+			refLow     *float64
+			refHigh    *float64
+			flag       *string
+			sampleDate time.Time
+		)
+		if err := rows.Scan(&marker, &value, &unit, &refLow, &refHigh, &flag, &sampleDate); err != nil {
+			return nil, fmt.Errorf("scan lab trend row: %w", err)
+		}
+
+		mt, exists := trendsMap[marker]
+		if !exists {
+			mt = &labs.MarkerTrend{Marker: marker}
+			trendsMap[marker] = mt
+			order = append(order, marker)
+		}
+
+		mt.DataPoints = append(mt.DataPoints, labs.TrendDataPoint{
+			Date:  sampleDate,
+			Value: value,
+			Flag:  flag,
+		})
+
+		// Always update reference info from the latest row (rows are ordered by sample_date ASC)
+		mt.Unit = unit
+		mt.ReferenceLow = refLow
+		mt.ReferenceHigh = refHigh
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate lab trend rows: %w", err)
+	}
+
+	// Build result, filtering out markers with < 2 data points
+	var results []labs.MarkerTrend
+	for _, marker := range order {
+		mt := trendsMap[marker]
+		if len(mt.DataPoints) >= 2 {
+			results = append(results, *mt)
+		}
+	}
+
+	return results, nil
+}

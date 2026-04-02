@@ -248,7 +248,11 @@
     "markers": "Marker",
     "edit": "Laborergebnis bearbeiten",
     "marker_placeholder": "z.B. Hämoglobin",
-    "flag_normal": "normal"
+    "flag_normal": "normal",
+    "view_list": "Liste",
+    "view_trends": "Trends",
+    "no_trends": "Nicht genug Daten für Trend-Anzeige",
+    "data_points": "Datenpunkte"
   },
   "documents": {
     "title": "Dokumente",

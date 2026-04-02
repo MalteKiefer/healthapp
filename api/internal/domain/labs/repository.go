@@ -2,6 +2,7 @@ package labs
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -14,4 +15,5 @@ type Repository interface {
 	Update(ctx context.Context, lr *LabResult) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	CheckDuplicate(ctx context.Context, lr *LabResult) (*uuid.UUID, error)
+	ListTrends(ctx context.Context, profileID uuid.UUID, from, to *time.Time) ([]MarkerTrend, error)
 }

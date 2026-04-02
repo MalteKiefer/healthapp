@@ -280,6 +280,7 @@ func (s *Server) setupRoutes() {
 					r.Route("/labs", func(r chi.Router) {
 						r.Get("/", s.LabHandler.HandleList)
 						r.Post("/", s.LabHandler.HandleCreate)
+						r.Get("/trends", s.LabHandler.HandleTrends)
 						r.Get("/{labID}", s.LabHandler.HandleGet)
 						r.Patch("/{labID}", s.LabHandler.HandleUpdate)
 						r.Delete("/{labID}", s.LabHandler.HandleDelete)

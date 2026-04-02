@@ -8,6 +8,7 @@ import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
 import { ContactPicker } from '../components/ContactPicker';
+import { LabTrendsView } from '../components/LabTrendsView';
 
 interface LabValue {
   marker: string;
@@ -47,6 +48,7 @@ export function Labs() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<LabResult | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'trends'>('list');
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -71,6 +73,7 @@ export function Labs() {
     mutationFn: (lab: Partial<LabResult>) => api.post(`/api/v1/profiles/${profileId}/labs`, cleanLab(lab)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labs', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['lab-trends'] });
       setShowForm(false);
       reset();
     },
@@ -78,7 +81,10 @@ export function Labs() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/labs/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['labs', profileId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['labs', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['lab-trends'] });
+    },
   });
 
   const updateMutation = useMutation({
@@ -86,6 +92,7 @@ export function Labs() {
       api.patch(`/api/v1/profiles/${profileId}/labs/${data.id}`, cleanLab(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labs', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['lab-trends'] });
       setEditTarget(null);
       editReset();
     },
@@ -147,8 +154,18 @@ export function Labs() {
       <div className="page-header">
         <h2>{t('nav.labs')}</h2>
         <div className="page-actions">
+          <div className="view-tabs">
+            <button className={`view-tab${viewMode === 'list' ? ' active' : ''}`} onClick={() => setViewMode('list')}>
+              {t('labs.view_list')}
+            </button>
+            <button className={`view-tab${viewMode === 'trends' ? ' active' : ''}`} onClick={() => setViewMode('trends')}>
+              {t('labs.view_trends')}
+            </button>
+          </div>
           <ProfileSelector selectedId={profileId} onSelect={setSelectedProfile} />
-          <button className="btn btn-add" onClick={() => setShowForm(!showForm)}>+ {t('common.add')}</button>
+          {viewMode === 'list' && (
+            <button className="btn btn-add" onClick={() => setShowForm(!showForm)}>+ {t('common.add')}</button>
+          )}
         </div>
       </div>
 
@@ -191,6 +208,9 @@ export function Labs() {
         </div>
       )}
 
+      {viewMode === 'trends' ? (
+        <LabTrendsView profileId={profileId} />
+      ) : (
       <div className="card">
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
           <>
@@ -254,6 +274,7 @@ export function Labs() {
           </>
         )}
       </div>
+      )}
 
       {/* Edit Modal */}
       {editTarget && (
