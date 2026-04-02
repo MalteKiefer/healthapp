@@ -120,7 +120,7 @@ export function Diagnoses() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('diagnoses.add')}</h3>
-              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setShowForm(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="diag-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
@@ -155,7 +155,7 @@ export function Diagnoses() {
               <option value="name">{t('common.name')}</option>
               <option value="status">{t('common.status')}</option>
             </select>
-            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} title={sortDir === 'asc' ? 'Descending' : 'Ascending'}>
+            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} title={sortDir === 'asc' ? 'Descending' : 'Ascending'} aria-label={t('common.sort')}>
               {sortDir === 'asc' ? '\u2191' : '\u2193'}
             </button>
           </div>
@@ -172,7 +172,7 @@ export function Diagnoses() {
                 </div>
                 <div className="med-actions">
                   <span className={`badge ${STATUS_COLORS[d.status] || 'badge-info'}`}>{t('diagnoses.status_' + d.status)}</span>
-                  <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(d.id); }} title={t('common.delete')}>×</button>
+                  <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(d.id); }} title={t('common.delete')} aria-label={t('common.delete')}>×</button>
                 </div>
               </div>
             ))}
@@ -186,7 +186,7 @@ export function Diagnoses() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('diagnoses.edit')}</h3>
-              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+              <button className="modal-close" onClick={() => setEditTarget(null)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="diag-edit-form" onSubmit={editForm.handleSubmit((data) => updateMutation.mutate({ id: editTarget.id, ...data }))}>

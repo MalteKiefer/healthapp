@@ -121,7 +121,7 @@ export function Tasks() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('tasks.add')}</h3>
-              <button className="btn-icon-sm" onClick={() => setShowForm(false)}>&times;</button>
+              <button className="btn-icon-sm" onClick={() => setShowForm(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="task-create-form" onSubmit={handleSubmit((data) => createMutation.mutate({ ...data, status: 'open' }))}>
@@ -154,7 +154,7 @@ export function Tasks() {
               <option value="priority">{t('common.priority')}</option>
               <option value="status">{t('common.status')}</option>
             </select>
-            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
+            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} aria-label={t('common.sort')}>
               {sortDir === 'asc' ? '↑' : '↓'}
             </button>
           </div>
@@ -189,7 +189,7 @@ export function Tasks() {
                   </div>
                   <div className="med-actions">
                     <span className={`badge ${PRIORITY_COLORS[task.priority] || 'badge-info'}`}>{t('tasks.priority_' + task.priority)}</span>
-                    <button className="btn-icon-sm" onClick={() => setDeleteTarget(task.id)}>×</button>
+                    <button className="btn-icon-sm" onClick={() => setDeleteTarget(task.id)} aria-label={t('common.delete')}>×</button>
                   </div>
                 </div>
               );

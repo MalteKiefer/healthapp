@@ -99,7 +99,7 @@ export function Diary() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('diary.new_entry')}</h3>
-              <button className="btn-icon-sm" onClick={() => setShowForm(false)}>×</button>
+              <button className="btn-icon-sm" onClick={() => setShowForm(false)} aria-label={t('common.close')}>×</button>
             </div>
             <form id="diary-create-form" onSubmit={handleSubmit((data) => {
               const cleaned: Record<string, unknown> = { ...data };
@@ -207,6 +207,7 @@ export function Diary() {
                   className="btn-icon-sm"
                   onClick={() => setDeleteTarget(event.id)}
                   title={t('common.delete')}
+                  aria-label={t('common.delete')}
                 >
                   ×
                 </button>
@@ -221,7 +222,7 @@ export function Diary() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('diary.edit')}</h3>
-              <button className="btn-icon-sm" onClick={() => setEditTarget(null)}>×</button>
+              <button className="btn-icon-sm" onClick={() => setEditTarget(null)} aria-label={t('common.close')}>×</button>
             </div>
             <form onSubmit={editHandleSubmit((data) => updateMutation.mutate({ id: editTarget.id, data }))}>
               <div className="form-row">

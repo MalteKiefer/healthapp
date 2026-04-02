@@ -10,6 +10,7 @@ import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
 import { ContactPicker } from '../components/ContactPicker';
 import { LabTrendsView } from '../components/LabTrendsView';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface LabValue {
   marker: string;
@@ -49,6 +50,8 @@ export function Labs() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<LabResult | null>(null);
+  const modalRef = useFocusTrap(showForm);
+  const editModalRef = useFocusTrap(!!editTarget);
   const [viewMode, setViewMode] = useState<'list' | 'trends'>('list');
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
@@ -167,10 +170,10 @@ export function Labs() {
 
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
+          <div className="modal" ref={modalRef} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
             <div className="modal-header">
               <h3>{t('labs.add')}</h3>
-              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setShowForm(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="lab-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
@@ -188,7 +191,7 @@ export function Labs() {
                     <div className="form-group"><label>{t('labs.unit')}</label><input type="text" {...register(`values.${index}.unit`)} placeholder="g/dL" /></div>
                     <div className="form-group"><label>{t('labs.ref_low')}</label><input type="number" step="0.01" {...register(`values.${index}.reference_low`, { valueAsNumber: true })} /></div>
                     <div className="form-group"><label>{t('labs.ref_high')}</label><input type="number" step="0.01" {...register(`values.${index}.reference_high`, { valueAsNumber: true })} /></div>
-                    <button type="button" className="btn-icon-sm" onClick={() => remove(index)} style={{ marginBottom: 16 }}>×</button>
+                    <button type="button" className="btn-icon-sm" onClick={() => remove(index)} style={{ marginBottom: 16 }} aria-label={t('common.delete')}>×</button>
                   </div>
                 ))}
                 <button type="button" className="btn btn-secondary" onClick={() => append({ marker: '', unit: '' })} style={{ marginBottom: 16 }}>
@@ -215,7 +218,7 @@ export function Labs() {
               <option value="sample_date">{t('common.date')}</option>
               <option value="lab_name">{t('labs.lab_result')}</option>
             </select>
-            <button className="btn-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
+            <button className="btn-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} aria-label={t('common.sort')}>
               {sortDir === 'asc' ? '↑' : '↓'}
             </button>
           </div>
@@ -236,14 +239,16 @@ export function Labs() {
                       className="btn-icon-sm"
                       onClick={(e) => { e.stopPropagation(); setEditTarget(lab); }}
                       title={t('common.edit')}
+                      aria-label={t('common.edit')}
                       style={{ fontSize: 14 }}
                     >&#9998;</button>
                     <button
                       className="btn-icon-sm"
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget(lab.id); }}
                       title={t('common.delete')}
+                      aria-label={t('common.delete')}
                     >×</button>
-                    <span className="expand-icon">{expandedId === lab.id ? '▼' : '▶'}</span>
+                    <span className="expand-icon" aria-label={expandedId === lab.id ? t('common.collapse') : t('common.expand')}>{expandedId === lab.id ? '▼' : '▶'}</span>
                   </div>
                 </div>
                 {expandedId === lab.id && lab.values && (
@@ -275,10 +280,10 @@ export function Labs() {
       {/* Edit Modal */}
       {editTarget && (
         <div className="modal-overlay" onClick={() => setEditTarget(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
+          <div className="modal" ref={editModalRef} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
             <div className="modal-header">
               <h3>{t('labs.edit')}</h3>
-              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+              <button className="modal-close" onClick={() => setEditTarget(null)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="lab-edit-form" onSubmit={editHandleSubmit(onEditSubmit)}>
@@ -296,7 +301,7 @@ export function Labs() {
                     <div className="form-group"><label>{t('labs.unit')}</label><input type="text" {...editRegister(`values.${index}.unit`)} placeholder="g/dL" /></div>
                     <div className="form-group"><label>{t('labs.ref_low')}</label><input type="number" step="0.01" {...editRegister(`values.${index}.reference_low`, { valueAsNumber: true })} /></div>
                     <div className="form-group"><label>{t('labs.ref_high')}</label><input type="number" step="0.01" {...editRegister(`values.${index}.reference_high`, { valueAsNumber: true })} /></div>
-                    <button type="button" className="btn-icon-sm" onClick={() => editRemove(index)} style={{ marginBottom: 16 }}>×</button>
+                    <button type="button" className="btn-icon-sm" onClick={() => editRemove(index)} style={{ marginBottom: 16 }} aria-label={t('common.delete')}>×</button>
                   </div>
                 ))}
                 <button type="button" className="btn btn-secondary" onClick={() => editAppend({ marker: '', unit: '' })} style={{ marginBottom: 16 }}>

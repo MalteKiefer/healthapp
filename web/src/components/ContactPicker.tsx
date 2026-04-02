@@ -85,7 +85,7 @@ export function ContactPicker({ profileId, value, onChange, label, placeholder }
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
             <div className="modal-header">
               <h3>{t('contacts.pick_title')}</h3>
-              <button className="modal-close" onClick={() => { setOpen(false); setSearch(''); }}>&times;</button>
+              <button className="modal-close" onClick={() => { setOpen(false); setSearch(''); }} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <div className="form-group" style={{ marginBottom: 12 }}>

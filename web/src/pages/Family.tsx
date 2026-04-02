@@ -236,7 +236,7 @@ function FamilyCard({ family, onRefresh }: { family: Family; onRefresh: () => vo
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('family.invite_link')}</h3>
-              <button className="modal-close" onClick={() => setInviteModal(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setInviteModal(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <div className="form-group">
@@ -393,7 +393,7 @@ export function Family() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('family.create')}</h3>
-              <button className="modal-close" onClick={() => setCreateModal(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setCreateModal(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <div className="form-group">
@@ -429,7 +429,7 @@ export function Family() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('family.join')}</h3>
-              <button className="modal-close" onClick={() => setJoinModal(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setJoinModal(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <div className="form-group">

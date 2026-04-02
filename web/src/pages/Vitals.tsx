@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { compareByColumn } from '../utils/sorting';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
@@ -204,6 +205,7 @@ export function Vitals() {
   const [editTarget, setEditTarget] = useState<Vital | null>(null);
   const [showThresholds, setShowThresholds] = useState(false);
   const [sortCol, setSortCol] = useState<string>('measured_at');
+  const modalRef = useFocusTrap(showModal);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [thresholdForm, setThresholdForm] = useState<ThresholdConfig>({});
   const chartRef = useRef<HTMLDivElement>(null);
@@ -387,7 +389,7 @@ export function Vitals() {
         <h2>{t('vitals.title')}</h2>
         <div className="page-actions">
           <ProfileSelector selectedId={profileId} onSelect={setSelectedProfile} />
-          <button className="btn btn-secondary" onClick={() => setShowThresholds(true)} title={t('vitals.thresholds')}>
+          <button className="btn btn-secondary" onClick={() => setShowThresholds(true)} title={t('vitals.thresholds')} aria-label={t('vitals.thresholds')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"/></svg>
           </button>
           <button className="btn btn-add" onClick={openModal}>+ {t('vitals.add')}</button>
@@ -397,10 +399,10 @@ export function Vitals() {
       {/* Input Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{modalStep === 1 ? t('vitals.select_vitals') : t('vitals.enter_measurements')}</h3>
-              <button className="modal-close" onClick={closeModal}>&times;</button>
+              <button className="modal-close" onClick={closeModal} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="stepper">
               <div className="stepper-track">
@@ -636,6 +638,7 @@ export function Vitals() {
                           className="btn-icon-sm"
                           onClick={(e) => { e.stopPropagation(); setDeleteTarget(v.id); }}
                           title={t('common.delete')}
+                          aria-label={t('common.delete')}
                         >×</button>
                       </td>
                     </tr>
@@ -654,7 +657,7 @@ export function Vitals() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('vitals.edit')}</h3>
-              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+              <button className="modal-close" onClick={() => setEditTarget(null)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="vitals-edit-form" onSubmit={editHandleSubmit(onEditSubmit)} className="vital-form">
@@ -721,7 +724,7 @@ export function Vitals() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('vitals.thresholds')}</h3>
-              <button className="modal-close" onClick={() => setShowThresholds(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setShowThresholds(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <p className="text-muted" style={{ marginBottom: 16, fontSize: 13 }}>{t('vitals.threshold_hint')}</p>

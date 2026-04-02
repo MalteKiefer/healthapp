@@ -281,7 +281,7 @@ export function Contacts() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
             <div className="modal-header">
               <h3>{t('contacts.add')}</h3>
-              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setShowForm(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="contact-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
@@ -388,7 +388,7 @@ export function Contacts() {
                 <option value="specialty">{t('contacts.specialty')}</option>
                 <option value="facility">{t('contacts.facility')}</option>
               </select>
-              <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
+              <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} aria-label={t('common.sort')}>
                 {sortDir === 'asc' ? '\u2191' : '\u2193'}
               </button>
             </div>
@@ -420,7 +420,7 @@ export function Contacts() {
                       {t('contacts.show_route')}
                     </a>
                   )}
-                  <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(c.id); }} style={{ alignSelf: 'flex-end' }}>&times;</button>
+                  <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(c.id); }} style={{ alignSelf: 'flex-end' }} aria-label={t('common.delete')}>&times;</button>
                 </div>
               ))}
             </div>
@@ -434,7 +434,7 @@ export function Contacts() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
             <div className="modal-header">
               <h3>{t('contacts.edit')}</h3>
-              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+              <button className="modal-close" onClick={() => setEditTarget(null)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="contact-edit-form" onSubmit={editHandleSubmit((data) => updateMutation.mutate({ ...data, id: editTarget.id }))}>
@@ -526,7 +526,7 @@ export function Contacts() {
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
             <div className="modal-header">
               <h3>{t('contacts.search_address')}</h3>
-              <button className="modal-close" onClick={closeOsm}>&times;</button>
+              <button className="modal-close" onClick={closeOsm} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <div className="form-group">

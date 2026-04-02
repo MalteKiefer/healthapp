@@ -95,6 +95,8 @@
     "no_profiles": "Keine Profile",
     "sort_by": "Sortieren nach",
     "sort": "Sortieren",
+    "expand": "Aufklappen",
+    "collapse": "Zuklappen",
     "error": "Ein Fehler ist aufgetreten"
   },
   "notifications": {

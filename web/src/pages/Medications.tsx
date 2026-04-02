@@ -10,6 +10,7 @@ import { useProfiles } from '../hooks/useProfiles';
 import { medicationsApi, type Medication } from '../api/medications';
 import { api } from '../api/client';
 import { ContactPicker } from '../components/ContactPicker';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface MedIntake { id: string; medication_id: string; scheduled_at: string; taken_at?: string; skipped_reason?: string; notes?: string; created_at: string }
 
@@ -39,6 +40,8 @@ export function Medications() {
   const [intakeDatetime, setIntakeDatetime] = useState(toLocalDatetime());
   const [lastTaken, setLastTaken] = useState<string | null>(null);
   const { fmt, relative } = useDateFormat();
+  const createModalRef = useFocusTrap(showForm);
+  const intakeModalRef = useFocusTrap(showIntakeModal);
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -118,7 +121,7 @@ export function Medications() {
       <div className="page">
         <div className="page-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button className="btn-icon" onClick={() => setSelectedMed(null)} title={t('common.back')}>
+            <button className="btn-icon" onClick={() => setSelectedMed(null)} title={t('common.back')} aria-label={t('common.back')}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <div>
@@ -221,7 +224,7 @@ export function Medications() {
                         </td>
                         <td>{intake.notes || intake.skipped_reason || '—'}</td>
                         <td>
-                          <button className="btn-icon-sm" onClick={() => setDeleteIntakeTarget(intake.id)} title={t('common.delete')}>×</button>
+                          <button className="btn-icon-sm" onClick={() => setDeleteIntakeTarget(intake.id)} title={t('common.delete')} aria-label={t('common.delete')}>×</button>
                         </td>
                       </tr>
                     );
@@ -239,7 +242,7 @@ export function Medications() {
             <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
               <div className="modal-header">
                 <h3>{t('medications.mark_taken')}</h3>
-                <button className="modal-close" onClick={() => setShowIntakeModal(false)}>&times;</button>
+                <button className="modal-close" onClick={() => setShowIntakeModal(false)} aria-label={t('common.close')}>&times;</button>
               </div>
               <div className="modal-body">
                 <p className="text-muted" style={{ marginBottom: 12 }}>{selectedMed.name} — {[selectedMed.dosage, selectedMed.unit].filter(Boolean).join(' ')}</p>
@@ -332,14 +335,14 @@ export function Medications() {
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
                         {!med.ended_at && (
-                          <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setIntakeMed(med); setIntakeDatetime(toLocalDatetime()); setShowIntakeModal(true); }} title={t('medications.mark_taken')} style={{ color: lastTaken === med.id ? 'var(--color-success)' : undefined }}>
+                          <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setIntakeMed(med); setIntakeDatetime(toLocalDatetime()); setShowIntakeModal(true); }} title={t('medications.mark_taken')} aria-label={t('medications.mark_taken')} style={{ color: lastTaken === med.id ? 'var(--color-success)' : undefined }}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                           </button>
                         )}
-                        <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setEditTarget(med); }} title={t('medications.edit')}>
+                        <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setEditTarget(med); }} title={t('medications.edit')} aria-label={t('medications.edit')}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
-                        <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(med.id); }} title={t('common.delete')}>×</button>
+                        <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(med.id); }} title={t('common.delete')} aria-label={t('common.delete')}>×</button>
                       </div>
                     </td>
                   </tr>
@@ -353,10 +356,10 @@ export function Medications() {
       {/* Create Modal */}
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal" ref={createModalRef} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('medications.add')}</h3>
-              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setShowForm(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="med-create-form" onSubmit={handleSubmit((d) => createMutation.mutate(d))}>
@@ -388,10 +391,10 @@ export function Medications() {
       {/* Intake Modal from list */}
       {showIntakeModal && intakeMed && (
         <div className="modal-overlay" onClick={() => { setShowIntakeModal(false); setIntakeMed(null); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
+          <div className="modal" ref={intakeModalRef} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
             <div className="modal-header">
               <h3>{t('medications.mark_taken')}</h3>
-              <button className="modal-close" onClick={() => { setShowIntakeModal(false); setIntakeMed(null); }}>&times;</button>
+              <button className="modal-close" onClick={() => { setShowIntakeModal(false); setIntakeMed(null); }} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <p className="text-muted" style={{ marginBottom: 12 }}>{intakeMed.name} — {[intakeMed.dosage, intakeMed.unit].filter(Boolean).join(' ')}</p>
@@ -422,7 +425,7 @@ export function Medications() {
         <div className="modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <h3>{t('medications.edit')}</h3>
-            <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+            <button className="modal-close" onClick={() => setEditTarget(null)} aria-label={t('common.close')}>&times;</button>
           </div>
           <div className="modal-body">
             <form id="med-edit-form" onSubmit={editHandleSubmit((d) => updateMutation.mutate({ ...d, id: editTarget.id }))}>

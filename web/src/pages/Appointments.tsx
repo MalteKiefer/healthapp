@@ -148,7 +148,7 @@ export function Appointments() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('appointments.add')}</h3>
-              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setShowForm(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="appt-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
@@ -222,7 +222,7 @@ export function Appointments() {
               <option value="title">{t('common.title')}</option>
               <option value="appointment_type">{t('common.type')}</option>
             </select>
-            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} title={sortDir === 'asc' ? 'Descending' : 'Ascending'}>
+            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} title={sortDir === 'asc' ? 'Descending' : 'Ascending'} aria-label={t('common.sort')}>
               {sortDir === 'asc' ? '\u2191' : '\u2193'}
             </button>
           </div>
@@ -267,6 +267,7 @@ export function Appointments() {
                       className="btn-icon-sm"
                       onClick={() => setDeleteTarget(appt.id)}
                       title={t('common.delete')}
+                      aria-label={t('common.delete')}
                     >×</button>
                   </div>
                 </div>
@@ -282,7 +283,7 @@ export function Appointments() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('appointments.edit')}</h3>
-              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+              <button className="modal-close" onClick={() => setEditTarget(null)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="appt-edit-form" onSubmit={editHandleSubmit((data) => updateMutation.mutate({ id: editTarget.id, data }))}>

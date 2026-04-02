@@ -362,6 +362,7 @@ export function Documents() {
                   className="btn-icon-sm"
                   onClick={(e) => { e.stopPropagation(); setDeleteTarget(doc.id); }}
                   title={t('common.delete')}
+                  aria-label={t('common.delete')}
                 >
                   <TrashIcon size={14} />
                 </button>
@@ -670,6 +671,7 @@ function DocumentDetail({
                   className="doc-linked-remove"
                   onClick={() => handleRemoveLink(rec.raw)}
                   title={t('common.delete')}
+                  aria-label={t('common.delete')}
                 >
                   <CloseIcon size={10} />
                 </button>

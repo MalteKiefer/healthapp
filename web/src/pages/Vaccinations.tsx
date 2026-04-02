@@ -155,7 +155,7 @@ export function Vaccinations() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('vaccinations.record')}</h3>
-              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setShowForm(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="vacc-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
@@ -246,6 +246,7 @@ export function Vaccinations() {
                         className="btn-icon-sm"
                         onClick={(e) => { e.stopPropagation(); setDeleteTarget(v.id); }}
                         title={t('common.delete')}
+                        aria-label={t('common.delete')}
                       >×</button>
                     </td>
                   </tr>
@@ -261,7 +262,7 @@ export function Vaccinations() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('vaccinations.edit')}</h3>
-              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+              <button className="modal-close" onClick={() => setEditTarget(null)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="vacc-edit-form" onSubmit={editForm.handleSubmit((data) => updateMutation.mutate({ id: editTarget.id, ...data }))}>

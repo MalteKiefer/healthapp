@@ -95,6 +95,8 @@
     "no_profiles": "No profiles",
     "sort_by": "Sort by",
     "sort": "Sort",
+    "expand": "Expand",
+    "collapse": "Collapse",
     "error": "An error occurred"
   },
   "notifications": {

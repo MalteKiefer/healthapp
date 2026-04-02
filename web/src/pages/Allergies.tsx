@@ -99,7 +99,7 @@ export function Allergies() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('allergies.add_allergy')}</h3>
-              <button className="modal-close" onClick={() => setShowForm(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setShowForm(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="allergy-create-form" onSubmit={handleSubmit((data) => createMutation.mutate({ ...data, status: 'active' }))}>
@@ -142,7 +142,7 @@ export function Allergies() {
                 <div className="med-actions">
                   {a.severity && <span className={`badge ${SEVERITY_COLORS[a.severity] || ''}`}>{t('allergies.sev_' + a.severity)}</span>}
                   <span className={`badge ${a.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>{t('allergies.status_' + a.status)}</span>
-                  <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(a.id); }} title={t('common.delete')}>×</button>
+                  <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(a.id); }} title={t('common.delete')} aria-label={t('common.delete')}>×</button>
                 </div>
               </div>
             ))}
@@ -156,7 +156,7 @@ export function Allergies() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('allergies.edit')}</h3>
-              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+              <button className="modal-close" onClick={() => setEditTarget(null)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="allergy-edit-form" onSubmit={editHandleSubmit((data) => updateMutation.mutate({ ...data, id: editTarget.id }))}>

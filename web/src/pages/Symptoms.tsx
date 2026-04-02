@@ -174,7 +174,7 @@ export function Symptoms() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('symptoms.add')}</h3>
-              <button className="btn-icon-sm" onClick={() => setShowForm(false)}>&times;</button>
+              <button className="btn-icon-sm" onClick={() => setShowForm(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="symptom-create-form" onSubmit={handleSubmit((data) => {
@@ -279,7 +279,7 @@ export function Symptoms() {
             <select className="metric-selector" value="recorded_at" disabled>
               <option value="recorded_at">{t('common.date')}</option>
             </select>
-            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
+            <button className="btn-icon-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} aria-label={t('common.sort')}>
               {sortDir === 'asc' ? '↑' : '↓'}
             </button>
           </div>
@@ -293,6 +293,7 @@ export function Symptoms() {
                     style={{ position: 'absolute', top: 0, right: 0 }}
                     onClick={(e) => { e.stopPropagation(); setDeleteTarget(record.id); }}
                     title={t('common.delete')}
+                    aria-label={t('common.delete')}
                   >×</button>
                   <div className="timeline-date">{fmt(record.recorded_at, 'dd. MMM yyyy, HH:mm')}</div>
                   <div className="symptom-entries">
@@ -324,7 +325,7 @@ export function Symptoms() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('symptoms.edit')}</h3>
-              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
+              <button className="modal-close" onClick={() => setEditTarget(null)} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="symptom-edit-form" onSubmit={editForm.handleSubmit((data) => {
