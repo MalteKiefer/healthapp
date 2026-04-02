@@ -183,6 +183,7 @@ func (s *Server) setupMiddleware() {
 	s.Router.Use(chimiddleware.Timeout(30 * time.Second))
 	s.Router.Use(middleware.CORS(s.Config.Instance.Hostname))
 	s.Router.Use(middleware.SecurityHeaders)
+	s.Router.Use(middleware.MaxBodySize(50 << 20)) // 50MB global limit — covers file uploads; JSON handlers are far smaller in practice
 }
 
 func (s *Server) setupRoutes() {
