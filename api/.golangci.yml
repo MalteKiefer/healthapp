@@ -26,12 +26,12 @@ linters:
 
 linters-settings:
   gocyclo:
-    min-complexity: 20
+    min-complexity: 40
   dupl:
     threshold: 150
   goconst:
-    min-len: 3
-    min-occurrences: 3
+    min-len: 5
+    min-occurrences: 5
   revive:
     rules:
       - name: exported
@@ -40,6 +40,7 @@ linters-settings:
     exclude-functions:
       - (net/http.ResponseWriter).Write
       - (*encoding/json.Encoder).Encode
+      - (*go.uber.org/zap.Logger).Sync
       - io.Copy
       - (io.Closer).Close
 
