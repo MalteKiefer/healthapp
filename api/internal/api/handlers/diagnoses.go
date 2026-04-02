@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/diagnoses"
 	"github.com/healthvault/healthvault/internal/domain/profiles"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // DiagnosisHandler handles diagnosis endpoints.
@@ -158,7 +160,12 @@ func (h *DiagnosisHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	d, err := h.diagnosisRepo.GetByID(r.Context(), diagnosisID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get diagnosis", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -198,7 +205,12 @@ func (h *DiagnosisHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) 
 
 	existing, err := h.diagnosisRepo.GetByID(r.Context(), diagnosisID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get diagnosis", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -254,7 +266,12 @@ func (h *DiagnosisHandler) HandleDelete(w http.ResponseWriter, r *http.Request) 
 
 	existing, err := h.diagnosisRepo.GetByID(r.Context(), diagnosisID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get diagnosis", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 

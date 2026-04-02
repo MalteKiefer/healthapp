@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/appointments"
 	"github.com/healthvault/healthvault/internal/domain/profiles"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // AppointmentHandler handles appointment endpoints.
@@ -157,7 +159,12 @@ func (h *AppointmentHandler) HandleUpdate(w http.ResponseWriter, r *http.Request
 
 	existing, err := h.apptRepo.GetByID(r.Context(), apptID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get appointment", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -208,7 +215,12 @@ func (h *AppointmentHandler) HandleDelete(w http.ResponseWriter, r *http.Request
 
 	existing, err := h.apptRepo.GetByID(r.Context(), apptID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get appointment", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -254,7 +266,12 @@ func (h *AppointmentHandler) HandleComplete(w http.ResponseWriter, r *http.Reque
 
 	existing, err := h.apptRepo.GetByID(r.Context(), apptID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get appointment", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 

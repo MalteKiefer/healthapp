@@ -195,7 +195,10 @@ func (r *DiaryRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 		"UPDATE diary_events SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL",
 		id, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("soft delete diary event: %w", err)
+	}
+	return nil
 }
 
 func (r *DiaryRepo) scanEvent(row pgx.Row) (*diary.DiaryEvent, error) {

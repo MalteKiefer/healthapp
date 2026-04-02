@@ -164,7 +164,10 @@ func (r *VitalRepo) Update(ctx context.Context, v *vitals.Vital) error {
 		v.SleepQuality, v.MeasuredAt, v.Device, v.Notes,
 		v.UpdatedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("update vital: %w", err)
+	}
+	return nil
 }
 
 func (r *VitalRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
@@ -172,7 +175,10 @@ func (r *VitalRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 		"UPDATE vitals SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL",
 		id, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("soft delete vital: %w", err)
+	}
+	return nil
 }
 
 // CheckDuplicate looks for an entry with similar values within ±2 minutes.

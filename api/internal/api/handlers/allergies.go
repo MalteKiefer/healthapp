@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/allergies"
 	"github.com/healthvault/healthvault/internal/domain/profiles"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // AllergyHandler handles allergy endpoints.
@@ -143,7 +145,12 @@ func (h *AllergyHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.allergyRepo.GetByID(r.Context(), allergyID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get allergy", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -194,7 +201,12 @@ func (h *AllergyHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.allergyRepo.GetByID(r.Context(), allergyID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get allergy", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 

@@ -161,7 +161,10 @@ func (r *AllergyRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 		"UPDATE allergies SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL",
 		id, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("soft delete allergy: %w", err)
+	}
+	return nil
 }
 
 func (r *AllergyRepo) scanAllergy(row pgx.Row) (*allergies.Allergy, error) {

@@ -22,7 +22,7 @@ const (
 // document. Unauthenticated requests and exempt paths are passed through. When
 // a user has not accepted the most recent document the middleware responds with
 // HTTP 451 (Unavailable For Legal Reasons).
-func ConsentCheck(db *pgxpool.Pool) func(next http.Handler) http.Handler {
+func ConsentCheck(db *pgxpool.Pool, rdb *redis.Client) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Skip exempt paths.
@@ -41,7 +41,7 @@ func ConsentCheck(db *pgxpool.Pool) func(next http.Handler) http.Handler {
 				return
 			}
 
-			docID, found := latestDocumentID(r.Context(), db)
+			docID, found := latestDocumentID(r.Context(), db, rdb)
 			if !found {
 				// No legal documents published yet — nothing to enforce.
 				next.ServeHTTP(w, r)
@@ -72,11 +72,9 @@ func ConsentCheck(db *pgxpool.Pool) func(next http.Handler) http.Handler {
 // latestDocumentID returns the ID of the most recent effective legal document.
 // The value is cached in Redis for consentCacheTTL to avoid a DB query on
 // every request. If Redis is unavailable the DB is queried directly.
-func latestDocumentID(ctx context.Context, db *pgxpool.Pool) (uuid.UUID, bool) {
-	// Try Redis cache first. We rely on the redis client already imported by
-	// the ratelimit middleware in this package; we obtain it via a package-level
-	// helper below.
-	if rdb := consentRedis(); rdb != nil {
+func latestDocumentID(ctx context.Context, db *pgxpool.Pool, rdb *redis.Client) (uuid.UUID, bool) {
+	// Try Redis cache first.
+	if rdb != nil {
 		val, err := rdb.Get(ctx, consentCacheKey).Result()
 		if err == nil {
 			id, parseErr := uuid.Parse(val)
@@ -96,21 +94,9 @@ func latestDocumentID(ctx context.Context, db *pgxpool.Pool) (uuid.UUID, bool) {
 	}
 
 	// Warm the cache.
-	if rdb := consentRedis(); rdb != nil {
+	if rdb != nil {
 		_ = rdb.Set(ctx, consentCacheKey, docID.String(), consentCacheTTL).Err()
 	}
 
 	return docID, true
-}
-
-// consentRdb is a package-level Redis client set via SetConsentRedis.
-var consentRdb *redis.Client
-
-// SetConsentRedis stores the Redis client used by ConsentCheck caching.
-func SetConsentRedis(rdb *redis.Client) {
-	consentRdb = rdb
-}
-
-func consentRedis() *redis.Client {
-	return consentRdb
 }

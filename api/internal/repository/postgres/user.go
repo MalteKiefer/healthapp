@@ -193,7 +193,10 @@ func (r *UserRepo) RevokeSession(ctx context.Context, id uuid.UUID) error {
 		"UPDATE user_sessions SET revoked_at = $2 WHERE id = $1",
 		id, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("revoke session: %w", err)
+	}
+	return nil
 }
 
 func (r *UserRepo) RevokeAllSessions(ctx context.Context, userID uuid.UUID, exceptID *uuid.UUID) error {
@@ -202,13 +205,19 @@ func (r *UserRepo) RevokeAllSessions(ctx context.Context, userID uuid.UUID, exce
 			"UPDATE user_sessions SET revoked_at = $3 WHERE user_id = $1 AND id != $2 AND revoked_at IS NULL",
 			userID, *exceptID, time.Now().UTC(),
 		)
-		return err
+		if err != nil {
+			return fmt.Errorf("revoke all sessions except one: %w", err)
+		}
+		return nil
 	}
 	_, err := r.db.Exec(ctx,
 		"UPDATE user_sessions SET revoked_at = $2 WHERE user_id = $1 AND revoked_at IS NULL",
 		userID, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("revoke all sessions: %w", err)
+	}
+	return nil
 }
 
 func (r *UserRepo) UpdateSessionActivity(ctx context.Context, id uuid.UUID) error {
@@ -216,7 +225,10 @@ func (r *UserRepo) UpdateSessionActivity(ctx context.Context, id uuid.UUID) erro
 		"UPDATE user_sessions SET last_active_at = $2 WHERE id = $1",
 		id, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("update session activity: %w", err)
+	}
+	return nil
 }
 
 // ── Recovery Codes ──────────────────────────────────────────────────
@@ -275,12 +287,18 @@ func (r *UserRepo) MarkRecoveryCodeUsed(ctx context.Context, codeID uuid.UUID) e
 		"UPDATE user_recovery_codes SET used_at = $2 WHERE id = $1",
 		codeID, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("mark recovery code used: %w", err)
+	}
+	return nil
 }
 
 func (r *UserRepo) DeleteRecoveryCodes(ctx context.Context, userID uuid.UUID) error {
 	_, err := r.db.Exec(ctx, "DELETE FROM user_recovery_codes WHERE user_id = $1", userID)
-	return err
+	if err != nil {
+		return fmt.Errorf("delete recovery codes: %w", err)
+	}
+	return nil
 }
 
 // ── Preferences ─────────────────────────────────────────────────────
@@ -318,7 +336,10 @@ func (r *UserRepo) UpsertPreferences(ctx context.Context, p *user.Preferences) e
 		p.UserID, p.Language, p.DateFormat, p.WeightUnit, p.HeightUnit,
 		p.TemperatureUnit, p.BloodGlucoseUnit, p.WeekStart, p.Timezone,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("upsert preferences: %w", err)
+	}
+	return nil
 }
 
 // ── Storage ─────────────────────────────────────────────────────────
@@ -343,5 +364,8 @@ func (r *UserRepo) InitStorage(ctx context.Context, userID uuid.UUID, quotaBytes
 		"INSERT INTO user_storage (user_id, quota_bytes) VALUES ($1, $2) ON CONFLICT DO NOTHING",
 		userID, quotaBytes,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("init storage: %w", err)
+	}
+	return nil
 }

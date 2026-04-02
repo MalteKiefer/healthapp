@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -59,7 +60,11 @@ func AuditWrites(aw *AuditWriter) func(next http.Handler) http.Handler {
 				if claims, ok := handlers.ClaimsFromContext(r.Context()); ok {
 					userID = &claims.UserID
 				}
-				go aw.LogAction(context.Background(), userID, r.Method+" "+r.URL.Path, r.URL.Path, nil, r)
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					aw.LogAction(ctx, userID, r.Method+" "+r.URL.Path, r.URL.Path, nil, r)
+				}()
 			}
 		})
 	}

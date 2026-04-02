@@ -134,7 +134,10 @@ func (r *DocumentRepo) Update(ctx context.Context, d *documents.Document) error 
 		d.ID, d.FilenameEnc, d.MimeType, d.Category,
 		d.Tags, d.OCRTextEnc, d.UpdatedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("update document: %w", err)
+	}
+	return nil
 }
 
 func (r *DocumentRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
@@ -142,7 +145,10 @@ func (r *DocumentRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 		"UPDATE documents SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL",
 		id, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("soft delete document: %w", err)
+	}
+	return nil
 }
 
 func (r *DocumentRepo) scanDocument(row pgx.Row) (*documents.Document, error) {

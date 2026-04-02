@@ -33,7 +33,10 @@ func (r *CalendarRepo) Create(ctx context.Context, f *calendar.Feed) error {
 		f.ID, f.UserID, f.Name, f.TokenHash, f.ProfileIDs,
 		f.IncludeAppointments, f.IncludeTasks, f.IncludeVaccinations,
 		f.IncludeMedications, f.IncludeLabs, f.VerboseMode, f.CreatedAt, f.UpdatedAt)
-	return err
+	if err != nil {
+		return fmt.Errorf("create calendar feed: %w", err)
+	}
+	return nil
 }
 
 func (r *CalendarRepo) GetByID(ctx context.Context, id uuid.UUID) (*calendar.Feed, error) {
@@ -86,7 +89,7 @@ func (r *CalendarRepo) ListByUserID(ctx context.Context, userID uuid.UUID) ([]ca
 			last_polled_at, created_at, updated_at
 		FROM calendar_feeds WHERE user_id = $1 ORDER BY created_at`, userID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query calendar feeds: %w", err)
 	}
 	defer rows.Close()
 	var feeds []calendar.Feed
@@ -96,7 +99,7 @@ func (r *CalendarRepo) ListByUserID(ctx context.Context, userID uuid.UUID) ([]ca
 			&f.IncludeAppointments, &f.IncludeTasks, &f.IncludeVaccinations,
 			&f.IncludeMedications, &f.IncludeLabs, &f.VerboseMode,
 			&f.LastPolledAt, &f.CreatedAt, &f.UpdatedAt); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scan calendar feed row: %w", err)
 		}
 		feeds = append(feeds, f)
 	}
@@ -116,15 +119,24 @@ func (r *CalendarRepo) Update(ctx context.Context, f *calendar.Feed) error {
 		f.ID, f.Name, f.ProfileIDs,
 		f.IncludeAppointments, f.IncludeTasks, f.IncludeVaccinations,
 		f.IncludeMedications, f.IncludeLabs, f.VerboseMode, f.UpdatedAt)
-	return err
+	if err != nil {
+		return fmt.Errorf("update calendar feed: %w", err)
+	}
+	return nil
 }
 
 func (r *CalendarRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.db.Exec(ctx, "DELETE FROM calendar_feeds WHERE id = $1", id)
-	return err
+	if err != nil {
+		return fmt.Errorf("delete calendar feed: %w", err)
+	}
+	return nil
 }
 
 func (r *CalendarRepo) UpdateLastPolled(ctx context.Context, id uuid.UUID) error {
 	_, err := r.db.Exec(ctx, "UPDATE calendar_feeds SET last_polled_at = $2 WHERE id = $1", id, time.Now().UTC())
-	return err
+	if err != nil {
+		return fmt.Errorf("update last polled: %w", err)
+	}
+	return nil
 }

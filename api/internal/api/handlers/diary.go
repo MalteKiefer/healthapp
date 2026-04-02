@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/diary"
 	"github.com/healthvault/healthvault/internal/domain/profiles"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // DiaryHandler handles health diary endpoints.
@@ -125,6 +128,7 @@ func (h *DiaryHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Location", fmt.Sprintf("/api/v1/profiles/%s/diary/%s", profileID, e.ID))
 	writeJSON(w, http.StatusCreated, e)
 }
 
@@ -156,7 +160,12 @@ func (h *DiaryHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	e, err := h.diaryRepo.GetByID(r.Context(), eventID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get diary event", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -196,7 +205,12 @@ func (h *DiaryHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.diaryRepo.GetByID(r.Context(), eventID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get diary event", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -248,7 +262,12 @@ func (h *DiaryHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.diaryRepo.GetByID(r.Context(), eventID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get diary event", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 

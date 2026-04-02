@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/contacts"
 	"github.com/healthvault/healthvault/internal/domain/profiles"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // ContactHandler handles medical contact endpoints.
@@ -126,7 +128,12 @@ func (h *ContactHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.contactRepo.GetByID(r.Context(), contactID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get contact", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -179,7 +186,12 @@ func (h *ContactHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.contactRepo.GetByID(r.Context(), contactID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get contact", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 

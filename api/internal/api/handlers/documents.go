@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/documents"
 	"github.com/healthvault/healthvault/internal/domain/profiles"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // DocumentHandler handles health document endpoints.
@@ -184,6 +186,7 @@ func (h *DocumentHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Location", fmt.Sprintf("/api/v1/profiles/%s/documents/%s", profileID, d.ID))
 	writeJSON(w, http.StatusCreated, d)
 }
 
@@ -247,7 +250,12 @@ func (h *DocumentHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	d, err := h.docRepo.GetByID(r.Context(), docID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get document", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -287,7 +295,12 @@ func (h *DocumentHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.docRepo.GetByID(r.Context(), docID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get document", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -362,7 +375,12 @@ func (h *DocumentHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.docRepo.GetByID(r.Context(), docID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get document", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -408,7 +426,12 @@ func (h *DocumentHandler) HandleDownload(w http.ResponseWriter, r *http.Request)
 
 	d, err := h.docRepo.GetByID(r.Context(), docID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get document", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 

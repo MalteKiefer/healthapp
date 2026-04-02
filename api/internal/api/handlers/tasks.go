@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/profiles"
 	"github.com/healthvault/healthvault/internal/domain/tasks"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // TaskHandler handles task endpoints.
@@ -159,7 +161,12 @@ func (h *TaskHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.taskRepo.GetByID(r.Context(), taskID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get task", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -218,7 +225,12 @@ func (h *TaskHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.taskRepo.GetByID(r.Context(), taskID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get task", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 

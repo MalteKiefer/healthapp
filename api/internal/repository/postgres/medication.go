@@ -175,7 +175,10 @@ func (r *MedicationRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 		"UPDATE medications SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL",
 		id, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("soft delete medication: %w", err)
+	}
+	return nil
 }
 
 func (r *MedicationRepo) GetActive(ctx context.Context, profileID uuid.UUID) ([]medications.Medication, error) {

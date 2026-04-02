@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/profiles"
 	"github.com/healthvault/healthvault/internal/domain/vaccinations"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // VaccinationHandler handles vaccination endpoints.
@@ -147,7 +149,12 @@ func (h *VaccinationHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	v, err := h.vaccinationRepo.GetByID(r.Context(), vaccinationID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get vaccination", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -187,7 +194,12 @@ func (h *VaccinationHandler) HandleUpdate(w http.ResponseWriter, r *http.Request
 
 	existing, err := h.vaccinationRepo.GetByID(r.Context(), vaccinationID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get vaccination", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -238,7 +250,12 @@ func (h *VaccinationHandler) HandleDelete(w http.ResponseWriter, r *http.Request
 
 	existing, err := h.vaccinationRepo.GetByID(r.Context(), vaccinationID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get vaccination", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 

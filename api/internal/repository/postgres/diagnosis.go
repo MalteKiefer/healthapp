@@ -180,7 +180,10 @@ func (r *DiagnosisRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 		"UPDATE diagnoses SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL",
 		id, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("soft delete diagnosis: %w", err)
+	}
+	return nil
 }
 
 func (r *DiagnosisRepo) scanDiagnosis(row pgx.Row) (*diagnoses.Diagnosis, error) {

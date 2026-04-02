@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/profiles"
 	"github.com/healthvault/healthvault/internal/domain/symptoms"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // SymptomHandler handles symptom endpoints.
@@ -109,6 +112,7 @@ func (h *SymptomHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Location", fmt.Sprintf("/api/v1/profiles/%s/symptoms/%s", profileID, s.ID))
 	writeJSON(w, http.StatusCreated, s)
 }
 
@@ -140,7 +144,12 @@ func (h *SymptomHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	s, err := h.symptomRepo.GetByID(r.Context(), symptomID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get symptom", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -180,7 +189,12 @@ func (h *SymptomHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.symptomRepo.GetByID(r.Context(), symptomID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get symptom", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -239,7 +253,12 @@ func (h *SymptomHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.symptomRepo.GetByID(r.Context(), symptomID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get symptom", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 

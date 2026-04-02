@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/medications"
 	"github.com/healthvault/healthvault/internal/domain/profiles"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // MedicationHandler handles medication endpoints.
@@ -147,7 +149,12 @@ func (h *MedicationHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	m, err := h.medRepo.GetByID(r.Context(), medID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get medication", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -187,7 +194,12 @@ func (h *MedicationHandler) HandleUpdate(w http.ResponseWriter, r *http.Request)
 
 	existing, err := h.medRepo.GetByID(r.Context(), medID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get medication", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -238,7 +250,12 @@ func (h *MedicationHandler) HandleDelete(w http.ResponseWriter, r *http.Request)
 
 	existing, err := h.medRepo.GetByID(r.Context(), medID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get medication", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -317,7 +334,12 @@ func (h *MedicationHandler) HandleCreateIntake(w http.ResponseWriter, r *http.Re
 	// Verify medication exists and belongs to profile
 	med, err := h.medRepo.GetByID(r.Context(), medID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get medication", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 	if med.ProfileID != profileID {
@@ -372,7 +394,12 @@ func (h *MedicationHandler) HandleListIntake(w http.ResponseWriter, r *http.Requ
 	// Verify medication exists and belongs to profile
 	med, err := h.medRepo.GetByID(r.Context(), medID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get medication", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 	if med.ProfileID != profileID {
@@ -442,7 +469,12 @@ func (h *MedicationHandler) HandleUpdateIntake(w http.ResponseWriter, r *http.Re
 	// Verify medication exists and belongs to profile
 	med, err := h.medRepo.GetByID(r.Context(), medID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("medication_not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("medication_not_found"))
+			return
+		}
+		h.logger.Error("get medication", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 	if med.ProfileID != profileID {
@@ -452,7 +484,12 @@ func (h *MedicationHandler) HandleUpdateIntake(w http.ResponseWriter, r *http.Re
 
 	existing, err := h.medRepo.GetIntakeByID(r.Context(), intakeID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("intake_not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("intake_not_found"))
+			return
+		}
+		h.logger.Error("get medication intake", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 	if existing.MedicationID != medID {
@@ -514,7 +551,12 @@ func (h *MedicationHandler) HandleDeleteIntake(w http.ResponseWriter, r *http.Re
 	// Verify medication exists and belongs to profile
 	med, err := h.medRepo.GetByID(r.Context(), medID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("medication_not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("medication_not_found"))
+			return
+		}
+		h.logger.Error("get medication", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 	if med.ProfileID != profileID {
@@ -525,7 +567,12 @@ func (h *MedicationHandler) HandleDeleteIntake(w http.ResponseWriter, r *http.Re
 	// Verify intake belongs to medication
 	existing, err := h.medRepo.GetIntakeByID(r.Context(), intakeID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("intake_not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("intake_not_found"))
+			return
+		}
+		h.logger.Error("get medication intake", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 	if existing.MedicationID != medID {
@@ -571,7 +618,12 @@ func (h *MedicationHandler) HandleAdherence(w http.ResponseWriter, r *http.Reque
 	// Verify medication exists and belongs to profile
 	med, err := h.medRepo.GetByID(r.Context(), medID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get medication", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 	if med.ProfileID != profileID {

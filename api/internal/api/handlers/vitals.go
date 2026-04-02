@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/profiles"
 	"github.com/healthvault/healthvault/internal/domain/vitals"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // VitalHandler handles vital sign endpoints.
@@ -135,6 +138,7 @@ func (h *VitalHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Location", fmt.Sprintf("/api/v1/profiles/%s/vitals/%s", profileID, v.ID))
 	writeJSON(w, http.StatusCreated, v)
 }
 
@@ -166,7 +170,12 @@ func (h *VitalHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	v, err := h.vitalRepo.GetByID(r.Context(), vitalID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get vital", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -206,7 +215,12 @@ func (h *VitalHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.vitalRepo.GetByID(r.Context(), vitalID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get vital", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -258,7 +272,12 @@ func (h *VitalHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.vitalRepo.GetByID(r.Context(), vitalID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get vital", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 

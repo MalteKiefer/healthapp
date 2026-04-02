@@ -124,6 +124,7 @@ func (h *ProfileHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Location", fmt.Sprintf("/api/v1/profiles/%s", p.ID))
 	writeJSON(w, http.StatusCreated, p)
 }
 
@@ -272,7 +273,7 @@ func (h *ProfileHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // HandleArchive soft-archives a profile.

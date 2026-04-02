@@ -106,7 +106,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	familyRepo := postgres.NewFamilyRepo(db)
 	familyHandler := handlers.NewFamilyHandler(familyRepo, logger, db)
 
-	userHandler := handlers.NewUserHandler(userRepo, logger)
+	userHandler := handlers.NewUserHandler(db, userRepo, logger)
 	labRepo := postgres.NewLabRepo(db)
 	labHandler := handlers.NewLabHandler(labRepo, profileRepo, logger)
 	emergencyHandler := handlers.NewEmergencyHandler(db, logger)
@@ -167,8 +167,6 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 		ScheduledExportHandler: scheduledExportHandler,
 	}
 
-	middleware.SetConsentRedis(rdb)
-
 	s.setupMiddleware()
 	s.setupRoutes()
 
@@ -227,7 +225,7 @@ func (s *Server) setupRoutes() {
 		// Protected routes — JWT required
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.JWTAuth(s.TokenService))
-			r.Use(middleware.ConsentCheck(s.DB))
+			r.Use(middleware.ConsentCheck(s.DB, s.Redis))
 			r.Use(middleware.SessionTimeout(s.Redis, s.Config.Instance.SessionTimeout))
 
 			// 2FA management (requires authenticated user)

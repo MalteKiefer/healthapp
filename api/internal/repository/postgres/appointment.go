@@ -37,7 +37,10 @@ func (r *AppointmentRepo) Create(ctx context.Context, a *appointments.Appointmen
 		a.ID, a.ProfileID, a.Title, a.AppointmentType, a.ScheduledAt, a.DurationMinutes,
 		a.DoctorID, a.Location, a.PreparationNotes, a.ReminderDaysBefore,
 		a.Status, a.Recurrence, a.CreatedAt, a.UpdatedAt)
-	return err
+	if err != nil {
+		return fmt.Errorf("create appointment: %w", err)
+	}
+	return nil
 }
 
 func (r *AppointmentRepo) GetByID(ctx context.Context, id uuid.UUID) (*appointments.Appointment, error) {
@@ -77,25 +80,34 @@ func (r *AppointmentRepo) Update(ctx context.Context, a *appointments.Appointmen
 		WHERE id=$1`,
 		a.ID, a.Title, a.AppointmentType, a.ScheduledAt, a.DurationMinutes, a.DoctorID,
 		a.Location, a.PreparationNotes, a.ReminderDaysBefore, a.Status, a.Recurrence, a.UpdatedAt)
-	return err
+	if err != nil {
+		return fmt.Errorf("update appointment: %w", err)
+	}
+	return nil
 }
 
 func (r *AppointmentRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.db.Exec(ctx, "DELETE FROM appointments WHERE id=$1", id)
-	return err
+	if err != nil {
+		return fmt.Errorf("delete appointment: %w", err)
+	}
+	return nil
 }
 
 func (r *AppointmentRepo) Complete(ctx context.Context, id uuid.UUID, diaryEventID *uuid.UUID) error {
 	_, err := r.db.Exec(ctx, `
 		UPDATE appointments SET status='completed', linked_diary_event_id=$2, updated_at=$3
 		WHERE id=$1`, id, diaryEventID, time.Now().UTC())
-	return err
+	if err != nil {
+		return fmt.Errorf("complete appointment: %w", err)
+	}
+	return nil
 }
 
 func (r *AppointmentRepo) queryAppointments(ctx context.Context, query string, args ...interface{}) ([]appointments.Appointment, error) {
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query appointments: %w", err)
 	}
 	defer rows.Close()
 	var result []appointments.Appointment
@@ -104,7 +116,7 @@ func (r *AppointmentRepo) queryAppointments(ctx context.Context, query string, a
 		if err := rows.Scan(&a.ID, &a.ProfileID, &a.Title, &a.AppointmentType, &a.ScheduledAt, &a.DurationMinutes,
 			&a.DoctorID, &a.Location, &a.PreparationNotes, &a.ReminderDaysBefore,
 			&a.Status, &a.LinkedDiaryEventID, &a.Recurrence, &a.CreatedAt, &a.UpdatedAt); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scan appointment row: %w", err)
 		}
 		result = append(result, a)
 	}

@@ -37,15 +37,6 @@ type LabValue struct {
 	Flag          *string   `json:"flag,omitempty"`
 }
 
-// ReferenceRange holds standard reference range information for a lab marker.
-type ReferenceRange struct {
-	Low    float64 `json:"low"`
-	High   float64 `json:"high"`
-	Unit   string  `json:"unit"`
-	Source string  `json:"source"`
-	Notes  string  `json:"notes"`
-}
-
 // TrendDataPoint represents a single measurement of a marker over time.
 type TrendDataPoint struct {
 	Date  time.Time `json:"date"`

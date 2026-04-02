@@ -173,7 +173,10 @@ func (r *VaccinationRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 		"UPDATE vaccinations SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL",
 		id, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("soft delete vaccination: %w", err)
+	}
+	return nil
 }
 
 // GetDue returns vaccinations where next_due_at is in the future or within the past 30 days.

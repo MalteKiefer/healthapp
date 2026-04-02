@@ -81,7 +81,7 @@ func (r *SymptomRepo) GetByID(ctx context.Context, id uuid.UUID) (*symptoms.Symp
 	for rows.Next() {
 		var e symptoms.SymptomEntry
 		if err := rows.Scan(&e.ID, &e.SymptomRecordID, &e.SymptomType, &e.CustomLabel, &e.Intensity, &e.BodyRegion, &e.DurationMinutes); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scan symptom entry row: %w", err)
 		}
 		s.Entries = append(s.Entries, e)
 	}
@@ -96,7 +96,7 @@ func (r *SymptomRepo) List(ctx context.Context, profileID uuid.UUID, limit, offs
 	var total int
 	err := r.db.QueryRow(ctx, "SELECT COUNT(*) FROM symptom_records WHERE profile_id = $1 AND deleted_at IS NULL", profileID).Scan(&total)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("count symptom records: %w", err)
 	}
 
 	rows, err := r.db.Query(ctx, `
@@ -104,7 +104,7 @@ func (r *SymptomRepo) List(ctx context.Context, profileID uuid.UUID, limit, offs
 		FROM symptom_records WHERE profile_id = $1 AND deleted_at IS NULL
 		ORDER BY recorded_at DESC LIMIT $2 OFFSET $3`, profileID, limit, offset)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("query symptom records: %w", err)
 	}
 	defer rows.Close()
 
@@ -112,7 +112,7 @@ func (r *SymptomRepo) List(ctx context.Context, profileID uuid.UUID, limit, offs
 	for rows.Next() {
 		var s symptoms.SymptomRecord
 		if err := rows.Scan(&s.ID, &s.ProfileID, &s.RecordedAt, &s.TriggerFactors, &s.Notes, &s.LinkedVitalID, &s.CreatedAt, &s.UpdatedAt, &s.DeletedAt); err != nil {
-			return nil, 0, err
+			return nil, 0, fmt.Errorf("scan symptom record row: %w", err)
 		}
 		result = append(result, s)
 	}
@@ -129,10 +129,16 @@ func (r *SymptomRepo) Update(ctx context.Context, s *symptoms.SymptomRecord) err
 		UPDATE symptom_records SET recorded_at=$2, trigger_factors=$3, notes=$4, linked_vital_id=$5, updated_at=$6
 		WHERE id=$1 AND deleted_at IS NULL`,
 		s.ID, s.RecordedAt, s.TriggerFactors, s.Notes, s.LinkedVitalID, s.UpdatedAt)
-	return err
+	if err != nil {
+		return fmt.Errorf("update symptom record: %w", err)
+	}
+	return nil
 }
 
 func (r *SymptomRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.db.Exec(ctx, "UPDATE symptom_records SET deleted_at=$2 WHERE id=$1 AND deleted_at IS NULL", id, time.Now().UTC())
-	return err
+	if err != nil {
+		return fmt.Errorf("soft delete symptom record: %w", err)
+	}
+	return nil
 }

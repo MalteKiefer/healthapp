@@ -30,7 +30,10 @@ func (r *TaskRepo) Create(ctx context.Context, t *tasks.Task) error {
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
 		t.ID, t.ProfileID, t.Title, t.DueDate, t.Priority, t.Status,
 		t.RelatedDiaryEventID, t.RelatedAppointmentID, t.Notes, t.CreatedByUserID, t.CreatedAt, t.UpdatedAt)
-	return err
+	if err != nil {
+		return fmt.Errorf("create task: %w", err)
+	}
+	return nil
 }
 
 func (r *TaskRepo) GetByID(ctx context.Context, id uuid.UUID) (*tasks.Task, error) {
@@ -71,18 +74,24 @@ func (r *TaskRepo) Update(ctx context.Context, t *tasks.Task) error {
 		UPDATE tasks SET title=$2, due_date=$3, priority=$4, status=$5, done_at=$6, notes=$7, updated_at=$8
 		WHERE id=$1`,
 		t.ID, t.Title, t.DueDate, t.Priority, t.Status, t.DoneAt, t.Notes, t.UpdatedAt)
-	return err
+	if err != nil {
+		return fmt.Errorf("update task: %w", err)
+	}
+	return nil
 }
 
 func (r *TaskRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.db.Exec(ctx, "DELETE FROM tasks WHERE id=$1", id)
-	return err
+	if err != nil {
+		return fmt.Errorf("delete task: %w", err)
+	}
+	return nil
 }
 
 func (r *TaskRepo) queryTasks(ctx context.Context, query string, args ...interface{}) ([]tasks.Task, error) {
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query tasks: %w", err)
 	}
 	defer rows.Close()
 	var result []tasks.Task
@@ -90,7 +99,7 @@ func (r *TaskRepo) queryTasks(ctx context.Context, query string, args ...interfa
 		var t tasks.Task
 		if err := rows.Scan(&t.ID, &t.ProfileID, &t.Title, &t.DueDate, &t.Priority, &t.Status, &t.DoneAt,
 			&t.RelatedDiaryEventID, &t.RelatedAppointmentID, &t.Notes, &t.CreatedByUserID, &t.CreatedAt, &t.UpdatedAt); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scan task row: %w", err)
 		}
 		result = append(result, t)
 	}

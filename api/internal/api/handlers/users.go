@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
 	"github.com/healthvault/healthvault/internal/crypto"
@@ -14,12 +15,13 @@ import (
 
 // UserHandler handles user/me endpoints.
 type UserHandler struct {
+	db       *pgxpool.Pool
 	userRepo user.Repository
 	logger   *zap.Logger
 }
 
-func NewUserHandler(repo user.Repository, logger *zap.Logger) *UserHandler {
-	return &UserHandler{userRepo: repo, logger: logger}
+func NewUserHandler(db *pgxpool.Pool, repo user.Repository, logger *zap.Logger) *UserHandler {
+	return &UserHandler{db: db, userRepo: repo, logger: logger}
 }
 
 // HandleGetMe returns the authenticated user's profile (without sensitive fields).
@@ -87,7 +89,23 @@ func (h *UserHandler) HandleDeleteMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: check for shared profiles before allowing deletion
+	// Check if the user has profiles shared with (granted to) other users.
+	// The user must revoke all grants before deleting their account.
+	var sharedCount int
+	err := h.db.QueryRow(r.Context(),
+		`SELECT COUNT(*) FROM profile_key_grants
+		 WHERE granted_by_user_id = $1 AND revoked_at IS NULL`,
+		claims.UserID,
+	).Scan(&sharedCount)
+	if err != nil {
+		h.logger.Error("check shared profiles", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if sharedCount > 0 {
+		writeJSON(w, http.StatusConflict, errorResponse("has_shared_profiles"))
+		return
+	}
 
 	if err := h.userRepo.Delete(r.Context(), claims.UserID); err != nil {
 		h.logger.Error("delete user", zap.Error(err))

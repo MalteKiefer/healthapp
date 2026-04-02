@@ -42,7 +42,7 @@ func scanContacts(rows pgx.Rows) ([]contacts.Contact, error) {
 			&c.Latitude, &c.Longitude, &c.Address, &c.Notes, &c.IsEmergencyContact,
 			&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
 		); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scan contact row: %w", err)
 		}
 		result = append(result, c)
 	}
@@ -72,7 +72,10 @@ func (r *ContactRepo) Create(ctx context.Context, c *contacts.Contact) error {
 		c.Phone, c.Email, c.Street, c.PostalCode, c.City, c.Country,
 		c.Latitude, c.Longitude, c.Address, c.Notes, c.IsEmergencyContact,
 		c.CreatedAt, c.UpdatedAt)
-	return err
+	if err != nil {
+		return fmt.Errorf("create contact: %w", err)
+	}
+	return nil
 }
 
 func (r *ContactRepo) GetByID(ctx context.Context, id uuid.UUID) (*contacts.Contact, error) {
@@ -91,7 +94,7 @@ func (r *ContactRepo) List(ctx context.Context, profileID uuid.UUID) ([]contacts
 	rows, err := r.db.Query(ctx,
 		`SELECT `+contactColumns+` FROM medical_contacts WHERE profile_id = $1 AND deleted_at IS NULL ORDER BY name`, profileID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query contacts: %w", err)
 	}
 	defer rows.Close()
 	return scanContacts(rows)
@@ -107,10 +110,16 @@ func (r *ContactRepo) Update(ctx context.Context, c *contacts.Contact) error {
 		c.ID, c.ContactType, c.Name, c.Specialty, c.Facility,
 		c.Phone, c.Email, c.Street, c.PostalCode, c.City, c.Country,
 		c.Latitude, c.Longitude, c.Address, c.Notes, c.IsEmergencyContact, c.UpdatedAt)
-	return err
+	if err != nil {
+		return fmt.Errorf("update contact: %w", err)
+	}
+	return nil
 }
 
 func (r *ContactRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.db.Exec(ctx, "UPDATE medical_contacts SET deleted_at=$2 WHERE id=$1 AND deleted_at IS NULL", id, time.Now().UTC())
-	return err
+	if err != nil {
+		return fmt.Errorf("soft delete contact: %w", err)
+	}
+	return nil
 }

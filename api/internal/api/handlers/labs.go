@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/domain/labs"
 	"github.com/healthvault/healthvault/internal/domain/profiles"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // LabHandler handles lab result endpoints.
@@ -173,6 +176,7 @@ func (h *LabHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Location", fmt.Sprintf("/api/v1/profiles/%s/labs/%s", profileID, lr.ID))
 	writeJSON(w, http.StatusCreated, lr)
 }
 
@@ -212,7 +216,12 @@ func (h *LabHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	lr, err := h.labRepo.GetByID(r.Context(), labID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get lab result", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -252,7 +261,12 @@ func (h *LabHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.labRepo.GetByID(r.Context(), labID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get lab result", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
@@ -303,7 +317,12 @@ func (h *LabHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.labRepo.GetByID(r.Context(), labID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get lab result", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 

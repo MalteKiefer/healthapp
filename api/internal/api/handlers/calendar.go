@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -206,7 +207,9 @@ func (h *CalendarHandler) HandleICSFeed(w http.ResponseWriter, r *http.Request) 
 
 	// Update last polled timestamp async
 	go func() {
-		_ = h.feedRepo.UpdateLastPolled(r.Context(), feed.ID)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = h.feedRepo.UpdateLastPolled(ctx, feed.ID)
 	}()
 
 	// Collect events from all configured sources
