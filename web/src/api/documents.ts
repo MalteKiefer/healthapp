@@ -29,14 +29,13 @@ export const documentsApi = {
     `/api/v1/profiles/${profileId}/documents/${id}/download`,
   // Upload handled separately with multipart form
   upload: async (profileId: string, file: File, category: string) => {
-    const token = localStorage.getItem('access_token');
     const formData = new FormData();
     formData.append('file', file);
     formData.append('category', category);
 
     const res = await fetch(`/api/v1/profiles/${profileId}/documents`, {
       method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
       body: formData,
     });
 

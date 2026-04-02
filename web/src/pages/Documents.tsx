@@ -123,9 +123,8 @@ function getDocIconComponent(mimeType: string, size = 20) {
    --------------------------------------------------------------------------- */
 
 async function fetchBlobUrl(profileId: string, docId: string): Promise<string> {
-  const token = localStorage.getItem('access_token');
   const res = await fetch(documentsApi.downloadUrl(profileId, docId), {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include',
   });
   if (!res.ok) throw new Error('Download failed');
   const blob = await res.blob();

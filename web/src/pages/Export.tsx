@@ -8,9 +8,8 @@ import { useProfiles } from '../hooks/useProfiles';
    --------------------------------------------------------------------------- */
 
 async function downloadExport(profileId: string, format: string, filename: string) {
-  const token = localStorage.getItem('access_token');
   const res = await fetch(`/api/v1/profiles/${profileId}/export/${format}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include',
   });
   if (!res.ok) throw new Error('Export failed');
   const blob = await res.blob();
