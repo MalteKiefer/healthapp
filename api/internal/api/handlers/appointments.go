@@ -286,7 +286,7 @@ func (h *AppointmentHandler) HandleComplete(w http.ResponseWriter, r *http.Reque
 		DiaryEventID *uuid.UUID `json:"diary_event_id"`
 	}
 	// Body is optional; ignore decode errors for empty bodies
-	json.NewDecoder(r.Body).Decode(&body)
+	_ = json.NewDecoder(r.Body).Decode(&body)
 
 	if err := h.apptRepo.Complete(r.Context(), apptID, body.DiaryEventID); err != nil {
 		h.logger.Error("complete appointment", zap.Error(err))

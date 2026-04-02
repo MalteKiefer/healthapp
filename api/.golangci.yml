@@ -36,6 +36,12 @@ linters-settings:
     rules:
       - name: exported
         disabled: true
+  errcheck:
+    exclude-functions:
+      - (net/http.ResponseWriter).Write
+      - (*encoding/json.Encoder).Encode
+      - io.Copy
+      - (io.Closer).Close
 
 issues:
   exclude-rules:
@@ -47,5 +53,11 @@ issues:
     - path: migrations/
       linters:
         - all
+    - text: "Error return value of `tx.Rollback`"
+      linters:
+        - errcheck
+    - text: "Error return value of `.*\\.db\\.Exec`"
+      linters:
+        - errcheck
   max-issues-per-linter: 50
   max-same-issues: 10

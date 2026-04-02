@@ -414,7 +414,7 @@ func migrateVersion(ctx context.Context, db *pgxpool.Pool) {
 // Setup command: healthvault setup
 // ---------------------------------------------------------------------------
 
-func runSetup(args []string) {
+func runSetup(_ []string) {
 	fmt.Println("HealthVault setup")
 	fmt.Println("=================")
 
@@ -497,7 +497,7 @@ func listMigrations(direction string) ([]migrationFile, error) {
 		return nil, fmt.Errorf("read embedded migrations dir: %w", err)
 	}
 
-	var result []migrationFile
+	result := make([]migrationFile, 0, len(entries))
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
