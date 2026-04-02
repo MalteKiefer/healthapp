@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -162,7 +162,7 @@ export function LabTrendsView({ profileId }: { profileId: string }) {
   };
 
   // Build grid items: cards + expanded card inserted after the right position
-  const gridItems: JSX.Element[] = [];
+  const gridItems: ReactElement[] = [];
   for (let i = 0; i < markers.length; i++) {
     const m = markers[i];
     const lastPoint = m.data_points[m.data_points.length - 1];
