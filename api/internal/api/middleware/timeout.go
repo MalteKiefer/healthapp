@@ -34,8 +34,8 @@ func SessionTimeout(rdb *redis.Client, timeout time.Duration) func(next http.Han
 
 			exists, err := rdb.Exists(ctx, key).Result()
 			if err != nil {
-				// Redis error — fail open.
-				next.ServeHTTP(w, r)
+				// Redis error — fail closed to prevent session timeout bypass.
+				writeJSONError(w, http.StatusServiceUnavailable, "service_temporarily_unavailable")
 				return
 			}
 
