@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -107,9 +108,36 @@ func setupTestEnv(t *testing.T) *testEnv {
 func connectTestDB(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 
-	// Try test-compose port first, then default port.
-	for _, port := range []int{5433, 5432} {
-		dsn := fmt.Sprintf("postgres://test:test@localhost:%d/healthvault_test?sslmode=disable", port)
+	host := os.Getenv("DB_HOST")
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	user := os.Getenv("DB_USER")
+	if user == "" {
+		user = "test"
+	}
+	pass := os.Getenv("DB_PASSWORD")
+	if pass == "" {
+		pass = "test"
+	}
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "healthvault_test"
+	}
+	sslMode := os.Getenv("DB_SSLMODE")
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+
+	ports := []int{5432, 5433}
+	if p := os.Getenv("DB_PORT"); p != "" {
+		if v, err := strconv.Atoi(p); err == nil {
+			ports = []int{v}
+		}
+	}
+
+	for _, port := range ports {
+		dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s", user, pass, host, port, dbName, sslMode)
 		poolCfg, err := pgxpool.ParseConfig(dsn)
 		if err != nil {
 			continue
@@ -133,16 +161,28 @@ func connectTestDB(t *testing.T, ctx context.Context) *pgxpool.Pool {
 		return pool
 	}
 
-	t.Skip("PostgreSQL not available on localhost:5433 or localhost:5432")
+	t.Skip("PostgreSQL not available")
 	return nil
 }
 
 func connectTestRedis(t *testing.T, ctx context.Context) *redis.Client {
 	t.Helper()
 
-	for _, port := range []int{6380, 6379} {
+	host := os.Getenv("REDIS_HOST")
+	if host == "" {
+		host = "127.0.0.1"
+	}
+
+	ports := []int{6379, 6380}
+	if p := os.Getenv("REDIS_PORT"); p != "" {
+		if v, err := strconv.Atoi(p); err == nil {
+			ports = []int{v}
+		}
+	}
+
+	for _, port := range ports {
 		rdb := redis.NewClient(&redis.Options{
-			Addr: fmt.Sprintf("localhost:%d", port),
+			Addr: fmt.Sprintf("%s:%d", host, port),
 			DB:   15,
 		})
 
@@ -156,7 +196,7 @@ func connectTestRedis(t *testing.T, ctx context.Context) *redis.Client {
 		_ = rdb.Close()
 	}
 
-	t.Skip("Redis not available on localhost:6380 or localhost:6379")
+	t.Skip("Redis not available")
 	return nil
 }
 
