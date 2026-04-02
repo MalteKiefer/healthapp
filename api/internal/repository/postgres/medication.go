@@ -115,6 +115,9 @@ func (r *MedicationRepo) List(ctx context.Context, filter medications.ListFilter
 		}
 		result = append(result, *m)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate rows: %w", err)
+	}
 
 	return result, total, nil
 }
@@ -198,6 +201,9 @@ func (r *MedicationRepo) GetActive(ctx context.Context, profileID uuid.UUID) ([]
 			return nil, err
 		}
 		result = append(result, *m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
 	}
 
 	return result, nil
@@ -323,6 +329,9 @@ func (r *MedicationRepo) ListIntake(ctx context.Context, medicationID uuid.UUID,
 			return nil, 0, fmt.Errorf("scan intake row: %w", err)
 		}
 		result = append(result, intake)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate rows: %w", err)
 	}
 
 	return result, total, nil

@@ -163,6 +163,9 @@ func (r *UserRepo) GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([
 		}
 		sessions = append(sessions, s)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
+	}
 	return sessions, nil
 }
 
@@ -260,6 +263,9 @@ func (r *UserRepo) GetUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID)
 			return nil, fmt.Errorf("scan recovery code: %w", err)
 		}
 		codes = append(codes, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
 	}
 	return codes, nil
 }

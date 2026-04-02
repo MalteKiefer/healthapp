@@ -100,6 +100,9 @@ func (r *CalendarRepo) ListByUserID(ctx context.Context, userID uuid.UUID) ([]ca
 		}
 		feeds = append(feeds, f)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
+	}
 	return feeds, nil
 }
 

@@ -133,6 +133,9 @@ func (r *VitalRepo) List(ctx context.Context, filter vitals.ListFilter) ([]vital
 		}
 		result = append(result, *v)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate rows: %w", err)
+	}
 
 	return result, total, nil
 }
@@ -229,6 +232,9 @@ func (r *VitalRepo) GetChartData(ctx context.Context, profileID uuid.UUID, metri
 		}
 		p.Values = map[string]interface{}{metric: value}
 		points = append(points, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
 	}
 
 	return points, nil

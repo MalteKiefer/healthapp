@@ -103,6 +103,9 @@ func (r *AllergyRepo) List(ctx context.Context, filter allergies.ListFilter) ([]
 		}
 		result = append(result, *a)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate rows: %w", err)
+	}
 
 	return result, total, nil
 }

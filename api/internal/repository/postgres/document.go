@@ -114,6 +114,9 @@ func (r *DocumentRepo) List(ctx context.Context, filter documents.ListFilter) ([
 		}
 		result = append(result, *d)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate rows: %w", err)
+	}
 
 	return result, total, nil
 }

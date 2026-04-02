@@ -108,5 +108,8 @@ func (r *AppointmentRepo) queryAppointments(ctx context.Context, query string, a
 		}
 		result = append(result, a)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
+	}
 	return result, nil
 }

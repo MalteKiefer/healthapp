@@ -144,6 +144,9 @@ func (r *LabRepo) List(ctx context.Context, profileID uuid.UUID, limit, offset i
 
 		results = append(results, lr)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate rows: %w", err)
+	}
 
 	return results, total, nil
 }
@@ -264,6 +267,9 @@ func (r *LabRepo) getValues(ctx context.Context, labResultID uuid.UUID) ([]labs.
 			return nil, fmt.Errorf("scan lab_value: %w", err)
 		}
 		values = append(values, v)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
 	}
 
 	return values, nil

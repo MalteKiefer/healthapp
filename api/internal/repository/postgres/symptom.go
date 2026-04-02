@@ -85,6 +85,9 @@ func (r *SymptomRepo) GetByID(ctx context.Context, id uuid.UUID) (*symptoms.Symp
 		}
 		s.Entries = append(s.Entries, e)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
+	}
 
 	return &s, nil
 }
@@ -112,6 +115,9 @@ func (r *SymptomRepo) List(ctx context.Context, profileID uuid.UUID, limit, offs
 			return nil, 0, err
 		}
 		result = append(result, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate rows: %w", err)
 	}
 
 	return result, total, nil

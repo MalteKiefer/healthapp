@@ -85,6 +85,9 @@ func (r *FamilyRepo) ListByUserID(ctx context.Context, userID uuid.UUID) ([]fami
 		}
 		families = append(families, f)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
+	}
 	return families, nil
 }
 
@@ -168,6 +171,9 @@ func (r *FamilyRepo) GetMemberships(ctx context.Context, familyID uuid.UUID) ([]
 			return nil, fmt.Errorf("scan membership: %w", err)
 		}
 		memberships = append(memberships, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
 	}
 	return memberships, nil
 }

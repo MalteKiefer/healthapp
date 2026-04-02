@@ -241,6 +241,9 @@ func (r *ProfileRepo) GetKeyGrantsForProfile(ctx context.Context, profileID uuid
 		}
 		grants = append(grants, g)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
+	}
 	return grants, nil
 }
 
@@ -276,6 +279,9 @@ func scanProfiles(rows pgx.Rows) ([]profiles.Profile, error) {
 			return nil, fmt.Errorf("scan profile: %w", err)
 		}
 		result = append(result, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
 	}
 	return result, nil
 }

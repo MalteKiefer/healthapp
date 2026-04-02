@@ -46,6 +46,9 @@ func scanContacts(rows pgx.Rows) ([]contacts.Contact, error) {
 		}
 		result = append(result, c)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
+	}
 	return result, nil
 }
 

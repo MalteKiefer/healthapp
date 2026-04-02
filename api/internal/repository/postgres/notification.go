@@ -85,6 +85,9 @@ func (r *NotificationRepo) List(ctx context.Context, filter notifications.ListFi
 		}
 		result = append(result, *n)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate rows: %w", err)
+	}
 
 	return result, total, nil
 }

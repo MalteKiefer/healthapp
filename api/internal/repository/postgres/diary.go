@@ -136,6 +136,9 @@ func (r *DiaryRepo) List(ctx context.Context, filter diary.ListFilter) ([]diary.
 		}
 		result = append(result, *e)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate rows: %w", err)
+	}
 
 	return result, total, nil
 }

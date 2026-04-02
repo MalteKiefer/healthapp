@@ -111,6 +111,9 @@ func (r *VaccinationRepo) List(ctx context.Context, filter vaccinations.ListFilt
 		}
 		result = append(result, *v)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate rows: %w", err)
+	}
 
 	return result, total, nil
 }
@@ -202,6 +205,9 @@ func (r *VaccinationRepo) GetDue(ctx context.Context, profileID uuid.UUID) ([]va
 			return nil, err
 		}
 		result = append(result, *v)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
 	}
 
 	return result, nil
