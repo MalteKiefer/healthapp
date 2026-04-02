@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -449,7 +450,7 @@ func (h *DocumentHandler) HandleDownload(w http.ResponseWriter, r *http.Request)
 	defer f.Close()
 
 	w.Header().Set("Content-Type", d.MimeType)
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", d.FilenameEnc))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(d.FilenameEnc, `"`, `\"`)))
 	w.Header().Set("Content-Length", strconv.FormatInt(d.FileSizeBytes, 10))
 	io.Copy(w, f)
 }

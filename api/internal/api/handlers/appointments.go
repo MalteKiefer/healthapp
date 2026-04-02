@@ -54,6 +54,7 @@ func (h *AppointmentHandler) HandleList(w http.ResponseWriter, r *http.Request) 
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"items": items,
+		"total": len(items),
 	})
 }
 

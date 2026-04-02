@@ -6,11 +6,17 @@ export interface Profile {
   display_name: string;
   date_of_birth?: string;
   biological_sex: string;
-  blood_type: string;
-  rhesus_factor: string;
+  blood_type?: string;
+  rhesus_factor?: string;
   avatar_color: string;
+  avatar_image_enc?: string;
   archived_at?: string;
+  onboarding_completed_at?: string;
+  rotation_state?: string;
+  rotation_started_at?: string;
+  rotation_progress?: Record<string, unknown>;
   created_at: string;
+  updated_at?: string;
 }
 
 export const profilesApi = {
