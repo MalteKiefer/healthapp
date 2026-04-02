@@ -46,8 +46,9 @@ func generateTestKeyPair(t *testing.T) (privPath, pubPath, dir string) {
 // tests that do not need Redis).
 func newTestTokenService(t *testing.T, accessTTL, refreshTTL time.Duration) *TokenService {
 	t.Helper()
-	privPath, pubPath, _ := generateTestKeyPair(t)
-	ts, err := NewTokenService(privPath, pubPath, nil, accessTTL, refreshTTL)
+	privPath, pubPath, dir := generateTestKeyPair(t)
+	totpKeyPath := filepath.Join(dir, "totp.key")
+	ts, err := NewTokenService(privPath, pubPath, totpKeyPath, nil, accessTTL, refreshTTL)
 	require.NoError(t, err)
 	return ts
 }
@@ -77,8 +78,9 @@ func newTestTokenServiceWithRedis(t *testing.T, accessTTL, refreshTTL time.Durat
 		rdb.Close()
 	})
 
-	privPath, pubPath, _ := generateTestKeyPair(t)
-	ts, err := NewTokenService(privPath, pubPath, rdb, accessTTL, refreshTTL)
+	privPath, pubPath, dir := generateTestKeyPair(t)
+	totpKeyPath := filepath.Join(dir, "totp.key")
+	ts, err := NewTokenService(privPath, pubPath, totpKeyPath, rdb, accessTTL, refreshTTL)
 	require.NoError(t, err)
 	return ts
 }

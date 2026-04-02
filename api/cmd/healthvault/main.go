@@ -130,7 +130,7 @@ func run() error {
 	}
 
 	ts, err := crypto.NewTokenService(
-		cfg.JWT.PrivateKeyPath, cfg.JWT.PublicKeyPath,
+		cfg.JWT.PrivateKeyPath, cfg.JWT.PublicKeyPath, cfg.JWT.TOTPKeyPath,
 		rdb, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL,
 	)
 	if err != nil {

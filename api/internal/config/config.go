@@ -45,6 +45,7 @@ type RedisConfig struct {
 type JWTConfig struct {
 	PrivateKeyPath string
 	PublicKeyPath  string
+	TOTPKeyPath    string
 	AccessTTL      time.Duration
 	RefreshTTL     time.Duration
 }
@@ -88,6 +89,7 @@ func Load() (*Config, error) {
 		JWT: JWTConfig{
 			PrivateKeyPath: getEnv("JWT_PRIVATE_KEY_PATH", "/data/keys/jwt_private.pem"),
 			PublicKeyPath:  getEnv("JWT_PUBLIC_KEY_PATH", "/data/keys/jwt_public.pem"),
+			TOTPKeyPath:    getEnv("TOTP_KEY_PATH", "/data/keys/totp.key"),
 			AccessTTL:      getEnvDuration("JWT_ACCESS_TTL", 15*time.Minute),
 			RefreshTTL:     getEnvDuration("JWT_REFRESH_TTL", 7*24*time.Hour),
 		},

@@ -30,6 +30,7 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_PRIVATE_KEY_PATH=/data/keys/jwt_private.pem
       - JWT_PUBLIC_KEY_PATH=/data/keys/jwt_public.pem
+      - TOTP_KEY_PATH=/data/keys/totp.key
       - INSTANCE_HOSTNAME=${INSTANCE_HOSTNAME}
       - REGISTRATION_MODE=${REGISTRATION_MODE:-invite_only}
       - DEFAULT_QUOTA_MB=${DEFAULT_QUOTA_MB:-5120}

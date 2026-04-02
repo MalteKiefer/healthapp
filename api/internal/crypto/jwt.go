@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -20,11 +21,12 @@ import (
 
 // TokenService handles JWT RS256 token creation and verification.
 type TokenService struct {
-	privateKey *rsa.PrivateKey
-	publicKey  *rsa.PublicKey
-	rdb        *redis.Client
-	accessTTL  time.Duration
-	refreshTTL time.Duration
+	privateKey    *rsa.PrivateKey
+	publicKey     *rsa.PublicKey
+	rdb           *redis.Client
+	accessTTL     time.Duration
+	refreshTTL    time.Duration
+	encryptionKey []byte
 }
 
 // TokenPair represents an access + refresh token pair.
@@ -44,7 +46,9 @@ type Claims struct {
 }
 
 // NewTokenService loads RS256 keys and returns a TokenService.
-func NewTokenService(privatePath, publicPath string, rdb *redis.Client, accessTTL, refreshTTL time.Duration) (*TokenService, error) {
+// totpKeyPath is the path to the dedicated TOTP encryption key file; if empty,
+// it defaults to /data/keys/totp.key.
+func NewTokenService(privatePath, publicPath, totpKeyPath string, rdb *redis.Client, accessTTL, refreshTTL time.Duration) (*TokenService, error) {
 	privBytes, err := os.ReadFile(privatePath)
 	if err != nil {
 		return nil, fmt.Errorf("read private key: %w", err)
@@ -84,13 +88,23 @@ func NewTokenService(privatePath, publicPath string, rdb *redis.Client, accessTT
 		return nil, errors.New("public key is not RSA")
 	}
 
-	return &TokenService{
+	if totpKeyPath == "" {
+		totpKeyPath = "/data/keys/totp.key"
+	}
+
+	ts := &TokenService{
 		privateKey: privKey,
 		publicKey:  pubKey,
 		rdb:        rdb,
 		accessTTL:  accessTTL,
 		refreshTTL: refreshTTL,
-	}, nil
+	}
+
+	if err := ts.LoadOrCreateEncryptionKey(totpKeyPath); err != nil {
+		return nil, fmt.Errorf("init totp encryption key: %w", err)
+	}
+
+	return ts, nil
 }
 
 // GenerateTokenPair creates a new access + refresh token pair.
@@ -195,13 +209,48 @@ func (ts *TokenService) IsTokenDenied(ctx context.Context, jti string) (bool, er
 	return result > 0, nil
 }
 
-// DeriveEncryptionKey returns a deterministic 32-byte AES-256 key derived from
-// the JWT RSA private key using SHA-256. This is used to encrypt TOTP secrets
-// at rest without introducing an additional secret.
-func (ts *TokenService) DeriveEncryptionKey() []byte {
+// LoadOrCreateEncryptionKey loads a dedicated 32-byte AES-256 key from keyPath.
+// If the file does not exist, it derives the key from the JWT private key using
+// the old SHA-256 method for backward compatibility with existing TOTP secrets,
+// then persists it to keyPath so future restarts are independent of the JWT key.
+// A warning is logged when the legacy derivation path is taken, recommending
+// TOTP secret rotation.
+func (ts *TokenService) LoadOrCreateEncryptionKey(keyPath string) error {
+	data, err := os.ReadFile(keyPath)
+	if err == nil && len(data) == 32 {
+		ts.encryptionKey = data
+		return nil
+	}
+
+	// Key file absent or invalid — derive from JWT key for backward compat and
+	// persist so the key becomes independent going forward.
 	privBytes := x509.MarshalPKCS1PrivateKey(ts.privateKey)
 	sum := sha256.Sum256(privBytes)
-	return sum[:]
+	ts.encryptionKey = sum[:]
+
+	// Ensure the parent directory exists before writing.
+	if mkErr := os.MkdirAll(filepath.Dir(keyPath), 0700); mkErr != nil {
+		return fmt.Errorf("create totp key dir: %w", mkErr)
+	}
+	if writeErr := os.WriteFile(keyPath, ts.encryptionKey, 0600); writeErr != nil {
+		return fmt.Errorf("write totp key: %w", writeErr)
+	}
+
+	// Warn operators that the key was bootstrapped from the JWT key and that
+	// rotating TOTP secrets is recommended to achieve full key separation.
+	fmt.Fprintf(os.Stderr,
+		"WARNING: TOTP encryption key bootstrapped from JWT private key for backward "+
+			"compatibility. Consider rotating all TOTP secrets to achieve full key "+
+			"independence. Key saved to: %s\n", keyPath)
+
+	return nil
+}
+
+// DeriveEncryptionKey returns the dedicated 32-byte AES-256 key used to
+// encrypt TOTP secrets at rest. The key is loaded from a separate key file
+// during initialisation and is no longer derived from the JWT private key.
+func (ts *TokenService) DeriveEncryptionKey() []byte {
+	return ts.encryptionKey
 }
 
 func generateJTI() (string, error) {

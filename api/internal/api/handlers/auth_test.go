@@ -83,7 +83,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 	// ── Router ──────────────────────────────────────────────────────
 	userRepo := postgres.NewUserRepo(db)
 	totpEncKey := ts.DeriveEncryptionKey()
-	authHandler := handlers.NewAuthHandler(userRepo, ts, db, rdb, logger, 5120, totpEncKey)
+	authHandler := handlers.NewAuthHandler(userRepo, ts, db, rdb, logger, 5120, totpEncKey, "localhost")
 
 	r := chi.NewRouter()
 	r.Post("/api/v1/auth/register", authHandler.HandleRegisterInit)
@@ -219,7 +219,8 @@ func newTestTokenService(t *testing.T, rdb *redis.Client) *crypto.TokenService {
 	pubPEM := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubBytes})
 	require.NoError(t, os.WriteFile(pubPath, pubPEM, 0644))
 
-	ts, err := crypto.NewTokenService(privPath, pubPath, rdb, 15*time.Minute, 7*24*time.Hour)
+	totpKeyPath := filepath.Join(dir, "totp.key")
+	ts, err := crypto.NewTokenService(privPath, pubPath, totpKeyPath, rdb, 15*time.Minute, 7*24*time.Hour)
 	require.NoError(t, err)
 	return ts
 }
