@@ -4,12 +4,6 @@ import { compareByColumn } from '../utils/sorting';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine,
-} from 'recharts';
-import { format } from 'date-fns';
-import * as XLSX from 'xlsx';
 import { ProfileSelector } from '../components/ProfileSelector';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useVitals, useCreateVital, useDeleteVital, useUpdateVital } from '../hooks/useVitals';
@@ -17,6 +11,9 @@ import type { Vital } from '../api/vitals';
 import { useProfiles } from '../hooks/useProfiles';
 import { useDateFormat } from '../hooks/useDateLocale';
 import { api } from '../api/client';
+import { VitalsChart, CHART_TABS } from './vitals/VitalsChart';
+import type { ChartDataRow } from './vitals/VitalsChart';
+import { exportExcel, exportChartPNG } from './vitals/VitalsExport';
 
 function toLocalDatetime(date: Date = new Date()): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
@@ -50,79 +47,6 @@ const VITAL_CHIPS: { id: VitalCategory; label: string; icon: string }[] = [
   { id: 'sleep', label: 'Sleep', icon: '\uD83D\uDCA4' },
 ];
 
-interface MetricLine { key: string; label: string; unit: string; color: string }
-
-interface ChartTabDef {
-  id: string;
-  labelKey: string;
-  dataKeys: string[];
-  lines: MetricLine[];
-  unit: string;
-  refLines?: { value: number; label: string; color: string }[];
-}
-
-const CHART_TABS: ChartTabDef[] = [
-  {
-    id: 'blood_pressure',
-    labelKey: 'vitals.blood_pressure',
-    dataKeys: ['blood_pressure_systolic', 'blood_pressure_diastolic'],
-    lines: [
-      { key: 'blood_pressure_systolic', label: 'vitals_data.systolic', unit: 'mmHg', color: '#FF3B30' },
-      { key: 'blood_pressure_diastolic', label: 'vitals_data.diastolic', unit: 'mmHg', color: '#FF9500' },
-    ],
-    unit: 'mmHg',
-    refLines: [
-      { value: 120, label: 'vitals_data.optimal_sys', color: '#34C759' },
-      { value: 80, label: 'vitals_data.optimal_dia', color: '#34C759' },
-    ],
-  },
-  {
-    id: 'pulse',
-    labelKey: 'vitals.pulse',
-    dataKeys: ['pulse'],
-    lines: [{ key: 'pulse', label: 'vitals_data.pulse', unit: 'bpm', color: '#34C759' }],
-    unit: 'bpm',
-    refLines: [
-      { value: 60, label: 'vitals_data.low_normal', color: '#FF9500' },
-      { value: 100, label: 'vitals_data.high_normal', color: '#FF9500' },
-    ],
-  },
-  {
-    id: 'weight',
-    labelKey: 'vitals.weight',
-    dataKeys: ['weight'],
-    lines: [{ key: 'weight', label: 'vitals_data.weight', unit: 'kg', color: '#AF52DE' }],
-    unit: 'kg',
-  },
-  {
-    id: 'temperature',
-    labelKey: 'vitals.temperature',
-    dataKeys: ['body_temperature'],
-    lines: [{ key: 'body_temperature', label: 'vitals_data.temperature', unit: '\u00B0C', color: '#FF2D55' }],
-    unit: '\u00B0C',
-    refLines: [
-      { value: 37.5, label: 'vitals_data.fever', color: '#FF9500' },
-    ],
-  },
-  {
-    id: 'oxygen',
-    labelKey: 'vitals.oxygen',
-    dataKeys: ['oxygen_saturation'],
-    lines: [{ key: 'oxygen_saturation', label: 'vitals_data.spo2', unit: '%', color: '#007AFF' }],
-    unit: '%',
-    refLines: [
-      { value: 95, label: 'vitals_data.normal', color: '#34C759' },
-    ],
-  },
-  {
-    id: 'glucose',
-    labelKey: 'vitals.glucose',
-    dataKeys: ['blood_glucose'],
-    lines: [{ key: 'blood_glucose', label: 'vitals_data.glucose', unit: 'mmol/L', color: '#FF9500' }],
-    unit: 'mmol/L',
-  },
-];
-
 type ThresholdConfig = Record<string, { low?: number | null; high?: number | null }>;
 
 const THRESHOLD_METRICS: { key: string; labelKey: string; unit: string }[] = [
@@ -137,58 +61,6 @@ const THRESHOLD_METRICS: { key: string; labelKey: string; unit: string }[] = [
 
 type TimeRange = '7d' | '30d' | '90d' | '1y' | 'all';
 type ViewTab = 'chart' | 'table';
-
-function exportExcel(vitals: Array<Record<string, unknown>>, t: (key: string) => string) {
-  const headers = [
-    t('common.date'),
-    `${t('vitals.systolic')} (mmHg)`,
-    `${t('vitals.diastolic')} (mmHg)`,
-    `${t('vitals.pulse')} (bpm)`,
-    `${t('vitals.weight')} (kg)`,
-    `${t('vitals.temperature')} (\u00B0C)`,
-    `${t('vitals.oxygen')} (%)`,
-    `${t('vitals.glucose')} (mmol/L)`,
-  ];
-  const keys = ['measured_at', 'blood_pressure_systolic', 'blood_pressure_diastolic', 'pulse', 'weight', 'body_temperature', 'oxygen_saturation', 'blood_glucose'];
-  const rows = vitals.map((v) =>
-    keys.map((k) => {
-      if (k === 'measured_at') return format(new Date(v[k] as string), 'dd.MM.yyyy HH:mm');
-      const val = v[k];
-      return val != null ? Number(val) : '';
-    })
-  );
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  ws['!cols'] = headers.map((h) => ({ wch: Math.max(h.length + 2, 14) }));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, t('vitals.title'));
-  XLSX.writeFile(wb, `${t('vitals.title')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-}
-
-function exportChartPNG(chartRef: React.RefObject<HTMLDivElement | null>) {
-  const container = chartRef.current;
-  if (!container) return;
-  const svg = container.querySelector('svg');
-  if (!svg) return;
-  const svgData = new XMLSerializer().serializeToString(svg);
-  const canvas = document.createElement('canvas');
-  const rect = svg.getBoundingClientRect();
-  canvas.width = rect.width * 2;
-  canvas.height = rect.height * 2;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  ctx.scale(2, 2);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, rect.width, rect.height);
-  const img = new Image();
-  img.onload = () => {
-    ctx.drawImage(img, 0, 0, rect.width, rect.height);
-    const link = document.createElement('a');
-    link.download = `vitalwerte_${format(new Date(), 'yyyy-MM-dd')}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  };
-  img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-}
 
 export function Vitals() {
   const { t } = useTranslation();
@@ -293,7 +165,7 @@ export function Vitals() {
     filteredVitals.slice().sort((a, b) => new Date(a.measured_at).getTime() - new Date(b.measured_at).getTime()),
   [filteredVitals]);
 
-  const chartData = useMemo(() =>
+  const chartData: ChartDataRow[] = useMemo(() =>
     sortedVitals.map((v) => ({
       date: fmt(v.measured_at, 'dd. MMM'),
       fullDate: fmt(v.measured_at, 'dd. MMM yyyy, HH:mm'),
@@ -328,6 +200,21 @@ export function Vitals() {
 
   const currentTab = CHART_TABS.find((t) => t.id === activeChartTab);
 
+  // Compute latest values for the active tab
+  const latestValues = useMemo(() => {
+    if (!currentTab) return null;
+    for (let i = sortedVitals.length - 1; i >= 0; i--) {
+      const v = sortedVitals[i] as unknown as Record<string, unknown>;
+      const vals = currentTab.lines
+        .map((l) => ({ ...l, value: v[l.key] as number | undefined }))
+        .filter((x) => x.value != null);
+      if (vals.length > 0) {
+        return { values: vals, date: fmt(v.measured_at as string, 'dd. MMM yyyy, HH:mm') };
+      }
+    }
+    return null;
+  }, [currentTab, sortedVitals]);
+
   const openModal = useCallback(() => { setSelectedVitals(new Set()); setModalStep(1); reset({ measured_at: toLocalDatetime() }); setShowModal(true); }, [reset]);
   const closeModal = useCallback(() => { setShowModal(false); setModalStep(1); setSelectedVitals(new Set()); reset(); }, [reset]);
   const toggleVitalChip = useCallback((id: VitalCategory) => { setSelectedVitals((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }); }, []);
@@ -349,47 +236,13 @@ export function Vitals() {
     }
   };
 
-  const SingleChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) => {
-    if (!active || !payload?.length) return null;
-    const row = chartData.find((r) => r.date === label);
-    return (
-      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '10px 14px', fontSize: 13, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-        <div style={{ fontWeight: 600, marginBottom: 6 }}>{row?.fullDate || label}</div>
-        {payload.map((p, i) => {
-          const line = currentTab?.lines.find((l) => l.key === p.name);
-          return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-              <span>{line ? t(line.label) : p.name}: <strong>{p.value}</strong> {line?.unit}</span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // Compute latest values for the active tab
-  const latestValues = useMemo(() => {
-    if (!currentTab) return null;
-    for (let i = sortedVitals.length - 1; i >= 0; i--) {
-      const v = sortedVitals[i] as unknown as Record<string, unknown>;
-      const vals = currentTab.lines
-        .map((l) => ({ ...l, value: v[l.key] as number | undefined }))
-        .filter((x) => x.value != null);
-      if (vals.length > 0) {
-        return { values: vals, date: fmt(v.measured_at as string, 'dd. MMM yyyy, HH:mm') };
-      }
-    }
-    return null;
-  }, [currentTab, sortedVitals]);
-
   return (
     <div className="page">
       <div className="page-header">
         <h2>{t('vitals.title')}</h2>
         <div className="page-actions">
           <ProfileSelector selectedId={profileId} onSelect={setSelectedProfile} />
-          <button className="btn btn-secondary" onClick={() => setShowThresholds(true)} title={t('vitals.thresholds')} aria-label={t('vitals.thresholds')}>
+          <button className="btn btn-secondary" onClick={() => setShowThresholds(true)} title={t('vitals.thresholds')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"/></svg>
           </button>
           <button className="btn btn-add" onClick={openModal}>+ {t('vitals.add')}</button>
@@ -402,7 +255,7 @@ export function Vitals() {
           <div className="modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{modalStep === 1 ? t('vitals.select_vitals') : t('vitals.enter_measurements')}</h3>
-              <button className="modal-close" onClick={closeModal} aria-label={t('common.close')}>&times;</button>
+              <button className="modal-close" onClick={closeModal}>&times;</button>
             </div>
             <div className="stepper">
               <div className="stepper-track">
@@ -487,90 +340,18 @@ export function Vitals() {
         </div>
       </div>
 
-      {/* Chart View — with sub-tabs per vital type */}
+      {/* Chart View */}
       {viewTab === 'chart' && (
-        <>
-          {tabsWithData.length === 0 ? (
-            <div className="card">
-              <div className="chart-empty">{isLoading ? t('common.loading') : t('common.no_data')}</div>
-            </div>
-          ) : (
-            <>
-              {/* Metric sub-tabs */}
-              <div className="vital-chart-tabs">
-                {CHART_TABS.filter((tab) => tabsWithData.includes(tab.id)).map((tab) => (
-                  <button
-                    key={tab.id}
-                    className={`vital-chart-tab${activeChartTab === tab.id ? ' active' : ''}`}
-                    onClick={() => setActiveChartTab(tab.id)}
-                  >
-                    {t(tab.labelKey)}
-                  </button>
-                ))}
-              </div>
-
-              {/* Active chart */}
-              {currentTab && (
-                <div className="card chart-card" ref={chartRef}>
-                  {/* Latest value summary */}
-                  {latestValues && (
-                    <div className="vital-latest">
-                      {latestValues.values.map((v) => (
-                        <div key={v.key} className="vital-latest-item">
-                          <span className="vital-latest-value" style={{ color: v.color }}>
-                            {v.value}
-                          </span>
-                          <span className="vital-latest-unit">{v.unit}</span>
-                          <span className="vital-latest-label">{t(v.label)}</span>
-                        </div>
-                      ))}
-                      <span className="vital-latest-date">{latestValues.date}</span>
-                    </div>
-                  )}
-
-                  <ResponsiveContainer width="100%" height={320}>
-                    <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
-                      <XAxis dataKey="date" fontSize={12} stroke="var(--color-text-secondary)" />
-                      <YAxis
-                        fontSize={12}
-                        stroke="var(--color-text-secondary)"
-                        unit={` ${currentTab.unit}`}
-                        domain={[currentTab.id === 'oxygen' ? 90 : 'auto', currentTab.id === 'oxygen' ? 100 : 'auto']}
-                        width={70}
-                        {...(currentTab.id === 'oxygen' ? { ticks: [90, 90.5, 91, 91.5, 92, 92.5, 93, 93.5, 94, 94.5, 95, 95.5, 96, 96.5, 97, 97.5, 98, 98.5, 99, 99.5, 100] } : {})}
-                      />
-                      <Tooltip content={<SingleChartTooltip />} />
-                      {currentTab.refLines?.map((ref) => (
-                        <ReferenceLine
-                          key={ref.label}
-                          y={ref.value}
-                          stroke={ref.color}
-                          strokeDasharray="6 4"
-                          strokeOpacity={0.5}
-                          label={{ value: t(ref.label), position: 'insideTopRight', fontSize: 11, fill: ref.color }}
-                        />
-                      ))}
-                      {currentTab.lines.map((line) => (
-                        <Line
-                          key={line.key}
-                          type="monotone"
-                          dataKey={line.key}
-                          stroke={line.color}
-                          strokeWidth={2.5}
-                          dot={{ r: 4, fill: line.color, strokeWidth: 2, stroke: 'var(--color-surface)' }}
-                          activeDot={{ r: 6 }}
-                          name={t(line.label)}
-                          connectNulls
-                        />
-                      ))}
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </>
-          )}
-        </>
+        <VitalsChart
+          chartData={chartData}
+          activeChartTab={activeChartTab}
+          setActiveChartTab={setActiveChartTab}
+          tabsWithData={tabsWithData}
+          currentTab={currentTab}
+          latestValues={latestValues}
+          chartRef={chartRef}
+          isLoading={isLoading}
+        />
       )}
 
       {/* Table View */}
@@ -617,7 +398,7 @@ export function Vitals() {
                       { key: 'blood_glucose', label: t('vitals.glucose'), cls: 'hide-sm' },
                     ].map((col) => (
                       <th key={col.key} className={col.cls || ''} style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { if (sortCol === col.key) setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); else { setSortCol(col.key); setSortDir('desc'); } }}>
-                        {col.label} {sortCol === col.key ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                        {col.label} {sortCol === col.key ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
                       </th>
                     ))}
                     <th></th>
@@ -638,8 +419,7 @@ export function Vitals() {
                           className="btn-icon-sm"
                           onClick={(e) => { e.stopPropagation(); setDeleteTarget(v.id); }}
                           title={t('common.delete')}
-                          aria-label={t('common.delete')}
-                        >×</button>
+                        >&times;</button>
                       </td>
                     </tr>
                   ))}
@@ -657,7 +437,7 @@ export function Vitals() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('vitals.edit')}</h3>
-              <button className="modal-close" onClick={() => setEditTarget(null)} aria-label={t('common.close')}>&times;</button>
+              <button className="modal-close" onClick={() => setEditTarget(null)}>&times;</button>
             </div>
             <div className="modal-body">
               <form id="vitals-edit-form" onSubmit={editHandleSubmit(onEditSubmit)} className="vital-form">
@@ -724,7 +504,7 @@ export function Vitals() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('vitals.thresholds')}</h3>
-              <button className="modal-close" onClick={() => setShowThresholds(false)} aria-label={t('common.close')}>&times;</button>
+              <button className="modal-close" onClick={() => setShowThresholds(false)}>&times;</button>
             </div>
             <div className="modal-body">
               <p className="text-muted" style={{ marginBottom: 16, fontSize: 13 }}>{t('vitals.threshold_hint')}</p>
