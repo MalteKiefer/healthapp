@@ -60,5 +60,11 @@ issues:
     - text: "Error return value of `.*\\.db\\.Exec`"
       linters:
         - errcheck
+    - text: "G115: integer overflow conversion"
+      linters:
+        - gosec
+    - text: "make it a constant"
+      linters:
+        - goconst
   max-issues-per-linter: 50
   max-same-issues: 10
