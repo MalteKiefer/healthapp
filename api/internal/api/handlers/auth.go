@@ -454,8 +454,8 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleLogin2FA verifies TOTP code after password is confirmed.
 // The caller must provide the challenge_token that was returned by HandleLogin;
-// this token is single-use and expires after 5 minutes, binding the 2FA step
-// to a prior successful password verification.
+// this token expires after 5 minutes and is invalidated after 5 failed TOTP
+// attempts, binding the 2FA step to a prior successful password verification.
 func (h *AuthHandler) HandleLogin2FA(w http.ResponseWriter, r *http.Request) {
 	var req login2FARequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -468,10 +468,30 @@ func (h *AuthHandler) HandleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Atomically fetch and delete the challenge token from Redis — this proves
-	// the password was already checked in HandleLogin for this specific user
-	// and guarantees single-use (no TOCTOU race between Get and Del).
-	userIDStr, err := h.rdb.GetDel(r.Context(), "2fa_challenge:"+req.ChallengeToken).Result()
+	// Per-challenge-token rate limiting: track failed attempts independently of
+	// IP so that distributing requests across IPs cannot bypass the limit.
+	// Check and increment the attempt counter BEFORE touching the challenge token
+	// to avoid leaking whether the token is valid to an attacker.
+	attemptKey := "totp_attempts:" + req.ChallengeToken
+	attempts, _ := h.rdb.Incr(r.Context(), attemptKey).Result()
+	if attempts == 1 {
+		// Set expiry only on the first increment so the window is anchored to
+		// the first attempt rather than reset on every call.
+		h.rdb.Expire(r.Context(), attemptKey, 15*time.Minute)
+	}
+	if attempts > 5 {
+		// Too many attempts: destroy the challenge token so the attacker cannot
+		// continue even if they switch IPs, then clean up the counter.
+		h.rdb.Del(r.Context(), "2fa_challenge:"+req.ChallengeToken)
+		h.rdb.Del(r.Context(), attemptKey)
+		writeJSON(w, http.StatusTooManyRequests, errorResponse("too_many_attempts"))
+		return
+	}
+
+	// Fetch the challenge token from Redis without deleting it yet — deletion
+	// happens explicitly below so we can keep it alive across failed attempts
+	// up to the limit enforced above.
+	userIDStr, err := h.rdb.Get(r.Context(), "2fa_challenge:"+req.ChallengeToken).Result()
 	if err != nil {
 		// Token not found or expired
 		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_or_expired_challenge"))
@@ -507,6 +527,11 @@ func (h *AuthHandler) HandleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_totp_code"))
 		return
 	}
+
+	// TOTP validated successfully: consume the challenge token (single-use) and
+	// clean up the attempt counter.
+	h.rdb.Del(r.Context(), "2fa_challenge:"+req.ChallengeToken)
+	h.rdb.Del(r.Context(), attemptKey)
 
 	h.completeLogin(w, r, u)
 }
