@@ -43,6 +43,9 @@ class LoginViewModel(private val authRepo: AuthRepository) : ViewModel() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
+                // Set the base URL from user input before making any API call
+                val url = _state.value.serverUrl.trimEnd('/')
+                de.healthvault.data.api.ApiClient.baseUrl = url
                 authRepo.login(_state.value.email, _state.value.password)
                 _state.value = _state.value.copy(isLoading = false, isLoggedIn = true)
             } catch (e: Exception) {
