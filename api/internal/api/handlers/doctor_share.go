@@ -39,15 +39,15 @@ func NewDoctorShareHandler(db *pgxpool.Pool, pr profiles.Repository, logger *zap
 }
 
 type createShareRequest struct {
-	ProfileID     string `json:"profile_id"`
-	EncryptedData string `json:"encrypted_data"` // ciphertext bundle encrypted with temp key
-	ExpiresInHours int   `json:"expires_in_hours"`
-	Label         string `json:"label"` // e.g. "Dr. Weber — Cardiology visit"
+	ProfileID      string `json:"profile_id"`
+	EncryptedData  string `json:"encrypted_data"` // ciphertext bundle encrypted with temp key
+	ExpiresInHours int    `json:"expires_in_hours"`
+	Label          string `json:"label"` // e.g. "Dr. Weber — Cardiology visit"
 }
 
 type shareResponse struct {
-	ShareID  string `json:"share_id"`
-	ShareURL string `json:"share_url"`
+	ShareID   string `json:"share_id"`
+	ShareURL  string `json:"share_url"`
 	ExpiresAt string `json:"expires_at"`
 }
 
@@ -216,12 +216,12 @@ func (h *DoctorShareHandler) HandleListShares(w http.ResponseWriter, r *http.Req
 	defer rows.Close()
 
 	type shareItem struct {
-		ShareID   string     `json:"share_id"`
-		Label     string     `json:"label"`
-		ExpiresAt string     `json:"expires_at"`
-		RevokedAt *string    `json:"revoked_at,omitempty"`
-		CreatedAt string     `json:"created_at"`
-		Active    bool       `json:"active"`
+		ShareID   string  `json:"share_id"`
+		Label     string  `json:"label"`
+		ExpiresAt string  `json:"expires_at"`
+		RevokedAt *string `json:"revoked_at,omitempty"`
+		CreatedAt string  `json:"created_at"`
+		Active    bool    `json:"active"`
 	}
 
 	var items []shareItem

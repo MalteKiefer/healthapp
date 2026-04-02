@@ -92,9 +92,9 @@ func isPrivateOrLocalhost(rawURL string) error {
 		"192.168.0.0/16",
 		"127.0.0.0/8",
 		// IPv6
-		"::1/128",     // loopback
-		"fc00::/7",    // unique local
-		"fe80::/10",   // link-local
+		"::1/128",   // loopback
+		"fc00::/7",  // unique local
+		"fe80::/10", // link-local
 	}
 
 	var privateNets []*net.IPNet

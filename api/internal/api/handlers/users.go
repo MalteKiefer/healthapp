@@ -140,12 +140,12 @@ func (h *UserHandler) HandleGetSessions(w http.ResponseWriter, r *http.Request) 
 	}
 
 	type sessionView struct {
-		ID           string  `json:"id"`
-		DeviceHint   string  `json:"device_hint"`
-		IPAddress    string  `json:"ip_address"`
-		CreatedAt    string  `json:"created_at"`
-		LastActiveAt string  `json:"last_active_at"`
-		IsCurrent    bool    `json:"is_current"`
+		ID           string `json:"id"`
+		DeviceHint   string `json:"device_hint"`
+		IPAddress    string `json:"ip_address"`
+		CreatedAt    string `json:"created_at"`
+		LastActiveAt string `json:"last_active_at"`
+		IsCurrent    bool   `json:"is_current"`
 	}
 
 	views := make([]sessionView, 0, len(sessions))

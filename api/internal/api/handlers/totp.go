@@ -27,7 +27,7 @@ func NewTOTPHandler(repo user.Repository, logger *zap.Logger, encKey []byte) *TO
 // ── Request/Response Types ──────────────────────────────────────────
 
 type totpSetupResponse struct {
-	Secret         string `json:"secret"`
+	Secret          string `json:"secret"`
 	ProvisioningURI string `json:"provisioning_uri"`
 }
 

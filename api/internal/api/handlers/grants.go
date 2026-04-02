@@ -230,8 +230,8 @@ func (h *GrantHandler) HandleTransfer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"status":         "transferred",
-		"profile_id":     profileID,
-		"new_owner_id":   newOwnerID,
+		"status":       "transferred",
+		"profile_id":   profileID,
+		"new_owner_id": newOwnerID,
 	})
 }

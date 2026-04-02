@@ -312,11 +312,11 @@ func (h *DocumentHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	// Decode patch -- only provided fields are updated.
 	var patch struct {
-		FilenameEnc *string            `json:"filename_enc,omitempty"`
-		MimeType    *string            `json:"mime_type,omitempty"`
+		FilenameEnc *string             `json:"filename_enc,omitempty"`
+		MimeType    *string             `json:"mime_type,omitempty"`
 		Category    *documents.Category `json:"category,omitempty"`
-		Tags        []string           `json:"tags,omitempty"`
-		OCRTextEnc  *string            `json:"ocr_text_enc,omitempty"`
+		Tags        []string            `json:"tags,omitempty"`
+		OCRTextEnc  *string             `json:"ocr_text_enc,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))

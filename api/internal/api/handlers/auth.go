@@ -130,7 +130,7 @@ type registerCompleteRequest struct {
 	IdentityPrivkeyEnc string   `json:"identity_privkey_enc"`
 	SigningPubkey      string   `json:"signing_pubkey"`
 	SigningPrivkeyEnc  string   `json:"signing_privkey_enc"`
-	RecoveryCodes []string `json:"recovery_codes"`
+	RecoveryCodes      []string `json:"recovery_codes"`
 	InviteToken        string   `json:"invite_token"`
 }
 
@@ -339,7 +339,7 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 		AuthSalt:           authSalt,
 		IdentityPubkey:     req.IdentityPubkey,
 		IdentityPrivkeyEnc: req.IdentityPrivkeyEnc,
-		SigningPubkey:       req.SigningPubkey,
+		SigningPubkey:      req.SigningPubkey,
 		SigningPrivkeyEnc:  req.SigningPrivkeyEnc,
 		Role:               "user",
 	}
@@ -778,11 +778,11 @@ func (h *AuthHandler) completeLogin(w http.ResponseWriter, r *http.Request, u *u
 
 	// Create session record
 	session := &user.Session{
-		UserID:    u.ID,
-		JTI:       pair.JTI,
+		UserID:     u.ID,
+		JTI:        pair.JTI,
 		DeviceHint: r.UserAgent(),
-		IPAddress: r.RemoteAddr,
-		ExpiresAt: time.Now().UTC().Add(7 * 24 * time.Hour),
+		IPAddress:  r.RemoteAddr,
+		ExpiresAt:  time.Now().UTC().Add(7 * 24 * time.Hour),
 	}
 	if err := h.userRepo.CreateSession(r.Context(), session); err != nil {
 		h.logger.Error("create session", zap.Error(err))

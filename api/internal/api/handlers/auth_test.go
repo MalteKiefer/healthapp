@@ -248,14 +248,14 @@ func registerTestUser(t *testing.T, env *testEnv, email string) string {
 	require.NoError(t, err)
 
 	completeBody := mustJSON(t, map[string]interface{}{
-		"email":              email,
-		"display_name":       "Test User",
-		"auth_hash":          authHash,
-		"identity_pubkey":    "test-identity-pubkey",
+		"email":                email,
+		"display_name":         "Test User",
+		"auth_hash":            authHash,
+		"identity_pubkey":      "test-identity-pubkey",
 		"identity_privkey_enc": "test-identity-privkey-enc",
-		"signing_pubkey":     "test-signing-pubkey",
-		"signing_privkey_enc": "test-signing-privkey-enc",
-		"recovery_codes":     recoveryCodes,
+		"signing_pubkey":       "test-signing-pubkey",
+		"signing_privkey_enc":  "test-signing-privkey-enc",
+		"recovery_codes":       recoveryCodes,
 	})
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/register/complete", completeBody)
 	req.Header.Set("Content-Type", "application/json")

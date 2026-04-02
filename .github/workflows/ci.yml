@@ -23,6 +23,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          install-mode: goinstall
           working-directory: api
 
   backend-test:
@@ -69,6 +70,7 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           REDIS_PASSWORD: ""
+          REGISTRATION_MODE: open
         run: go test -race -count=1 -coverprofile=coverage.out ./...
       - name: Upload coverage
         uses: actions/upload-artifact@v4

@@ -26,12 +26,12 @@ func NewThresholdHandler(db *pgxpool.Pool, pr profiles.Repository, logger *zap.L
 // ── Request/Response Types ──────────────────────────────────────────
 
 type vitalThreshold struct {
-	ID           uuid.UUID       `json:"id"`
-	ProfileID    uuid.UUID       `json:"profile_id"`
-	Metric       string          `json:"metric"`
-	MinValue     *float64        `json:"min_value,omitempty"`
-	MaxValue     *float64        `json:"max_value,omitempty"`
-	AlertEnabled bool            `json:"alert_enabled"`
+	ID           uuid.UUID `json:"id"`
+	ProfileID    uuid.UUID `json:"profile_id"`
+	Metric       string    `json:"metric"`
+	MinValue     *float64  `json:"min_value,omitempty"`
+	MaxValue     *float64  `json:"max_value,omitempty"`
+	AlertEnabled bool      `json:"alert_enabled"`
 }
 
 type setThresholdsRequest struct {

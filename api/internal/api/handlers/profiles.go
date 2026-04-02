@@ -97,11 +97,11 @@ func (h *ProfileHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &profiles.Profile{
-		OwnerUserID:   claims.UserID,
-		DisplayName:   req.DisplayName,
-		BiologicalSex: req.BiologicalSex,
-		BloodType:     req.BloodType,
-		RhesusFactor:  req.RhesusFactor,
+		OwnerUserID:    claims.UserID,
+		DisplayName:    req.DisplayName,
+		BiologicalSex:  req.BiologicalSex,
+		BloodType:      req.BloodType,
+		RhesusFactor:   req.RhesusFactor,
 		AvatarImageEnc: req.AvatarImageEnc,
 	}
 

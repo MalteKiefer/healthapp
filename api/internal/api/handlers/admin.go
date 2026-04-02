@@ -341,10 +341,10 @@ func (h *AdminHandler) HandleGetSystem(w http.ResponseWriter, r *http.Request) {
 	// Database pool stats
 	dbStats := h.db.Stat()
 	dbInfo := map[string]interface{}{
-		"total_conns":          dbStats.TotalConns(),
-		"idle_conns":           dbStats.IdleConns(),
+		"total_conns":         dbStats.TotalConns(),
+		"idle_conns":          dbStats.IdleConns(),
 		"acquired_conns":      dbStats.AcquiredConns(),
-		"max_conns":            dbStats.MaxConns(),
+		"max_conns":           dbStats.MaxConns(),
 		"constructing_conns":  dbStats.ConstructingConns(),
 		"empty_acquire_count": dbStats.EmptyAcquireCount(),
 	}
@@ -691,7 +691,7 @@ func (h *AdminHandler) HandleSetQuota(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"user_id":    userID,
+		"user_id":     userID,
 		"quota_bytes": req.QuotaBytes,
 	})
 }
@@ -796,7 +796,7 @@ func (h *AdminHandler) HandleRevokeUserSessions(w http.ResponseWriter, r *http.R
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"status":          "revoked",
+		"status":           "revoked",
 		"sessions_revoked": tag.RowsAffected(),
 	})
 }

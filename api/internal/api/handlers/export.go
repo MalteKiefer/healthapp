@@ -316,11 +316,11 @@ func (h *ExportHandler) buildAllergyIntolerances(ctx context.Context, profileID 
 		}
 
 		ai := map[string]interface{}{
-			"resourceType":    "AllergyIntolerance",
-			"id":              id.String(),
-			"clinicalStatus":  map[string]interface{}{"coding": []map[string]string{{"code": "active"}}},
-			"code":            map[string]interface{}{"text": allergen},
-			"patient":         map[string]string{"reference": "Patient/" + profileID.String()},
+			"resourceType":   "AllergyIntolerance",
+			"id":             id.String(),
+			"clinicalStatus": map[string]interface{}{"coding": []map[string]string{{"code": "active"}}},
+			"code":           map[string]interface{}{"text": allergen},
+			"patient":        map[string]string{"reference": "Patient/" + profileID.String()},
 		}
 
 		if reaction != nil {

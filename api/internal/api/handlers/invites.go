@@ -210,4 +210,3 @@ func (h *InviteHandler) HandleDeleteInvite(w http.ResponseWriter, r *http.Reques
 
 	w.WriteHeader(http.StatusNoContent)
 }
-
