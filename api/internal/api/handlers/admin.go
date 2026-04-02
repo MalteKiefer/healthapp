@@ -80,6 +80,8 @@ var allowedSettings = map[string]bool{
 
 // writeAuditLog inserts an audit log entry. Errors are logged but never block
 // the calling request.
+//
+//nolint:unparam // metadata is nil today but kept for API parity with AuthHandler.writeAuditLog
 func (h *AdminHandler) writeAuditLog(ctx context.Context, r *http.Request, userID uuid.UUID, action, resource string, resourceID *uuid.UUID, metadata map[string]interface{}) {
 	var metaJSON []byte
 	if metadata != nil {
