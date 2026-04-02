@@ -77,7 +77,6 @@ func (r *VitalRepo) List(ctx context.Context, filter vitals.ListFilter) ([]vital
 	if filter.To != nil {
 		countQuery += fmt.Sprintf(" AND measured_at <= $%d", argIdx)
 		args = append(args, *filter.To)
-		argIdx++
 	}
 
 	var total int

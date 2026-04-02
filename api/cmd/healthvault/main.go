@@ -635,7 +635,7 @@ func generateJWTKeypair(privPath, pubPath string) error {
 		Type:  "PUBLIC KEY",
 		Bytes: pubBytes,
 	})
-	if err := os.WriteFile(pubPath, pubPEM, 0o644); err != nil {
+	if err := os.WriteFile(pubPath, pubPEM, 0o600); err != nil {
 		return fmt.Errorf("write public key: %w", err)
 	}
 

@@ -299,7 +299,6 @@ func (r *LabRepo) ListTrends(ctx context.Context, profileID uuid.UUID, from, to 
 	if to != nil {
 		query += fmt.Sprintf(" AND lr.sample_date <= $%d", argIdx)
 		args = append(args, *to)
-		argIdx++
 	}
 
 	query += " ORDER BY lv.marker ASC, lr.sample_date ASC LIMIT 10000"

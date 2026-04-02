@@ -97,7 +97,7 @@ func isPrivateOrLocalhost(rawURL string) error {
 		"fe80::/10", // link-local
 	}
 
-	var privateNets []*net.IPNet
+	privateNets := make([]*net.IPNet, 0, len(privateCIDRs))
 	for _, cidr := range privateCIDRs {
 		_, ipNet, _ := net.ParseCIDR(cidr)
 		privateNets = append(privateNets, ipNet)

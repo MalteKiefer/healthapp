@@ -65,7 +65,6 @@ func (r *DocumentRepo) List(ctx context.Context, filter documents.ListFilter) ([
 	if filter.Category != nil {
 		countQuery += fmt.Sprintf(" AND category = $%d", argIdx)
 		args = append(args, *filter.Category)
-		argIdx++
 	}
 
 	var total int

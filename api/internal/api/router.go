@@ -20,41 +20,41 @@ import (
 
 // Server holds dependencies for HTTP handlers.
 type Server struct {
-	Router              *chi.Mux
-	DB                  *pgxpool.Pool
-	Redis               *redis.Client
-	Logger              *zap.Logger
-	Config              *config.Config
-	TokenService        *crypto.TokenService
-	AuthHandler         *handlers.AuthHandler
-	ProfileHandler      *handlers.ProfileHandler
-	VitalHandler        *handlers.VitalHandler
-	DiaryHandler        *handlers.DiaryHandler
-	MedicationHandler   *handlers.MedicationHandler
-	AllergyHandler      *handlers.AllergyHandler
-	VaccinationHandler  *handlers.VaccinationHandler
-	DiagnosisHandler    *handlers.DiagnosisHandler
-	DocumentHandler     *handlers.DocumentHandler
-	CalendarHandler      *handlers.CalendarHandler
-	NotificationHandler  *handlers.NotificationHandler
-	FamilyHandler        *handlers.FamilyHandler
-	UserHandler          *handlers.UserHandler
-	LabHandler           *handlers.LabHandler
-	EmergencyHandler     *handlers.EmergencyHandler
-	SearchHandler        *handlers.SearchHandler
-	AdminHandler         *handlers.AdminHandler
-	ContactHandler       *handlers.ContactHandler
-	TaskHandler          *handlers.TaskHandler
-	AppointmentHandler   *handlers.AppointmentHandler
-	SymptomHandler       *handlers.SymptomHandler
-	TOTPHandler          *handlers.TOTPHandler
-	ExportHandler        *handlers.ExportHandler
-	ThresholdHandler     *handlers.ThresholdHandler
-	InviteHandler        *handlers.InviteHandler
-	WebhookHandler       *handlers.WebhookHandler
-	LegalHandler         *handlers.LegalHandler
-	GrantHandler         *handlers.GrantHandler
-	ActivityHandler      *handlers.ActivityHandler
+	Router                 *chi.Mux
+	DB                     *pgxpool.Pool
+	Redis                  *redis.Client
+	Logger                 *zap.Logger
+	Config                 *config.Config
+	TokenService           *crypto.TokenService
+	AuthHandler            *handlers.AuthHandler
+	ProfileHandler         *handlers.ProfileHandler
+	VitalHandler           *handlers.VitalHandler
+	DiaryHandler           *handlers.DiaryHandler
+	MedicationHandler      *handlers.MedicationHandler
+	AllergyHandler         *handlers.AllergyHandler
+	VaccinationHandler     *handlers.VaccinationHandler
+	DiagnosisHandler       *handlers.DiagnosisHandler
+	DocumentHandler        *handlers.DocumentHandler
+	CalendarHandler        *handlers.CalendarHandler
+	NotificationHandler    *handlers.NotificationHandler
+	FamilyHandler          *handlers.FamilyHandler
+	UserHandler            *handlers.UserHandler
+	LabHandler             *handlers.LabHandler
+	EmergencyHandler       *handlers.EmergencyHandler
+	SearchHandler          *handlers.SearchHandler
+	AdminHandler           *handlers.AdminHandler
+	ContactHandler         *handlers.ContactHandler
+	TaskHandler            *handlers.TaskHandler
+	AppointmentHandler     *handlers.AppointmentHandler
+	SymptomHandler         *handlers.SymptomHandler
+	TOTPHandler            *handlers.TOTPHandler
+	ExportHandler          *handlers.ExportHandler
+	ThresholdHandler       *handlers.ThresholdHandler
+	InviteHandler          *handlers.InviteHandler
+	WebhookHandler         *handlers.WebhookHandler
+	LegalHandler           *handlers.LegalHandler
+	GrantHandler           *handlers.GrantHandler
+	ActivityHandler        *handlers.ActivityHandler
 	ReferenceRangeHandler  *handlers.ReferenceRangeHandler
 	PDFHandler             *handlers.PDFHandler
 	DoctorShareHandler     *handlers.DoctorShareHandler
@@ -126,42 +126,42 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	scheduledExportHandler := handlers.NewScheduledExportHandler(db, logger)
 
 	s := &Server{
-		Router:              chi.NewRouter(),
-		DB:                  db,
-		Redis:               rdb,
-		Logger:              logger,
-		Config:              cfg,
-		TokenService:        ts,
-		AuthHandler:         authHandler,
-		ProfileHandler:      profileHandler,
-		VitalHandler:        vitalHandler,
-		DiaryHandler:        diaryHandler,
-		MedicationHandler:   medHandler,
-		AllergyHandler:      allergyHandler,
-		VaccinationHandler:  vaccHandler,
-		DiagnosisHandler:    diagHandler,
-		DocumentHandler:     docHandler,
-		CalendarHandler:      calHandler,
-		NotificationHandler:  notifHandler,
-		FamilyHandler:        familyHandler,
-		UserHandler:          userHandler,
-		LabHandler:           labHandler,
-		EmergencyHandler:     emergencyHandler,
-		SearchHandler:        searchHandler,
-		AdminHandler:         adminHandler,
-		ContactHandler:       contactHandler,
-		TaskHandler:          taskHandler,
-		AppointmentHandler:   apptHandler,
-		SymptomHandler:       symptomHandler,
-		TOTPHandler:          totpHandler,
-		ExportHandler:        exportHandler,
-		ThresholdHandler:     thresholdHandler,
-		InviteHandler:        inviteHandler,
-		WebhookHandler:       webhookHandler,
-		LegalHandler:         legalHandler,
-		GrantHandler:         grantHandler,
-		ActivityHandler:      activityHandler,
-		ReferenceRangeHandler: referenceRangeHandler,
+		Router:                 chi.NewRouter(),
+		DB:                     db,
+		Redis:                  rdb,
+		Logger:                 logger,
+		Config:                 cfg,
+		TokenService:           ts,
+		AuthHandler:            authHandler,
+		ProfileHandler:         profileHandler,
+		VitalHandler:           vitalHandler,
+		DiaryHandler:           diaryHandler,
+		MedicationHandler:      medHandler,
+		AllergyHandler:         allergyHandler,
+		VaccinationHandler:     vaccHandler,
+		DiagnosisHandler:       diagHandler,
+		DocumentHandler:        docHandler,
+		CalendarHandler:        calHandler,
+		NotificationHandler:    notifHandler,
+		FamilyHandler:          familyHandler,
+		UserHandler:            userHandler,
+		LabHandler:             labHandler,
+		EmergencyHandler:       emergencyHandler,
+		SearchHandler:          searchHandler,
+		AdminHandler:           adminHandler,
+		ContactHandler:         contactHandler,
+		TaskHandler:            taskHandler,
+		AppointmentHandler:     apptHandler,
+		SymptomHandler:         symptomHandler,
+		TOTPHandler:            totpHandler,
+		ExportHandler:          exportHandler,
+		ThresholdHandler:       thresholdHandler,
+		InviteHandler:          inviteHandler,
+		WebhookHandler:         webhookHandler,
+		LegalHandler:           legalHandler,
+		GrantHandler:           grantHandler,
+		ActivityHandler:        activityHandler,
+		ReferenceRangeHandler:  referenceRangeHandler,
 		PDFHandler:             pdfHandler,
 		DoctorShareHandler:     doctorShareHandler,
 		ScheduledExportHandler: scheduledExportHandler,
@@ -535,13 +535,5 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"status":   status,
 		"database": dbOK,
 		"redis":    redisOK,
-	})
-}
-
-func (s *Server) handleNotImplemented(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error": "not_implemented",
 	})
 }

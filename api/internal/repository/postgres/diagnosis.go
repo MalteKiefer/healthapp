@@ -70,7 +70,6 @@ func (r *DiagnosisRepo) List(ctx context.Context, filter diagnoses.ListFilter) (
 	if filter.Status != nil {
 		countQuery += fmt.Sprintf(" AND status = $%d", argIdx)
 		args = append(args, *filter.Status)
-		argIdx++
 	}
 
 	var total int

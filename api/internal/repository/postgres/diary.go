@@ -77,7 +77,6 @@ func (r *DiaryRepo) List(ctx context.Context, filter diary.ListFilter) ([]diary.
 	if filter.To != nil {
 		countQuery += fmt.Sprintf(" AND started_at <= $%d", argIdx)
 		args = append(args, *filter.To)
-		argIdx++
 	}
 
 	var total int
