@@ -35,22 +35,23 @@ interface EditFeedForm {
   verbose_mode: boolean;
 }
 
-// Store feed tokens locally so the URL can be shown later
+// Store feed tokens in sessionStorage so they are cleared when the tab is closed,
+// reducing exposure to XSS compared to localStorage.
 function saveFeedToken(feedId: string, token: string) {
-  const tokens = JSON.parse(localStorage.getItem('feed_tokens') || '{}');
+  const tokens = JSON.parse(sessionStorage.getItem('feed_tokens') || '{}');
   tokens[feedId] = token;
-  localStorage.setItem('feed_tokens', JSON.stringify(tokens));
+  sessionStorage.setItem('feed_tokens', JSON.stringify(tokens));
 }
 
 function getFeedToken(feedId: string): string | null {
-  const tokens = JSON.parse(localStorage.getItem('feed_tokens') || '{}');
+  const tokens = JSON.parse(sessionStorage.getItem('feed_tokens') || '{}');
   return tokens[feedId] || null;
 }
 
 function removeFeedToken(feedId: string) {
-  const tokens = JSON.parse(localStorage.getItem('feed_tokens') || '{}');
+  const tokens = JSON.parse(sessionStorage.getItem('feed_tokens') || '{}');
   delete tokens[feedId];
-  localStorage.setItem('feed_tokens', JSON.stringify(tokens));
+  sessionStorage.setItem('feed_tokens', JSON.stringify(tokens));
 }
 
 function buildFeedUrl(token: string): string {
