@@ -184,7 +184,7 @@ export function Vitals() {
     const available: string[] = [];
     for (const tab of CHART_TABS) {
       const hasData = chartData.some((row) =>
-        tab.dataKeys.some((k) => (row as Record<string, unknown>)[k] != null)
+        tab.dataKeys.some((k) => (row as unknown as Record<string, unknown>)[k] != null)
       );
       if (hasData) available.push(tab.id);
     }
