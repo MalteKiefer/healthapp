@@ -16,6 +16,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.healthvault.data.api.deriveAuthHash
 import de.healthvault.data.repository.AuthRepository
 import io.ktor.client.request.get
 import io.ktor.http.HttpStatusCode
@@ -104,7 +105,9 @@ class LoginViewModel(private val authRepo: AuthRepository) : ViewModel() {
             try {
                 val baseUrl = discoverBaseUrl(_state.value.serverUrl)
                 de.healthvault.data.api.ApiClient.baseUrl = baseUrl
-                authRepo.login(_state.value.email, _state.value.password)
+                // Derive auth_hash client-side (PBKDF2-SHA256, 600k iterations)
+                val authHash = deriveAuthHash(_state.value.password, _state.value.email)
+                authRepo.login(_state.value.email, authHash)
                 _state.value = _state.value.copy(isLoading = false, isLoggedIn = true)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isLoading = false, error = e.message ?: "Login failed")
