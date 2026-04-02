@@ -291,7 +291,9 @@ export function Onboarding() {
             <p className="auth-tagline" style={{ marginBottom: 16 }}>
               {t('onboarding.welcome_desc')}
             </p>
-            <div className="alert alert-warning" style={{ marginBottom: 24 }} dangerouslySetInnerHTML={{ __html: t('onboarding.welcome_warning') }} />
+            <div className="alert alert-warning" style={{ marginBottom: 24 }}>
+              <strong>{t('onboarding.welcome_warning_bold')}</strong>{t('onboarding.welcome_warning_rest')}
+            </div>
             <button
               type="button"
               className="btn btn-primary"

@@ -178,7 +178,9 @@ export function Register() {
       <div className="onboarding-page">
         <div className="onboarding-card">
           <h1>{t('register.recovery_codes_title')}</h1>
-          <div className="alert alert-warning" style={{ marginBottom: 20 }} dangerouslySetInnerHTML={{ __html: t('register.recovery_codes_warning') }} />
+          <div className="alert alert-warning" style={{ marginBottom: 20 }}>
+            {t('register.recovery_codes_warning_pre')}<strong>{t('register.recovery_codes_warning_bold')}</strong>{t('register.recovery_codes_warning_post')}
+          </div>
           <div className="recovery-grid" style={{ marginBottom: 20 }}>
             {recoveryCodes.map((code, i) => (
               <div className="recovery-code" key={i}>{code}</div>

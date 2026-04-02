@@ -211,7 +211,9 @@ func (s *Server) setupRoutes() {
 				Requests: 5, Window: 15 * time.Minute, BlockDuration: 30 * time.Minute,
 			})).Post("/login/2fa", s.AuthHandler.HandleLogin2FA)
 
-			r.Post("/refresh", s.AuthHandler.HandleRefresh)
+			r.With(rl.Limit(middleware.RateLimitConfig{
+				Requests: 30, Window: time.Hour, BlockDuration: 30 * time.Minute,
+			})).Post("/refresh", s.AuthHandler.HandleRefresh)
 			r.Post("/logout", s.AuthHandler.HandleLogout)
 
 			r.Get("/policy", s.AuthHandler.HandleGetPolicy)
