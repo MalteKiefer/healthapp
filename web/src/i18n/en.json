@@ -445,7 +445,11 @@
     "search_address": "Search Address / Facility",
     "search_placeholder": "Address or facility (e.g. Hospital Bamberg)...",
     "show_route": "Show route",
-    "no_results": "No results found"
+    "no_results": "No results found",
+    "pick": "Choose",
+    "pick_title": "Choose Contact",
+    "pick_search": "Search contacts...",
+    "pick_placeholder": "Type or choose contact..."
   },
   "search": {
     "title": "Search",

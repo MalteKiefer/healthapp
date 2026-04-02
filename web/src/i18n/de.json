@@ -445,7 +445,11 @@
     "search_address": "Adresse / Einrichtung suchen",
     "search_placeholder": "Adresse oder Einrichtung (z.B. Krankenhaus Bamberg)...",
     "show_route": "Route anzeigen",
-    "no_results": "Keine Ergebnisse gefunden"
+    "no_results": "Keine Ergebnisse gefunden",
+    "pick": "Auswählen",
+    "pick_title": "Kontakt auswählen",
+    "pick_search": "Kontakte suchen...",
+    "pick_placeholder": "Eingeben oder Kontakt wählen..."
   },
   "search": {
     "title": "Suche",
