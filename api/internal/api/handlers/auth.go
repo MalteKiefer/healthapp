@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/mail"
 	"os"
 	"strings"
 	"time"
@@ -139,8 +140,6 @@ type loginRequest struct {
 }
 
 type loginResponse struct {
-	AccessToken        string `json:"access_token"`
-	RefreshToken       string `json:"refresh_token"`
 	ExpiresAt          int64  `json:"expires_at"`
 	UserID             string `json:"user_id"`
 	Role               string `json:"role"`
@@ -195,6 +194,12 @@ func (h *AuthHandler) HandleRegisterInit(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadRequest, errorResponse("email_required"))
 		return
 	}
+	addr, err := mail.ParseAddress(req.Email)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_email"))
+		return
+	}
+	req.Email = strings.ToLower(addr.Address)
 
 	// When invite_only, require a valid invite token up front.
 	if mode == "invite_only" {
@@ -257,7 +262,20 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if req.Email == "" || req.DisplayName == "" || req.AuthHash == "" ||
+	if req.Email == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("email_required"))
+		return
+	}
+	{
+		addr, err := mail.ParseAddress(req.Email)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, errorResponse("invalid_email"))
+			return
+		}
+		req.Email = strings.ToLower(addr.Address)
+	}
+
+	if req.DisplayName == "" || req.AuthHash == "" ||
 		req.IdentityPubkey == "" || req.IdentityPrivkeyEnc == "" ||
 		req.SigningPubkey == "" || req.SigningPrivkeyEnc == "" {
 		writeJSON(w, http.StatusBadRequest, errorResponse("missing_required_fields"))
@@ -396,6 +414,19 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
 		return
+	}
+
+	if req.Email == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("email_required"))
+		return
+	}
+	{
+		addr, err := mail.ParseAddress(req.Email)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, errorResponse("invalid_email"))
+			return
+		}
+		req.Email = strings.ToLower(addr.Address)
 	}
 
 	u, err := h.userRepo.GetByEmail(r.Context(), req.Email)
@@ -640,7 +671,19 @@ func (h *AuthHandler) HandleRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Email == "" || req.RecoveryCode == "" {
+	if req.Email == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("email_required"))
+		return
+	}
+	{
+		addr, err := mail.ParseAddress(req.Email)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, errorResponse("invalid_email"))
+			return
+		}
+		req.Email = strings.ToLower(addr.Address)
+	}
+	if req.RecoveryCode == "" {
 		writeJSON(w, http.StatusBadRequest, errorResponse("email_and_recovery_code_required"))
 		return
 	}

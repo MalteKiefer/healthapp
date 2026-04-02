@@ -10,7 +10,7 @@ i18n.use(initReactI18next).init({
   },
   lng: localStorage.getItem('language') || 'en',
   fallbackLng: 'en',
-  interpolation: { escapeValue: false },
+  interpolation: { escapeValue: true },
 });
 
 export default i18n;
