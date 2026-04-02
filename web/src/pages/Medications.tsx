@@ -177,7 +177,18 @@ export function Medications() {
     },
   });
   const updateMutation = useMutation({
-    mutationFn: (data: Partial<Medication> & { id: string }) => medicationsApi.update(profileId, data.id, data),
+    mutationFn: (data: Partial<Medication> & { id: string }) => {
+      const payload = { ...data };
+      if (payload.started_at && !payload.started_at.includes('T')) {
+        payload.started_at = new Date(payload.started_at + 'T00:00:00').toISOString();
+      }
+      if (payload.ended_at && !payload.ended_at.includes('T')) {
+        payload.ended_at = new Date(payload.ended_at + 'T00:00:00').toISOString();
+      }
+      if (!payload.ended_at) delete payload.ended_at;
+      if (!payload.started_at) delete payload.started_at;
+      return medicationsApi.update(profileId, payload.id, payload);
+    },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['medications', profileId] }); dispatch({ type: 'SET_EDIT_TARGET', med: null }); editReset(); },
   });
   const deleteIntakeMutation = useMutation({

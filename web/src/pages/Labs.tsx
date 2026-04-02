@@ -70,6 +70,15 @@ export function Labs() {
     }
     if (!cleaned.lab_name) delete cleaned.lab_name;
     if (!cleaned.ordered_by) delete cleaned.ordered_by;
+    if (cleaned.values) {
+      cleaned.values = cleaned.values.map((v: LabValue) => {
+        const clean = { ...v };
+        if (typeof clean.value === 'number' && isNaN(clean.value)) delete clean.value;
+        if (typeof clean.reference_low === 'number' && isNaN(clean.reference_low)) delete clean.reference_low;
+        if (typeof clean.reference_high === 'number' && isNaN(clean.reference_high)) delete clean.reference_high;
+        return clean;
+      });
+    }
     return cleaned;
   };
 
