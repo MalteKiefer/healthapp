@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,25 +24,68 @@ import (
 
 // AuthHandler handles authentication endpoints.
 type AuthHandler struct {
-	userRepo     user.Repository
-	tokenService *crypto.TokenService
-	db           *pgxpool.Pool
-	rdb          *redis.Client
-	logger       *zap.Logger
-	defaultQuota int64
-	totpEncKey   []byte // 32-byte AES-256 key for decrypting TOTP secrets during 2FA login
+	userRepo      user.Repository
+	tokenService  *crypto.TokenService
+	db            *pgxpool.Pool
+	rdb           *redis.Client
+	logger        *zap.Logger
+	defaultQuota  int64
+	totpEncKey    []byte // 32-byte AES-256 key for decrypting TOTP secrets during 2FA login
+	secureCookies bool   // true unless hostname is localhost/127.0.0.1
 }
 
-func NewAuthHandler(repo user.Repository, ts *crypto.TokenService, db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, defaultQuotaMB int, totpEncKey []byte) *AuthHandler {
+func NewAuthHandler(repo user.Repository, ts *crypto.TokenService, db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, defaultQuotaMB int, totpEncKey []byte, hostname string) *AuthHandler {
+	secure := !strings.Contains(hostname, "localhost") && !strings.Contains(hostname, "127.0.0.1")
 	return &AuthHandler{
-		userRepo:     repo,
-		tokenService: ts,
-		db:           db,
-		rdb:          rdb,
-		logger:       logger,
-		defaultQuota: int64(defaultQuotaMB) * 1024 * 1024,
-		totpEncKey:   totpEncKey,
+		userRepo:      repo,
+		tokenService:  ts,
+		db:            db,
+		rdb:           rdb,
+		logger:        logger,
+		defaultQuota:  int64(defaultQuotaMB) * 1024 * 1024,
+		totpEncKey:    totpEncKey,
+		secureCookies: secure,
 	}
+}
+
+// setAuthCookies writes httpOnly access and refresh token cookies.
+func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, secure bool) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    accessToken,
+		Path:     "/",
+		MaxAge:   900,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteStrictMode,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		Path:     "/api/v1/auth/refresh",
+		MaxAge:   604800,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteStrictMode,
+	})
+}
+
+// clearAuthCookies removes auth cookies by setting MaxAge to -1.
+func clearAuthCookies(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/api/v1/auth/refresh",
+		MaxAge:   -1,
+		HttpOnly: true,
+	})
 }
 
 // writeAuditLog inserts an audit log entry. Errors are logged but never block
@@ -470,8 +514,18 @@ func (h *AuthHandler) HandleLogin2FA(w http.ResponseWriter, r *http.Request) {
 // HandleRefresh exchanges a refresh token for a new token pair.
 func (h *AuthHandler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 	var req refreshRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
+	// Body may be empty when the refresh token comes from a cookie.
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	// Try request body first (API clients), then cookie.
+	if req.RefreshToken == "" {
+		if cookie, err := r.Cookie("refresh_token"); err == nil {
+			req.RefreshToken = cookie.Value
+		}
+	}
+
+	if req.RefreshToken == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("refresh_token_required"))
 		return
 	}
 
@@ -511,6 +565,8 @@ func (h *AuthHandler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setAuthCookies(w, pair.AccessToken, pair.RefreshToken, h.secureCookies)
+
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"access_token":  pair.AccessToken,
 		"refresh_token": pair.RefreshToken,
@@ -538,6 +594,8 @@ func (h *AuthHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 			h.logger.Error("revoke session", zap.Error(err))
 		}
 	}
+
+	clearAuthCookies(w)
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "logged_out"})
 }
@@ -667,6 +725,8 @@ func (h *AuthHandler) completeLogin(w http.ResponseWriter, r *http.Request, u *u
 	h.writeAuditLog(r.Context(), r, u.ID, "auth.login", "session", nil, map[string]interface{}{
 		"email": u.Email,
 	})
+
+	setAuthCookies(w, pair.AccessToken, pair.RefreshToken, h.secureCookies)
 
 	writeJSON(w, http.StatusOK, loginResponse{
 		AccessToken:        pair.AccessToken,

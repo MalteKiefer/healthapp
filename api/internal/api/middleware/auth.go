@@ -9,22 +9,24 @@ import (
 )
 
 // JWTAuth returns middleware that validates JWT access tokens.
+// It checks the Authorization header first, then falls back to the
+// access_token httpOnly cookie.
 func JWTAuth(ts *crypto.TokenService) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				writeJSONError(w, http.StatusUnauthorized, "missing_authorization_header")
+			var tokenStr string
+			if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") || strings.HasPrefix(auth, "bearer ") {
+				tokenStr = auth[7:]
+			} else if cookie, err := r.Cookie("access_token"); err == nil {
+				tokenStr = cookie.Value
+			}
+
+			if tokenStr == "" {
+				writeJSONError(w, http.StatusUnauthorized, "missing_authorization")
 				return
 			}
 
-			parts := strings.SplitN(authHeader, " ", 2)
-			if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
-				writeJSONError(w, http.StatusUnauthorized, "invalid_authorization_format")
-				return
-			}
-
-			claims, err := ts.VerifyToken(r.Context(), parts[1])
+			claims, err := ts.VerifyToken(r.Context(), tokenStr)
 			if err != nil {
 				writeJSONError(w, http.StatusUnauthorized, "invalid_token")
 				return

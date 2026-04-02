@@ -162,7 +162,7 @@ export function Register() {
       });
 
       if (res.access_token && res.refresh_token) {
-        login(res.access_token, res.refresh_token, res.user_id, 'user');
+        login(res.user_id, 'user');
         navigate('/');
       }
     } catch {

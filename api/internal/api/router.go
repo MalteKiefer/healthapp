@@ -77,7 +77,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	// This key is used to encrypt/decrypt TOTP secrets at rest.
 	totpEncKey := ts.DeriveEncryptionKey()
 
-	authHandler := handlers.NewAuthHandler(userRepo, ts, db, rdb, logger, cfg.Instance.DefaultQuotaMB, totpEncKey)
+	authHandler := handlers.NewAuthHandler(userRepo, ts, db, rdb, logger, cfg.Instance.DefaultQuotaMB, totpEncKey, cfg.Instance.Hostname)
 	profileHandler := handlers.NewProfileHandler(profileRepo, logger)
 	vitalHandler := handlers.NewVitalHandler(vitalRepo, profileRepo, logger)
 	diaryHandler := handlers.NewDiaryHandler(diaryRepo, profileRepo, logger)

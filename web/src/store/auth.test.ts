@@ -1,5 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAuthStore } from './auth';
+
+// Mock fetch so logout() doesn't make real network calls
+globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
 
 describe('Auth store', () => {
   beforeEach(() => {
@@ -8,6 +11,7 @@ describe('Auth store', () => {
       isAuthenticated: false,
       userId: null,
       role: null,
+      email: null,
     });
   });
 
@@ -19,24 +23,24 @@ describe('Auth store', () => {
 
   it('login sets auth state and localStorage', () => {
     const { login } = useAuthStore.getState();
-    login('token123', 'refresh456', 'user-1', 'admin');
+    login('user-1', 'admin');
 
     const state = useAuthStore.getState();
     expect(state.isAuthenticated).toBe(true);
     expect(state.userId).toBe('user-1');
     expect(state.role).toBe('admin');
-    expect(localStorage.getItem('access_token')).toBe('token123');
-    expect(localStorage.getItem('refresh_token')).toBe('refresh456');
+    expect(localStorage.getItem('user_id')).toBe('user-1');
+    expect(localStorage.getItem('user_role')).toBe('admin');
   });
 
-  it('logout clears auth state and localStorage', () => {
+  it('logout clears auth state and localStorage', async () => {
     const { login, logout } = useAuthStore.getState();
-    login('token', 'refresh', 'user-1', 'user');
-    logout();
+    login('user-1', 'user');
+    await logout();
 
     const state = useAuthStore.getState();
     expect(state.isAuthenticated).toBe(false);
     expect(state.userId).toBeNull();
-    expect(localStorage.getItem('access_token')).toBeNull();
+    expect(localStorage.getItem('user_id')).toBeNull();
   });
 });

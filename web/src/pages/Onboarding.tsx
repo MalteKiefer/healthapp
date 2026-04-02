@@ -252,8 +252,6 @@ export function Onboarding() {
       );
 
       login(
-        completeRes.access_token,
-        completeRes.refresh_token,
         completeRes.user_id,
         'user',
       );

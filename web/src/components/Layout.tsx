@@ -3,7 +3,6 @@ import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/auth';
 import { useUIStore } from '../store/ui';
-import { api } from '../api/client';
 import { clearAllKeys } from '../crypto';
 import { NotificationBell } from './NotificationBell';
 import { SyncIndicator } from './SyncIndicator';
@@ -337,9 +336,8 @@ export function Layout() {
   }, []);
 
   const handleLogout = async () => {
-    try { await api.post('/api/v1/auth/logout'); } catch { /* */ }
     clearAllKeys();
-    logout();
+    await logout();
     navigate('/login');
   };
 

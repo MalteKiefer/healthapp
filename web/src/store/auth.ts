@@ -5,29 +5,33 @@ interface AuthState {
   userId: string | null;
   email: string | null;
   role: string | null;
-  login: (accessToken: string, refreshToken: string, userId: string, role: string, email?: string) => void;
-  logout: () => void;
+  login: (userId: string, role: string, email?: string) => void;
+  logout: () => Promise<void>;
   checkAuth: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  isAuthenticated: !!localStorage.getItem('access_token'),
+  isAuthenticated: !!localStorage.getItem('user_id'),
   userId: localStorage.getItem('user_id'),
   email: localStorage.getItem('user_email'),
   role: localStorage.getItem('user_role'),
 
-  login: (accessToken, refreshToken, userId, role, email) => {
-    localStorage.setItem('access_token', accessToken);
-    localStorage.setItem('refresh_token', refreshToken);
+  login: (userId, role, email) => {
     localStorage.setItem('user_id', userId);
     localStorage.setItem('user_role', role);
     if (email) localStorage.setItem('user_email', email);
     set({ isAuthenticated: true, userId, role, email: email || localStorage.getItem('user_email') });
   },
 
-  logout: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+  logout: async () => {
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {
+      // Best-effort: clear local state even if the server call fails.
+    }
     localStorage.removeItem('user_id');
     localStorage.removeItem('user_role');
     localStorage.removeItem('user_email');
@@ -35,7 +39,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   checkAuth: () => {
-    const token = localStorage.getItem('access_token');
-    set({ isAuthenticated: !!token });
+    const userId = localStorage.getItem('user_id');
+    set({ isAuthenticated: !!userId });
   },
 }));

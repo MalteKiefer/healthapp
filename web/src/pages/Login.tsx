@@ -63,7 +63,7 @@ export function Login() {
           const pekKey = await derivePEK(passphrase, res.pek_salt);
           setPEK(pekKey);
         }
-        login(res.access_token, res.refresh_token, res.user_id, res.role || 'user', email);
+        login(res.user_id, res.role || 'user', email);
         navigate('/');
       }
     } catch (err) {
@@ -97,7 +97,7 @@ export function Login() {
           setPEK(pekKey);
         }
         localStorage.removeItem('_pek_salt_tmp');
-        login(res.access_token, res.refresh_token, res.user_id, res.role || 'user', email);
+        login(res.user_id, res.role || 'user', email);
         navigate('/');
       }
     } catch (err) {
