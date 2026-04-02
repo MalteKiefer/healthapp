@@ -12,6 +12,7 @@ import { useProfiles } from '../hooks/useProfiles';
 import type { Profile } from '../api/profiles';
 import { useDateFormat } from '../hooks/useDateLocale';
 import { deriveAuthHash, clearAllKeys } from '../crypto';
+import { formatNumber } from '../utils/format';
 
 // ── Types ──
 
@@ -410,8 +411,8 @@ export function Settings() {
   };
 
   const initials = email ? email.charAt(0).toUpperCase() : 'U';
-  const usedMB = storage ? (storage.used_bytes / 1048576).toFixed(1) : '0';
-  const quotaMB = storage ? (storage.quota_bytes / 1048576).toFixed(0) : '5120';
+  const usedMB = storage ? formatNumber(storage.used_bytes / 1048576, 1) : '0';
+  const quotaMB = storage ? formatNumber(storage.quota_bytes / 1048576, 0) : '5120';
   const usagePercent = storage ? (storage.used_bytes / storage.quota_bytes * 100) : 0;
   const is2FA = userInfo?.totp_enabled ?? false;
 
@@ -427,7 +428,7 @@ export function Settings() {
         <h3>{t('settings.avatar')}</h3>
         <div className="avatar-upload-row">
           <div className="avatar-upload-preview">
-            {avatarUrl ? <img src={avatarUrl} alt="" className="avatar-upload-img" /> : <div className="avatar-upload-placeholder">{initials}</div>}
+            {avatarUrl ? <img src={avatarUrl} alt={t('settings.avatar')} className="avatar-upload-img" /> : <div className="avatar-upload-placeholder">{initials}</div>}
           </div>
           <div className="avatar-upload-actions">
             <div style={{ display: 'flex', gap: 8 }}>
@@ -569,7 +570,7 @@ export function Settings() {
       <div className="card settings-section">
         <h3>{t('settings.storage')}</h3>
         <div className="storage-bar"><div className="storage-fill" style={{ width: `${Math.min(usagePercent, 100)}%` }} /></div>
-        <p className="text-muted">{t('settings.storage_usage', { used: usedMB, quota: quotaMB, percent: usagePercent.toFixed(1) })}</p>
+        <p className="text-muted">{t('settings.storage_usage', { used: usedMB, quota: quotaMB, percent: formatNumber(usagePercent, 1) })}</p>
       </div>
 
       {/* ── Sessions ── */}

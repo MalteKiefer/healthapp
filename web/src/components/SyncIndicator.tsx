@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type SyncStatus = 'online' | 'offline' | 'syncing';
 
-export function SyncIndicator() {
+function SyncIndicatorInner() {
   const { t } = useTranslation();
   const [status, setStatus] = useState<SyncStatus>(navigator.onLine ? 'online' : 'offline');
 
@@ -32,3 +32,5 @@ export function SyncIndicator() {
     </div>
   );
 }
+
+export const SyncIndicator = memo(SyncIndicatorInner);

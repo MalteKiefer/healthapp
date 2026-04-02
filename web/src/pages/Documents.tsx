@@ -7,17 +7,12 @@ import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { documentsApi, type Document } from '../api/documents';
 import { api } from '../api/client';
+import { formatBytes } from '../utils/format';
 
 const CATEGORIES = [
   'lab_result', 'imaging', 'prescription', 'referral',
   'vaccination_record', 'discharge_summary', 'report', 'legal', 'other',
 ];
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1048576).toFixed(1)} MB`;
-}
 
 /* ---------------------------------------------------------------------------
    SVG Icons (monochrome, stroke-based)
@@ -152,6 +147,14 @@ function getNonLinkTags(tags: string[] | undefined): string[] {
 }
 
 /* ===========================================================================
+   Shared style constants
+   =========================================================================== */
+
+const styleCardMB16 = { marginBottom: 16 } as const;
+const styleBtnGap6 = { gap: 6 } as const;
+const styleDocItemCursor = { cursor: 'pointer' } as const;
+
+/* ===========================================================================
    Documents Page
    =========================================================================== */
 
@@ -283,7 +286,7 @@ export function Documents() {
       </div>
 
       {/* Upload area */}
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" style={styleCardMB16}>
         <div
           className="doc-upload-zone"
           onClick={() => document.getElementById('doc-file-input')?.click()}
@@ -340,7 +343,7 @@ export function Documents() {
               <div
                 key={doc.id}
                 className="doc-item"
-                style={{ cursor: 'pointer' }}
+                style={styleDocItemCursor}
                 onClick={() => setSelectedDoc(doc)}
               >
                 <div className="doc-icon">
@@ -528,20 +531,20 @@ function DocumentDetail({
   return (
     <div className="page">
       <div className="page-header">
-        <button className="btn btn-ghost" onClick={onBack} style={{ gap: 6 }}>
+        <button className="btn btn-ghost" onClick={onBack} style={styleBtnGap6}>
           <ArrowLeftIcon size={16} />
           {t('common.back')}
         </button>
         <h2 style={{ flex: 1, marginLeft: 8 }}>{t('documents.detail')}</h2>
         <div className="page-actions">
-          <button className="btn btn-secondary" onClick={handleDownload} style={{ gap: 6 }}>
+          <button className="btn btn-secondary" onClick={handleDownload} style={styleBtnGap6}>
             <DownloadIcon size={16} />
             {t('documents.download')}
           </button>
           <button
             className="btn btn-danger"
             onClick={() => onDelete(doc.id)}
-            style={{ gap: 6 }}
+            style={styleBtnGap6}
           >
             <TrashIcon size={14} />
             {t('common.delete')}
@@ -550,7 +553,7 @@ function DocumentDetail({
       </div>
 
       {/* Document header info */}
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" style={styleCardMB16}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div className="doc-icon" style={{ color: 'var(--color-primary)' }}>
             {getDocIconComponent(doc.mime_type, 32)}
@@ -566,7 +569,7 @@ function DocumentDetail({
       </div>
 
       {/* Preview panel */}
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" style={styleCardMB16}>
         <h3 style={{ marginBottom: 12 }}>{t('documents.preview')}</h3>
         {canPreview ? (
           previewLoading ? (
@@ -609,7 +612,7 @@ function DocumentDetail({
       </div>
 
       {/* Metadata edit section */}
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" style={styleCardMB16}>
         <h3 style={{ marginBottom: 12 }}>{t('common.edit')}</h3>
         <div className="doc-edit-form">
           <div className="form-group">

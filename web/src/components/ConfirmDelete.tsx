@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
   pending?: boolean;
 }
 
-export function ConfirmDelete({ open, title, message, onConfirm, onCancel, pending }: Props) {
+function ConfirmDeleteInner({ open, title, message, onConfirm, onCancel, pending }: Props) {
   const { t } = useTranslation();
   if (!open) return null;
 
@@ -38,3 +39,5 @@ export function ConfirmDelete({ open, title, message, onConfirm, onCancel, pendi
     </div>
   );
 }
+
+export const ConfirmDelete = memo(ConfirmDeleteInner);

@@ -41,7 +41,7 @@ export function AvatarMenu({ email, role, theme, onLogout, onToggleTheme }: Avat
 
   const renderAvatar = () =>
     avatarUrl ? (
-      <img src={avatarUrl} alt="" className="avatar-circle avatar-img" />
+      <img src={avatarUrl} alt={displayName} className="avatar-circle avatar-img" />
     ) : (
       <div className="avatar-circle">{initials}</div>
     );

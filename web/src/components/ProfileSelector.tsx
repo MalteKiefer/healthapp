@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProfiles } from '../hooks/useProfiles';
 
@@ -6,7 +7,7 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
-export function ProfileSelector({ selectedId, onSelect }: Props) {
+function ProfileSelectorInner({ selectedId, onSelect }: Props) {
   const { t } = useTranslation();
   const { data, isLoading } = useProfiles();
 
@@ -29,3 +30,5 @@ export function ProfileSelector({ selectedId, onSelect }: Props) {
     </select>
   );
 }
+
+export const ProfileSelector = memo(ProfileSelectorInner);
