@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -88,10 +89,14 @@ func (h *AdminHandler) writeAuditLog(ctx context.Context, r *http.Request, userI
 			h.logger.Error("marshal audit metadata", zap.Error(err))
 		}
 	}
+	ip := r.RemoteAddr
+	if host, _, splitErr := net.SplitHostPort(ip); splitErr == nil {
+		ip = host
+	}
 	_, err := h.db.Exec(ctx,
 		`INSERT INTO audit_log (user_id, action, resource, resource_id, ip_address, user_agent, metadata)
 		 VALUES ($1, $2, $3, $4, $5::inet, $6, $7)`,
-		userID, action, resource, resourceID, r.RemoteAddr, r.UserAgent(), metaJSON,
+		userID, action, resource, resourceID, ip, r.UserAgent(), metaJSON,
 	)
 	if err != nil {
 		h.logger.Error("write audit log", zap.String("action", action), zap.Error(err))

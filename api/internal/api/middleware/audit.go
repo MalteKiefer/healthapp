@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"time"
 
@@ -33,10 +34,14 @@ func (a *AuditWriter) LogAction(ctx context.Context, userID *uuid.UUID, action, 
 		rid = *resourceID
 	}
 
+	ip := r.RemoteAddr
+	if host, _, splitErr := net.SplitHostPort(ip); splitErr == nil {
+		ip = host
+	}
 	_, err := a.db.Exec(ctx,
 		`INSERT INTO audit_log (user_id, action, resource, resource_id, ip_address, user_agent)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		uid, action, resource, rid, r.RemoteAddr, r.UserAgent(),
+		uid, action, resource, rid, ip, r.UserAgent(),
 	)
 	if err != nil {
 		a.logger.Error("audit log write failed",

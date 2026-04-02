@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"time"
 
@@ -159,10 +160,14 @@ func (h *DoctorShareHandler) HandleGetShare(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Record access
+	accessIP := r.RemoteAddr
+	if host, _, splitErr := net.SplitHostPort(accessIP); splitErr == nil {
+		accessIP = host
+	}
 	h.db.Exec(r.Context(), `
 		INSERT INTO doctor_share_access_log (id, share_id, ip_address, user_agent, accessed_at)
 		VALUES (gen_random_uuid(), $1, $2, $3, NOW())`,
-		shareID, r.RemoteAddr, r.UserAgent())
+		shareID, accessIP, r.UserAgent())
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"encrypted_data": encryptedData,

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/mail"
 	"os"
@@ -100,10 +101,14 @@ func (h *AuthHandler) writeAuditLog(ctx context.Context, r *http.Request, userID
 			h.logger.Error("marshal audit metadata", zap.Error(err))
 		}
 	}
+	ip := r.RemoteAddr
+	if host, _, err := net.SplitHostPort(ip); err == nil {
+		ip = host
+	}
 	_, err := h.db.Exec(ctx,
 		`INSERT INTO audit_log (user_id, action, resource, resource_id, ip_address, user_agent, metadata)
 		 VALUES ($1, $2, $3, $4, $5::inet, $6, $7)`,
-		userID, action, resource, resourceID, r.RemoteAddr, r.UserAgent(), metaJSON,
+		userID, action, resource, resourceID, ip, r.UserAgent(), metaJSON,
 	)
 	if err != nil {
 		h.logger.Error("write audit log", zap.String("action", action), zap.Error(err))
@@ -777,11 +782,15 @@ func (h *AuthHandler) completeLogin(w http.ResponseWriter, r *http.Request, u *u
 	}
 
 	// Create session record
+	sessionIP := r.RemoteAddr
+	if host, _, splitErr := net.SplitHostPort(sessionIP); splitErr == nil {
+		sessionIP = host
+	}
 	session := &user.Session{
 		UserID:     u.ID,
 		JTI:        pair.JTI,
 		DeviceHint: r.UserAgent(),
-		IPAddress:  r.RemoteAddr,
+		IPAddress:  sessionIP,
 		ExpiresAt:  time.Now().UTC().Add(7 * 24 * time.Hour),
 	}
 	if err := h.userRepo.CreateSession(r.Context(), session); err != nil {
