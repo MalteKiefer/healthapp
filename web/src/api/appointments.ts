@@ -17,6 +17,7 @@ export interface Appointment {
 
 export interface AppointmentListResponse {
   items: Appointment[];
+  total: number;
 }
 
 export const appointmentsApi = {

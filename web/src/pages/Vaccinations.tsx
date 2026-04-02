@@ -69,6 +69,7 @@ export function Vaccinations() {
     mutationFn: (v: Partial<Vaccination>) => api.post(`/api/v1/profiles/${profileId}/vaccinations`, fixDates(v as Record<string, unknown>, ['administered_at', 'next_due_at'])),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['vaccinations-due', profileId] });
       setShowForm(false);
       reset();
     },

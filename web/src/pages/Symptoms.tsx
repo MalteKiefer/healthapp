@@ -109,6 +109,7 @@ export function Symptoms() {
     mutationFn: (s: Partial<SymptomRecord>) => api.post(`/api/v1/profiles/${profileId}/symptoms`, s),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['symptoms', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['symptoms-chart', profileId] });
       setShowForm(false);
       reset();
     },
@@ -119,13 +120,17 @@ export function Symptoms() {
       api.patch(`/api/v1/profiles/${profileId}/symptoms/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['symptoms', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['symptoms-chart', profileId] });
       setEditTarget(null);
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/symptoms/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['symptoms', profileId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['symptoms', profileId] });
+      queryClient.invalidateQueries({ queryKey: ['symptoms-chart', profileId] });
+    },
   });
 
   const { register, handleSubmit, reset, watch } = useForm<{

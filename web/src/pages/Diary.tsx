@@ -51,8 +51,14 @@ export function Diary() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<DiaryEvent> }) =>
-      diaryApi.update(profileId, id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<DiaryEvent> }) => {
+      const cleaned: Record<string, unknown> = { ...data };
+      if (cleaned.started_at && typeof cleaned.started_at === 'string' && !cleaned.started_at.includes('Z')) {
+        cleaned.started_at = new Date(cleaned.started_at as string).toISOString();
+      }
+      if (typeof cleaned.severity === 'number' && isNaN(cleaned.severity as number)) delete cleaned.severity;
+      return diaryApi.update(profileId, id, cleaned as Partial<DiaryEvent>);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['diary', profileId] });
       setEditTarget(null);
