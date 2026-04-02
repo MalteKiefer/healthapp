@@ -89,10 +89,10 @@ func (r *NotificationRepo) List(ctx context.Context, filter notifications.ListFi
 	return result, total, nil
 }
 
-func (r *NotificationRepo) MarkRead(ctx context.Context, id uuid.UUID) error {
+func (r *NotificationRepo) MarkRead(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	tag, err := r.db.Exec(ctx,
-		"UPDATE notifications SET read_at = $2 WHERE id = $1 AND read_at IS NULL",
-		id, time.Now().UTC())
+		"UPDATE notifications SET read_at = $2 WHERE id = $1 AND user_id = $3 AND read_at IS NULL",
+		id, time.Now().UTC(), userID)
 	if err != nil {
 		return fmt.Errorf("mark notification read: %w", err)
 	}
@@ -112,8 +112,8 @@ func (r *NotificationRepo) MarkAllRead(ctx context.Context, userID uuid.UUID) er
 	return nil
 }
 
-func (r *NotificationRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	tag, err := r.db.Exec(ctx, "DELETE FROM notifications WHERE id = $1", id)
+func (r *NotificationRepo) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	tag, err := r.db.Exec(ctx, "DELETE FROM notifications WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
 		return fmt.Errorf("delete notification: %w", err)
 	}

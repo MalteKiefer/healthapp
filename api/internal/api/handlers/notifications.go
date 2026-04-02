@@ -68,7 +68,6 @@ func (h *NotificationHandler) HandleMarkRead(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
 		return
 	}
-	_ = claims
 
 	notifID, err := uuid.Parse(chi.URLParam(r, "notifID"))
 	if err != nil {
@@ -76,7 +75,7 @@ func (h *NotificationHandler) HandleMarkRead(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if err := h.notifRepo.MarkRead(r.Context(), notifID); err != nil {
+	if err := h.notifRepo.MarkRead(r.Context(), notifID, claims.UserID); err != nil {
 		if errors.Is(err, postgres.ErrNotFound) {
 			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
 			return
@@ -113,7 +112,6 @@ func (h *NotificationHandler) HandleDelete(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
 		return
 	}
-	_ = claims
 
 	notifID, err := uuid.Parse(chi.URLParam(r, "notifID"))
 	if err != nil {
@@ -121,7 +119,7 @@ func (h *NotificationHandler) HandleDelete(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := h.notifRepo.Delete(r.Context(), notifID); err != nil {
+	if err := h.notifRepo.Delete(r.Context(), notifID, claims.UserID); err != nil {
 		if errors.Is(err, postgres.ErrNotFound) {
 			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
 			return
