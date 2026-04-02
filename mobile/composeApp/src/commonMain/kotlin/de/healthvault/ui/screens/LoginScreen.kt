@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.healthvault.data.repository.AuthRepository
+import io.ktor.client.request.get
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -25,7 +27,7 @@ import org.koin.compose.viewmodel.koinViewModel
 data class LoginUiState(
     val email: String = "",
     val password: String = "",
-    val serverUrl: String = "http://10.0.2.2:3101",
+    val serverUrl: String = "https://health.p37.nexus",
     val isLoading: Boolean = false,
     val error: String? = null,
     val isLoggedIn: Boolean = false
@@ -39,13 +41,69 @@ class LoginViewModel(private val authRepo: AuthRepository) : ViewModel() {
     fun onPasswordChange(pw: String) { _state.value = _state.value.copy(password = pw) }
     fun onServerUrlChange(url: String) { _state.value = _state.value.copy(serverUrl = url) }
 
+    /**
+     * Try to discover the correct API base URL from user input.
+     * Accepts various formats:
+     *   - health.example.com          -> tries https://health.example.com/api/v1, then :3101
+     *   - https://health.example.com  -> tries /api/v1 path
+     *   - http://10.0.2.2:3101       -> direct API access
+     *   - health.example.com/api      -> strips /api, uses base
+     */
+    private suspend fun discoverBaseUrl(input: String): String {
+        val trimmed = input.trim().trimEnd('/')
+
+        // Add scheme if missing
+        val withScheme = when {
+            trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
+            trimmed.contains("localhost") || trimmed.contains("10.0.2.2") || trimmed.contains("127.0.0.1") -> "http://$trimmed"
+            else -> "https://$trimmed"
+        }
+
+        // Strip trailing /api or /api/v1 — we add it ourselves in API paths
+        val base = withScheme
+            .removeSuffix("/api/v1")
+            .removeSuffix("/api")
+            .trimEnd('/')
+
+        // Try candidates in order: direct health check
+        val candidates = mutableListOf<String>()
+
+        // If URL already has a port, try it directly
+        if (base.contains(":\\d".toRegex())) {
+            candidates.add(base)
+        }
+
+        // Standard: API behind reverse proxy at /api/v1
+        val baseNoPort = base.replace(Regex(":\\d+$"), "")
+        candidates.add(baseNoPort)
+
+        // Direct API port (common self-hosted setup)
+        if (!base.contains(":\\d".toRegex())) {
+            candidates.add("$baseNoPort:3101")
+            candidates.add("${baseNoPort.replace("https://", "http://")}:3101")
+        }
+
+        for (candidate in candidates) {
+            try {
+                val response = de.healthvault.data.api.ApiClient.client.get("$candidate/health")
+                if (response.status.value == 200) {
+                    return candidate
+                }
+            } catch (_: Exception) {
+                // Try next candidate
+            }
+        }
+
+        // Fallback: return the cleaned base, let login fail with a clear error
+        return base
+    }
+
     fun login() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                // Set the base URL from user input before making any API call
-                val url = _state.value.serverUrl.trimEnd('/')
-                de.healthvault.data.api.ApiClient.baseUrl = url
+                val baseUrl = discoverBaseUrl(_state.value.serverUrl)
+                de.healthvault.data.api.ApiClient.baseUrl = baseUrl
                 authRepo.login(_state.value.email, _state.value.password)
                 _state.value = _state.value.copy(isLoading = false, isLoggedIn = true)
             } catch (e: Exception) {
@@ -123,11 +181,12 @@ fun LoginScreen(
             )
             Spacer(Modifier.height(12.dp))
 
-            // Server URL
+            // Server
             OutlinedTextField(
                 value = state.serverUrl,
                 onValueChange = viewModel::onServerUrlChange,
-                label = { Text("Server URL") },
+                label = { Text("Server") },
+                placeholder = { Text("health.example.com") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
