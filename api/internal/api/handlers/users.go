@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -153,8 +154,8 @@ func (h *UserHandler) HandleGetSessions(w http.ResponseWriter, r *http.Request) 
 			ID:           s.ID.String(),
 			DeviceHint:   s.DeviceHint,
 			IPAddress:    s.IPAddress,
-			CreatedAt:    s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			LastActiveAt: s.LastActiveAt.Format("2006-01-02T15:04:05Z07:00"),
+			CreatedAt:    s.CreatedAt.Format(time.RFC3339),
+			LastActiveAt: s.LastActiveAt.Format(time.RFC3339),
 			IsCurrent:    s.ID.String() == currentID,
 		})
 	}

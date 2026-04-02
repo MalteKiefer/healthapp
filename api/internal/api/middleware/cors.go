@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -14,7 +15,9 @@ func CORS(hostname string) func(next http.Handler) http.Handler {
 	// Allow HTTP in development
 	if hostname == "localhost" || strings.HasPrefix(hostname, "localhost:") {
 		allowedOrigins[fmt.Sprintf("http://%s", hostname)] = true
-		allowedOrigins["http://localhost:5173"] = true // Vite dev server
+		if devOrigin := os.Getenv("DEV_ORIGIN"); devOrigin != "" {
+			allowedOrigins[devOrigin] = true
+		}
 	}
 
 	return func(next http.Handler) http.Handler {
