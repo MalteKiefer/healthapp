@@ -71,7 +71,10 @@ func (h *ProfileHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 		list = []profiles.Profile{}
 	}
 
-	writeJSON(w, http.StatusOK, list)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"items": list,
+		"total": len(list),
+	})
 }
 
 // HandleCreate creates a new profile owned by the authenticated user.

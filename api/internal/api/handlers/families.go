@@ -45,6 +45,7 @@ func (h *FamilyHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"items": families,
+		"total": len(families),
 	})
 }
 
@@ -105,6 +106,7 @@ func (h *FamilyHandler) HandleGetMembers(w http.ResponseWriter, r *http.Request)
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"items": items,
+		"total": len(items),
 	})
 }
 
