@@ -7,6 +7,7 @@ import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
+import { ContactPicker } from '../components/ContactPicker';
 
 interface LabValue {
   marker: string;
@@ -79,7 +80,7 @@ export function Labs() {
     },
   });
 
-  const { register, handleSubmit, reset, control } = useForm<{
+  const { register, handleSubmit, reset, control, setValue, watch } = useForm<{
     lab_name: string;
     ordered_by: string;
     sample_date: string;
@@ -95,6 +96,8 @@ export function Labs() {
     handleSubmit: editHandleSubmit,
     reset: editReset,
     control: editControl,
+    setValue: editSetValue,
+    watch: editWatch,
   } = useForm<{
     lab_name: string;
     ordered_by: string;
@@ -149,7 +152,7 @@ export function Labs() {
               <form id="lab-create-form" onSubmit={handleSubmit((data) => createMutation.mutate(data))}>
                 <div className="form-row">
                   <div className="form-group"><label>{t('labs.lab_name')}</label><input type="text" {...register('lab_name')} /></div>
-                  <div className="form-group"><label>{t('labs.ordered_by')}</label><input type="text" {...register('ordered_by')} /></div>
+                  <ContactPicker profileId={profileId} value={watch('ordered_by')} onChange={(name) => setValue('ordered_by', name)} label={t('labs.ordered_by')} />
                   <div className="form-group"><label>{t('labs.sample_date')} *</label><input type="date" {...register('sample_date')} required /></div>
                 </div>
 
@@ -253,7 +256,7 @@ export function Labs() {
               <form id="lab-edit-form" onSubmit={editHandleSubmit(onEditSubmit)}>
                 <div className="form-row">
                   <div className="form-group"><label>{t('labs.lab_name')}</label><input type="text" {...editRegister('lab_name')} /></div>
-                  <div className="form-group"><label>{t('labs.ordered_by')}</label><input type="text" {...editRegister('ordered_by')} /></div>
+                  <ContactPicker profileId={profileId} value={editWatch('ordered_by')} onChange={(name) => editSetValue('ordered_by', name)} label={t('labs.ordered_by')} />
                   <div className="form-group"><label>{t('labs.sample_date')} *</label><input type="date" {...editRegister('sample_date')} required /></div>
                 </div>
 

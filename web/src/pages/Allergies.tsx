@@ -6,6 +6,7 @@ import { ProfileSelector } from '../components/ProfileSelector';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
+import { ContactPicker } from '../components/ContactPicker';
 
 interface Allergy {
   id: string;
@@ -68,8 +69,8 @@ export function Allergies() {
     },
   });
 
-  const { register, handleSubmit, reset } = useForm<Partial<Allergy>>();
-  const { register: editRegister, handleSubmit: editHandleSubmit, reset: editReset, setValue: editSetValue } = useForm<Partial<Allergy>>();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<Partial<Allergy>>();
+  const { register: editRegister, handleSubmit: editHandleSubmit, reset: editReset, setValue: editSetValue, watch: editWatch } = useForm<Partial<Allergy>>();
 
   useEffect(() => {
     if (editTarget) {
@@ -115,7 +116,7 @@ export function Allergies() {
                   <div className="form-group"><label>{t('allergies.reaction_type')}</label>
                     <select {...register('reaction_type')}><option value="">{t('common.select')}</option>{REACTIONS.map((r) => <option key={r} value={r}>{t('allergies.react_' + r)}</option>)}</select>
                   </div>
-                  <div className="form-group"><label>{t('allergies.diagnosed_by')}</label><input type="text" {...register('diagnosed_by')} /></div>
+                  <ContactPicker profileId={profileId} value={watch('diagnosed_by')} onChange={(name) => setValue('diagnosed_by', name)} label={t('allergies.diagnosed_by')} />
                 </div>
               </form>
             </div>
@@ -172,7 +173,7 @@ export function Allergies() {
                   <div className="form-group"><label>{t('allergies.reaction_type')}</label>
                     <select {...editRegister('reaction_type')}><option value="">{t('common.select')}</option>{REACTIONS.map((r) => <option key={r} value={r}>{t('allergies.react_' + r)}</option>)}</select>
                   </div>
-                  <div className="form-group"><label>{t('allergies.diagnosed_by')}</label><input type="text" {...editRegister('diagnosed_by')} /></div>
+                  <ContactPicker profileId={profileId} value={editWatch('diagnosed_by')} onChange={(name) => editSetValue('diagnosed_by', name)} label={t('allergies.diagnosed_by')} />
                 </div>
               </form>
             </div>

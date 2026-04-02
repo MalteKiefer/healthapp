@@ -8,6 +8,7 @@ import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
+import { ContactPicker } from '../components/ContactPicker';
 
 interface Vaccination {
   id: string;
@@ -77,7 +78,7 @@ export function Vaccinations() {
     },
   });
 
-  const { register, handleSubmit, reset } = useForm<Partial<Vaccination>>();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<Partial<Vaccination>>();
   const editForm = useForm<Partial<Vaccination>>({ values: editTarget ? {
     vaccine_name: editTarget.vaccine_name,
     trade_name: editTarget.trade_name || '',
@@ -173,10 +174,7 @@ export function Vaccinations() {
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="form-group">
-                    <label>{t('vaccinations.administered_by')}</label>
-                    <input type="text" {...register('administered_by')} />
-                  </div>
+                  <ContactPicker profileId={profileId} value={watch('administered_by')} onChange={(name) => setValue('administered_by', name)} label={t('vaccinations.administered_by')} />
                   <div className="form-group">
                     <label>{t('vaccinations.next_due_date')}</label>
                     <input type="date" {...register('next_due_at')} />
@@ -282,10 +280,7 @@ export function Vaccinations() {
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="form-group">
-                    <label>{t('vaccinations.administered_by')}</label>
-                    <input type="text" {...editForm.register('administered_by')} />
-                  </div>
+                  <ContactPicker profileId={profileId} value={editForm.watch('administered_by')} onChange={(name) => editForm.setValue('administered_by', name)} label={t('vaccinations.administered_by')} />
                   <div className="form-group">
                     <label>{t('vaccinations.next_due_date')}</label>
                     <input type="date" {...editForm.register('next_due_at')} />

@@ -7,6 +7,7 @@ import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
+import { ContactPicker } from '../components/ContactPicker';
 
 interface Diagnosis {
   id: string;
@@ -68,7 +69,7 @@ export function Diagnoses() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['diagnoses', profileId] }),
   });
 
-  const { register, handleSubmit, reset } = useForm<Partial<Diagnosis>>();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<Partial<Diagnosis>>();
   const editForm = useForm<Partial<Diagnosis>>({ values: editTarget ? {
     name: editTarget.name,
     icd10_code: editTarget.icd10_code || '',
@@ -118,7 +119,7 @@ export function Diagnoses() {
                 </div>
                 <div className="form-row">
                   <div className="form-group"><label>{t('diagnoses.diagnosed_at')}</label><input type="date" {...register('diagnosed_at')} /></div>
-                  <div className="form-group"><label>{t('diagnoses.diagnosed_by')}</label><input type="text" {...register('diagnosed_by')} /></div>
+                  <ContactPicker profileId={profileId} value={watch('diagnosed_by')} onChange={(name) => setValue('diagnosed_by', name)} label={t('diagnoses.diagnosed_by')} />
                 </div>
               </form>
             </div>
@@ -184,7 +185,7 @@ export function Diagnoses() {
                 </div>
                 <div className="form-row">
                   <div className="form-group"><label>{t('diagnoses.diagnosed_at')}</label><input type="date" {...editForm.register('diagnosed_at')} /></div>
-                  <div className="form-group"><label>{t('diagnoses.diagnosed_by')}</label><input type="text" {...editForm.register('diagnosed_by')} /></div>
+                  <ContactPicker profileId={profileId} value={editForm.watch('diagnosed_by')} onChange={(name) => editForm.setValue('diagnosed_by', name)} label={t('diagnoses.diagnosed_by')} />
                   <div className="form-group"><label>{t('diagnoses.resolved_at')}</label><input type="date" {...editForm.register('resolved_at')} /></div>
                 </div>
                 <div className="form-group"><label>{t('common.notes')}</label><textarea rows={3} {...editForm.register('notes')} /></div>
