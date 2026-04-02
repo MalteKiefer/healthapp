@@ -100,13 +100,15 @@ class LoginViewModel(private val authRepo: AuthRepository) : ViewModel() {
     }
 
     fun login() {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+        viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
                 val baseUrl = discoverBaseUrl(_state.value.serverUrl)
                 de.healthvault.data.api.ApiClient.baseUrl = baseUrl
-                // Derive auth_hash client-side (PBKDF2-SHA256, 600k iterations)
-                val authHash = deriveAuthHash(_state.value.password, _state.value.email)
+                // Derive auth_hash on background thread (PBKDF2-SHA256, 600k iterations)
+                val authHash = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    deriveAuthHash(_state.value.password, _state.value.email)
+                }
                 authRepo.login(_state.value.email, authHash)
                 _state.value = _state.value.copy(isLoading = false, isLoggedIn = true)
             } catch (e: Exception) {
