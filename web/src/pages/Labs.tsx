@@ -56,8 +56,19 @@ export function Labs() {
     enabled: !!profileId,
   });
 
+  const cleanLab = (lab: Partial<LabResult>) => {
+    const cleaned = { ...lab };
+    // date inputs give "2026-04-02" — backend needs full ISO 8601
+    if (cleaned.sample_date && !cleaned.sample_date.includes('T')) {
+      cleaned.sample_date = new Date(cleaned.sample_date + 'T00:00:00').toISOString();
+    }
+    if (!cleaned.lab_name) delete cleaned.lab_name;
+    if (!cleaned.ordered_by) delete cleaned.ordered_by;
+    return cleaned;
+  };
+
   const createMutation = useMutation({
-    mutationFn: (lab: Partial<LabResult>) => api.post(`/api/v1/profiles/${profileId}/labs`, lab),
+    mutationFn: (lab: Partial<LabResult>) => api.post(`/api/v1/profiles/${profileId}/labs`, cleanLab(lab)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labs', profileId] });
       setShowForm(false);
@@ -72,7 +83,7 @@ export function Labs() {
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<LabResult> & { id: string }) =>
-      api.patch(`/api/v1/profiles/${profileId}/labs/${data.id}`, data),
+      api.patch(`/api/v1/profiles/${profileId}/labs/${data.id}`, cleanLab(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labs', profileId] });
       setEditTarget(null);
