@@ -46,8 +46,22 @@ export function Tasks() {
     enabled: !!profileId,
   });
 
+  const fixDates = (data: Record<string, unknown>, dateFields: string[]) => {
+    const cleaned = { ...data };
+    for (const field of dateFields) {
+      const val = cleaned[field];
+      if (typeof val === 'string' && val && !val.includes('T')) {
+        cleaned[field] = new Date(val + 'T00:00:00').toISOString();
+      }
+      if (typeof val === 'string' && val === '') {
+        delete cleaned[field];
+      }
+    }
+    return cleaned;
+  };
+
   const createMutation = useMutation({
-    mutationFn: (task: Partial<Task>) => api.post(`/api/v1/profiles/${profileId}/tasks`, task),
+    mutationFn: (task: Partial<Task>) => api.post(`/api/v1/profiles/${profileId}/tasks`, fixDates(task as Record<string, unknown>, ['due_date'])),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', profileId] });
       setShowForm(false);
@@ -57,7 +71,7 @@ export function Tasks() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: string } & Partial<Task>) =>
-      api.patch(`/api/v1/profiles/${profileId}/tasks/${id}`, data),
+      api.patch(`/api/v1/profiles/${profileId}/tasks/${id}`, fixDates(data as Record<string, unknown>, ['due_date'])),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks', profileId] }),
   });
 

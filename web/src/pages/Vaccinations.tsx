@@ -51,8 +51,22 @@ export function Vaccinations() {
     enabled: !!profileId,
   });
 
+  const fixDates = (data: Record<string, unknown>, dateFields: string[]) => {
+    const cleaned = { ...data };
+    for (const field of dateFields) {
+      const val = cleaned[field];
+      if (typeof val === 'string' && val && !val.includes('T')) {
+        cleaned[field] = new Date(val + 'T00:00:00').toISOString();
+      }
+      if (typeof val === 'string' && val === '') {
+        delete cleaned[field];
+      }
+    }
+    return cleaned;
+  };
+
   const createMutation = useMutation({
-    mutationFn: (v: Partial<Vaccination>) => api.post(`/api/v1/profiles/${profileId}/vaccinations`, v),
+    mutationFn: (v: Partial<Vaccination>) => api.post(`/api/v1/profiles/${profileId}/vaccinations`, fixDates(v as Record<string, unknown>, ['administered_at', 'next_due_at'])),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
       setShowForm(false);
@@ -62,7 +76,7 @@ export function Vaccinations() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: Partial<Vaccination> & { id: string }) =>
-      api.patch(`/api/v1/profiles/${profileId}/vaccinations/${id}`, data),
+      api.patch(`/api/v1/profiles/${profileId}/vaccinations/${id}`, fixDates(data as Record<string, unknown>, ['administered_at', 'next_due_at'])),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
       queryClient.invalidateQueries({ queryKey: ['vaccinations-due', profileId] });

@@ -46,8 +46,22 @@ export function Diagnoses() {
     enabled: !!profileId,
   });
 
+  const fixDates = (data: Record<string, unknown>, dateFields: string[]) => {
+    const cleaned = { ...data };
+    for (const field of dateFields) {
+      const val = cleaned[field];
+      if (typeof val === 'string' && val && !val.includes('T')) {
+        cleaned[field] = new Date(val + 'T00:00:00').toISOString();
+      }
+      if (typeof val === 'string' && val === '') {
+        delete cleaned[field];
+      }
+    }
+    return cleaned;
+  };
+
   const createMutation = useMutation({
-    mutationFn: (d: Partial<Diagnosis>) => api.post(`/api/v1/profiles/${profileId}/diagnoses`, d),
+    mutationFn: (d: Partial<Diagnosis>) => api.post(`/api/v1/profiles/${profileId}/diagnoses`, fixDates(d as Record<string, unknown>, ['diagnosed_at', 'resolved_at'])),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['diagnoses', profileId] });
       setShowForm(false);
@@ -57,7 +71,7 @@ export function Diagnoses() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: Partial<Diagnosis> & { id: string }) =>
-      api.patch(`/api/v1/profiles/${profileId}/diagnoses/${id}`, data),
+      api.patch(`/api/v1/profiles/${profileId}/diagnoses/${id}`, fixDates(data as Record<string, unknown>, ['diagnosed_at', 'resolved_at'])),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['diagnoses', profileId] });
       setEditTarget(null);
