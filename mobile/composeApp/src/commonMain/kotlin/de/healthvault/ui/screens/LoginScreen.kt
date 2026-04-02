@@ -100,7 +100,7 @@ class LoginViewModel(private val authRepo: AuthRepository) : ViewModel() {
     }
 
     fun login() {
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
                 val baseUrl = discoverBaseUrl(_state.value.serverUrl)
