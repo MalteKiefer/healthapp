@@ -83,6 +83,16 @@ class ApiClient {
     return Uint8List.fromList(res.data!);
   }
 
+  Future<T> uploadFile<T>(String path, String filePath, String fileName, {String? category, T Function(dynamic)? fromJson}) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath, filename: fileName),
+      if (category != null) 'category': category,
+    });
+    final res = await _dio.post('$_baseUrl$path', data: formData);
+    _checkResponse(res);
+    return fromJson != null ? fromJson(res.data) : res.data as T;
+  }
+
   Future<void> delete(String path) async {
     final res = await _dio.delete('$_baseUrl$path');
     if (res.statusCode != null && res.statusCode! >= 400) {

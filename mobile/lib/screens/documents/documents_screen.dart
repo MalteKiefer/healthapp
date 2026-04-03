@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -43,6 +44,75 @@ class DocumentsScreen extends ConsumerStatefulWidget {
 
 class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   String? _selectedCategory;
+
+  Future<void> _uploadDocument() async {
+    // 1. Pick file
+    final result = await FilePicker.platform.pickFiles();
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.path == null) return;
+
+    // 2. Ask for category
+    String selectedCat = 'other';
+    final categories = [
+      'lab_result', 'imaging', 'prescription', 'referral',
+      'vaccination_record', 'discharge_summary', 'report', 'legal', 'other',
+    ];
+
+    final cat = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(T.tr('documents.select_category'),
+                style: Theme.of(ctx).textTheme.titleMedium),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: categories.map((c) => ChoiceChip(
+                label: Text(_categoryLabel(c)),
+                selected: c == selectedCat,
+                onSelected: (_) => Navigator.pop(ctx, c),
+              )).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+    if (cat != null) selectedCat = cat;
+
+    // 3. Upload
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(T.tr('documents.uploading'))),
+    );
+
+    try {
+      final api = ref.read(apiClientProvider);
+      await api.uploadFile<Map<String, dynamic>>(
+        '/api/v1/profiles/${widget.profileId}/documents',
+        file.path!,
+        file.name,
+        category: selectedCat,
+      );
+      ref.invalidate(_documentsProvider(widget.profileId));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(T.tr('documents.uploaded'))),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+    }
+  }
 
   Future<void> _delete(String id) async {
     final confirmed = await showDialog<bool>(
@@ -337,6 +407,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       appBar: AppBar(
         title: Text(T.tr('documents.title')),
         automaticallyImplyLeading: false,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _uploadDocument,
+        tooltip: T.tr('documents.upload'),
+        child: const Icon(Icons.upload_file),
       ),
       body: asyncVal.when(
         loading: () => const Center(child: CircularProgressIndicator()),
