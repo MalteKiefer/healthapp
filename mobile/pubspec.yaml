@@ -12,6 +12,8 @@ dependencies:
 
   # UI
   cupertino_icons: ^1.0.8
+  flutter_localizations:
+    sdk: flutter
   dynamic_color: ^1.7.0
 
   # State Management

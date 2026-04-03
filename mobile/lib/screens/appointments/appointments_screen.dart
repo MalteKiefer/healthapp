@@ -70,18 +70,20 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     final titleCtrl = TextEditingController();
     final dateCtrl = TextEditingController();
     final locationCtrl = TextEditingController();
+    final doctorCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
     DateTime? selectedDateTime;
+    String? selectedDoctorId;
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.75,
+        initialChildSize: 0.80,
         minChildSize: 0.5,
-        maxChildSize: 0.9,
+        maxChildSize: 0.95,
         builder: (ctx, scrollCtrl) => Padding(
           padding: EdgeInsets.only(
             left: 20,
@@ -102,7 +104,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                   decoration: InputDecoration(
                       labelText: T.tr('appointments.field_title')),
                   validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      (v == null || v.trim().isEmpty) ? T.tr('common.required') : null,
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -113,11 +115,13 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                   ),
                   readOnly: true,
                   onTap: () async {
+                    final locale = T.lang == 'de' ? const Locale('de') : const Locale('en');
                     final date = await showDatePicker(
                       context: ctx,
                       initialDate: DateTime.now(),
                       firstDate: DateTime(2000),
                       lastDate: DateTime(2100),
+                      locale: locale,
                     );
                     if (date == null) return;
                     if (!ctx.mounted) return;
@@ -145,6 +149,25 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                   controller: locationCtrl,
                   decoration: InputDecoration(
                       labelText: T.tr('appointments.field_location')),
+                ),
+                const SizedBox(height: 12),
+                // Doctor / Contact picker
+                TextField(
+                  controller: doctorCtrl,
+                  decoration: InputDecoration(
+                    labelText: T.tr('appointments.field_doctor'),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.contacts_outlined),
+                      tooltip: T.tr('contacts.title'),
+                      onPressed: () async {
+                        final result = await _showContactPicker(ctx);
+                        if (result != null) {
+                          doctorCtrl.text = result['name'] as String;
+                          selectedDoctorId = result['id'] as String?;
+                        }
+                      },
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -175,6 +198,8 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                       'recurrence': 'none',
                       if (locationCtrl.text.trim().isNotEmpty)
                         'location': locationCtrl.text.trim(),
+                      if (selectedDoctorId != null)
+                        'doctor_id': selectedDoctorId,
                       if (notesCtrl.text.trim().isNotEmpty)
                         'preparation_notes': notesCtrl.text.trim(),
                     };
@@ -203,7 +228,88 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     titleCtrl.dispose();
     dateCtrl.dispose();
     locationCtrl.dispose();
+    doctorCtrl.dispose();
     notesCtrl.dispose();
+  }
+
+  Future<Map<String, String>?> _showContactPicker(BuildContext ctx) async {
+    // Load contacts from API
+    List<dynamic> contacts = [];
+    try {
+      final api = ref.read(apiClientProvider);
+      final data = await api.get<Map<String, dynamic>>(
+          '/api/v1/profiles/${widget.profileId}/contacts');
+      contacts = data['items'] as List? ?? [];
+    } catch (_) {}
+
+    if (contacts.isEmpty) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text(T.tr('contacts.no_contacts'))),
+        );
+      }
+      return null;
+    }
+
+    return showModalBottomSheet<Map<String, String>>(
+      context: ctx,
+      builder: (sheetCtx) {
+        final searchCtrl = TextEditingController();
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            final query = searchCtrl.text.toLowerCase();
+            final filtered = contacts.where((c) {
+              final name = (c['name'] ?? '').toString().toLowerCase();
+              final spec = (c['specialty'] ?? '').toString().toLowerCase();
+              return name.contains(query) || spec.contains(query);
+            }).toList();
+
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(T.tr('appointments.select_doctor'),
+                      style: Theme.of(sheetCtx).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: searchCtrl,
+                    decoration: InputDecoration(
+                      hintText: T.tr('common.search'),
+                      prefixIcon: const Icon(Icons.search),
+                    ),
+                    onChanged: (_) => setSheetState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final c = filtered[i];
+                        return ListTile(
+                          leading: const Icon(Icons.person_outline),
+                          title: Text(c['name'] ?? ''),
+                          subtitle: c['specialty'] != null
+                              ? Text(c['specialty'])
+                              : null,
+                          onTap: () {
+                            Navigator.pop(sheetCtx, {
+                              'id': c['id']?.toString() ?? '',
+                              'name': c['name']?.toString() ?? '',
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override

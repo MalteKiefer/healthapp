@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/i18n/translations.dart';
@@ -37,6 +38,7 @@ class HealthVaultApp extends ConsumerWidget {
     // Watch language to trigger rebuild on change
     ref.watch(languageProvider);
 
+    final lang = ref.watch(languageProvider);
     return MaterialApp.router(
       title: 'HealthVault',
       theme: AppTheme.light(),
@@ -44,6 +46,13 @@ class HealthVaultApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: appRouter,
       debugShowCheckedModeBanner: false,
+      locale: Locale(lang),
+      supportedLocales: const [Locale('de'), Locale('en')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
     );
   }
 }
