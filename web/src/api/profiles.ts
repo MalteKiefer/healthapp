@@ -20,7 +20,10 @@ export interface Profile {
 }
 
 export const profilesApi = {
-  list: () => api.get<Profile[]>('/api/v1/profiles'),
+  list: async () => {
+    const res = await api.get<{ items: Profile[]; total: number }>('/api/v1/profiles');
+    return res.items;
+  },
   get: (id: string) => api.get<Profile>(`/api/v1/profiles/${id}`),
   create: (data: Partial<Profile>) => api.post<Profile>('/api/v1/profiles', data),
   update: (id: string, data: Partial<Profile>) => api.patch<Profile>(`/api/v1/profiles/${id}`, data),
