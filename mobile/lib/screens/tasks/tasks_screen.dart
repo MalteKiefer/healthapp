@@ -1,40 +1,412 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../models/common.dart';
+import '../../providers/providers.dart';
 
-class TasksScreen extends StatelessWidget {
+// -- Provider -----------------------------------------------------------------
+
+final _tasksProvider =
+    FutureProvider.family<List<Task>, String>((ref, profileId) async {
+  final api = ref.read(apiClientProvider);
+  final data = await api
+      .get<Map<String, dynamic>>('/api/v1/profiles/$profileId/tasks');
+  return (data['items'] as List)
+      .map((e) => Task.fromJson(e as Map<String, dynamic>))
+      .toList();
+});
+
+// -- Screen -------------------------------------------------------------------
+
+class TasksScreen extends ConsumerStatefulWidget {
   final String profileId;
   const TasksScreen({super.key, required this.profileId});
+
+  @override
+  ConsumerState<TasksScreen> createState() => _TasksScreenState();
+}
+
+class _TasksScreenState extends ConsumerState<TasksScreen> {
+  bool _openOnly = true;
+
+  Future<void> _delete(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Task'),
+        content: const Text('This task will be permanently removed.'),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref
+          .read(apiClientProvider)
+          .delete('/api/v1/profiles/${widget.profileId}/tasks/$id');
+      ref.invalidate(_tasksProvider(widget.profileId));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
+  Future<void> _toggleCompletion(Task task) async {
+    try {
+      await ref.read(apiClientProvider).patch<void>(
+            '/api/v1/profiles/${widget.profileId}/tasks/${task.id}',
+            body: {'completed': !task.completed},
+          );
+      ref.invalidate(_tasksProvider(widget.profileId));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
+  Future<void> _showAddSheet() async {
+    final titleCtrl = TextEditingController();
+    final dueDateCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    String priority = 'medium';
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.65,
+        minChildSize: 0.45,
+        maxChildSize: 0.9,
+        builder: (ctx, scrollCtrl) => StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: Form(
+              key: formKey,
+              child: ListView(
+                controller: scrollCtrl,
+                children: [
+                  const SizedBox(height: 8),
+                  Text('Add Task',
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(labelText: 'Title *'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: dueDateCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Due Date',
+                      hintText: 'YYYY-MM-DD',
+                      suffixIcon: Icon(Icons.calendar_today),
+                    ),
+                    readOnly: true,
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        dueDateCtrl.text =
+                            DateFormat('yyyy-MM-dd').format(picked);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: priority,
+                    decoration: const InputDecoration(labelText: 'Priority'),
+                    items: const [
+                      DropdownMenuItem(value: 'low', child: Text('Low')),
+                      DropdownMenuItem(
+                          value: 'medium', child: Text('Medium')),
+                      DropdownMenuItem(value: 'high', child: Text('High')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setSheetState(() => priority = v);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesCtrl,
+                    decoration: const InputDecoration(labelText: 'Notes'),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+                      Navigator.pop(ctx);
+                      final body = <String, dynamic>{
+                        'title': titleCtrl.text.trim(),
+                        'priority': priority,
+                        if (dueDateCtrl.text.trim().isNotEmpty)
+                          'due_at':
+                              '${dueDateCtrl.text.trim()}T00:00:00.000Z',
+                        if (notesCtrl.text.trim().isNotEmpty)
+                          'description': notesCtrl.text.trim(),
+                      };
+                      try {
+                        await ref.read(apiClientProvider).post<void>(
+                              '/api/v1/profiles/${widget.profileId}/tasks',
+                              body: body,
+                            );
+                        ref.invalidate(
+                            _tasksProvider(widget.profileId));
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text('$e')));
+                        }
+                      }
+                    },
+                    child: const Text('Add Task'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    titleCtrl.dispose();
+    dueDateCtrl.dispose();
+    notesCtrl.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final asyncVal = ref.watch(_tasksProvider(widget.profileId));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tasks'),
         automaticallyImplyLeading: false,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest,
-                  shape: BoxShape.circle,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddSheet,
+        tooltip: 'Add task',
+        child: const Icon(Icons.add),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                ChoiceChip(
+                  label: const Text('Open'),
+                  selected: _openOnly,
+                  onSelected: (_) => setState(() => _openOnly = true),
                 ),
-                child: Icon(Icons.task_alt_outlined,
-                    size: 40, color: cs.onSurfaceVariant),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('Completed'),
+                  selected: !_openOnly,
+                  onSelected: (_) => setState(() => _openOnly = false),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: asyncVal.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.error_outline, size: 48, color: cs.error),
+                  const SizedBox(height: 12),
+                  Text('Failed to load', style: tt.bodyLarge),
+                  const SizedBox(height: 12),
+                  FilledButton.tonal(
+                    onPressed: () =>
+                        ref.invalidate(_tasksProvider(widget.profileId)),
+                    child: const Text('Retry'),
+                  ),
+                ]),
               ),
-              const SizedBox(height: 20),
-              Text('Coming Soon', style: tt.titleMedium),
-              const SizedBox(height: 8),
-              Text(
-                'Task management will be available in a future update.',
-                textAlign: TextAlign.center,
-                style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+              data: (items) {
+                final list = _openOnly
+                    ? items.where((t) => !t.completed).toList()
+                    : items.where((t) => t.completed).toList();
+                if (list.isEmpty) {
+                  return Center(
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.task_alt_outlined,
+                              size: 48, color: cs.outline),
+                          const SizedBox(height: 12),
+                          Text(
+                            _openOnly
+                                ? 'No open tasks'
+                                : 'No completed tasks',
+                            style: tt.bodyLarge
+                                ?.copyWith(color: cs.onSurfaceVariant),
+                          ),
+                        ]),
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                  itemCount: list.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) => _TaskCard(
+                    task: list[i],
+                    onDelete: () => _delete(list[i].id),
+                    onToggle: () => _toggleCompletion(list[i]),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -- Card ---------------------------------------------------------------------
+
+class _TaskCard extends StatelessWidget {
+  final Task task;
+  final VoidCallback onDelete;
+  final VoidCallback onToggle;
+  const _TaskCard({
+    required this.task,
+    required this.onDelete,
+    required this.onToggle,
+  });
+
+  Color _priorityColor(String? priority, ColorScheme cs) {
+    switch (priority?.toLowerCase()) {
+      case 'high':
+        return cs.error;
+      case 'medium':
+        return cs.tertiary;
+      default:
+        return cs.primary;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final priColor = _priorityColor(task.priority, cs);
+
+    String? dueStr;
+    bool isOverdue = false;
+    if (task.dueAt != null) {
+      try {
+        final d = DateTime.parse(task.dueAt!);
+        dueStr = DateFormat('MMM d, yyyy').format(d);
+        isOverdue = d.isBefore(DateTime.now()) && !task.completed;
+      } catch (_) {
+        dueStr = task.dueAt;
+      }
+    }
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onLongPress: onDelete,
+        onTap: onToggle,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Checkbox(
+                value: task.completed,
+                onChanged: (_) => onToggle(),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            task.title,
+                            style: tt.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              decoration: task.completed
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                        ),
+                        if (task.priority != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: priColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              task.priority!,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: priColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (dueStr != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Due: $dueStr',
+                        style: tt.bodySmall?.copyWith(
+                          color: isOverdue ? cs.error : cs.onSurfaceVariant,
+                          fontWeight:
+                              isOverdue ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                    if (task.description != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        task.description!,
+                        style: tt.bodySmall?.copyWith(color: cs.outline),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),

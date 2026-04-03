@@ -246,3 +246,33 @@ class Symptom {
         isOngoing: json['is_ongoing'] ?? false,
       );
 }
+
+class Document {
+  final String id;
+  final String filename;
+  final String? category;
+  final String? mimeType;
+  final int? fileSize;
+  final String? uploadedAt;
+  final String? notes;
+
+  Document({
+    required this.id,
+    required this.filename,
+    this.category,
+    this.mimeType,
+    this.fileSize,
+    this.uploadedAt,
+    this.notes,
+  });
+
+  factory Document.fromJson(Map<String, dynamic> json) => Document(
+        id: json['id'],
+        filename: json['filename'] ?? json['file_name'] ?? 'Untitled',
+        category: json['category'],
+        mimeType: json['mime_type'],
+        fileSize: json['file_size'],
+        uploadedAt: json['uploaded_at'] ?? json['created_at'],
+        notes: json['notes'],
+      );
+}
