@@ -100,6 +100,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     ];
 
     final filenameCtrl = TextEditingController(text: doc.filename);
+    final tagsCtrl = TextEditingController(text: doc.tags ?? '');
     String? selectedCategory = doc.category;
     final formKey = GlobalKey<FormState>();
 
@@ -151,15 +152,33 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                       .toList(),
                   onChanged: (v) => setSheetState(() => selectedCategory = v),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: tagsCtrl,
+                  decoration: InputDecoration(
+                    labelText: T.tr('documents.field_tags'),
+                  ),
+                ),
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: () async {
                     if (!formKey.currentState!.validate()) return;
                     Navigator.pop(ctx);
+                    // Convert comma-separated tags to array
+                    final tagText = tagsCtrl.text.trim();
+                    List<String>? tagArray;
+                    if (tagText.isNotEmpty) {
+                      tagArray = tagText
+                          .split(',')
+                          .map((s) => s.trim())
+                          .where((s) => s.isNotEmpty)
+                          .toList();
+                    }
                     final body = <String, dynamic>{
                       'filename_enc': filenameCtrl.text.trim(),
                       if (selectedCategory != null)
                         'category': selectedCategory,
+                      if (tagArray != null) 'tags': tagArray,
                     };
                     try {
                       await ref.read(apiClientProvider).patch<void>(
@@ -183,6 +202,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       ),
     );
     filenameCtrl.dispose();
+    tagsCtrl.dispose();
   }
 
   Future<void> _openDocument(Document doc) async {
@@ -285,11 +305,15 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               Text('Kategorie: ${_categoryLabel(doc.category)}'),
             if (doc.mimeType != null) Text('Typ: ${doc.mimeType}'),
             if (doc.fileSize != null)
-              Text('Größe: ${_formatFileSize(doc.fileSize)}'),
+              Text('Groesse: ${_formatFileSize(doc.fileSize)}'),
             if (doc.uploadedAt != null) Text('Hochgeladen: ${doc.uploadedAt}'),
             if (doc.notes != null) ...[
               const SizedBox(height: 8),
               Text('Notizen: ${doc.notes}'),
+            ],
+            if (doc.tags != null && doc.tags!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('Tags: ${doc.tags}'),
             ],
           ],
         ),

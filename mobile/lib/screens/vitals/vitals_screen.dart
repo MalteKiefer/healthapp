@@ -121,88 +121,204 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
           text: existing?.pulse?.toStringAsFixed(0) ?? ''),
       'weight': TextEditingController(
           text: existing?.weight?.toStringAsFixed(1) ?? ''),
+      'height': TextEditingController(
+          text: existing?.height?.toStringAsFixed(1) ?? ''),
       'temp': TextEditingController(
           text: existing?.temperature?.toStringAsFixed(1) ?? ''),
       'spo2': TextEditingController(
           text: existing?.oxygenSaturation?.toStringAsFixed(0) ?? ''),
       'glucose': TextEditingController(
           text: existing?.bloodGlucose?.toStringAsFixed(0) ?? ''),
+      'respiratory_rate': TextEditingController(
+          text: existing?.respiratoryRate?.toString() ?? ''),
+      'waist': TextEditingController(
+          text: existing?.waistCircumference?.toStringAsFixed(1) ?? ''),
+      'hip': TextEditingController(
+          text: existing?.hipCircumference?.toStringAsFixed(1) ?? ''),
+      'body_fat': TextEditingController(
+          text: existing?.bodyFatPercentage?.toStringAsFixed(1) ?? ''),
+      'bmi': TextEditingController(
+          text: existing?.bmi?.toStringAsFixed(1) ?? ''),
+      'sleep_duration': TextEditingController(
+          text: existing?.sleepDurationMinutes?.toString() ?? ''),
+      'device': TextEditingController(text: existing?.device ?? ''),
+      'notes': TextEditingController(text: existing?.notes ?? ''),
     };
+    int sleepQuality = existing?.sleepQuality ?? 5;
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.75,
+        initialChildSize: 0.85,
         minChildSize: 0.5,
-        maxChildSize: 0.9,
-        builder: (ctx, scrollCtrl) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: ListView(
-            controller: scrollCtrl,
-            children: [
-              const SizedBox(height: 8),
-              Text(
-                isEdit ? T.tr('vitals.edit') : T.tr('vitals.add'),
-                style: Theme.of(ctx).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 20),
-              _sheetField(ctrl['systolic']!, 'Systolic', 'mmHg'),
-              _sheetField(ctrl['diastolic']!, 'Diastolic', 'mmHg'),
-              _sheetField(ctrl['pulse']!, 'Pulse', 'bpm'),
-              _sheetField(ctrl['weight']!, 'Weight', 'kg'),
-              _sheetField(ctrl['temp']!, 'Temperature', '\u00b0C'),
-              _sheetField(ctrl['spo2']!, 'SpO\u2082', '%'),
-              _sheetField(ctrl['glucose']!, 'Blood Glucose', 'mg/dL'),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  double? d(String key) =>
-                      double.tryParse(ctrl[key]!.text.trim());
-                  final body = <String, dynamic>{
-                    'measured_at': isEdit
-                        ? existing.measuredAt
-                        : DateTime.now().toUtc().toIso8601String(),
-                    if (d('systolic') != null)
-                      'blood_pressure_systolic': d('systolic'),
-                    if (d('diastolic') != null)
-                      'blood_pressure_diastolic': d('diastolic'),
-                    if (d('pulse') != null) 'pulse': d('pulse'),
-                    if (d('weight') != null) 'weight': d('weight'),
-                    if (d('temp') != null) 'body_temperature': d('temp'),
-                    if (d('spo2') != null) 'oxygen_saturation': d('spo2'),
-                    if (d('glucose') != null) 'blood_glucose': d('glucose'),
-                  };
-                  try {
-                    final api = ref.read(apiClientProvider);
-                    if (isEdit) {
-                      await api.patch<void>(
-                        '/api/v1/profiles/${widget.profileId}/vitals/${existing.id}',
-                        body: body,
-                      );
-                    } else {
-                      await api.post<void>(
-                        '/api/v1/profiles/${widget.profileId}/vitals',
-                        body: body,
-                      );
+        maxChildSize: 0.95,
+        builder: (ctx, scrollCtrl) => StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: ListView(
+              controller: scrollCtrl,
+              children: [
+                const SizedBox(height: 8),
+                Text(
+                  isEdit ? T.tr('vitals.edit') : T.tr('vitals.add'),
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 20),
+                // -- Core vitals --
+                _sheetField(ctrl['systolic']!, 'Systolic', 'mmHg'),
+                _sheetField(ctrl['diastolic']!, 'Diastolic', 'mmHg'),
+                _sheetField(ctrl['pulse']!, 'Pulse', 'bpm'),
+                _sheetField(ctrl['weight']!, 'Weight', 'kg'),
+                _sheetField(ctrl['height']!, T.tr('vitals.height'), 'cm'),
+                _sheetField(ctrl['temp']!, 'Temperature', '\u00b0C'),
+                _sheetField(ctrl['spo2']!, 'SpO\u2082', '%'),
+                _sheetField(ctrl['glucose']!, 'Blood Glucose', 'mg/dL'),
+                _sheetField(ctrl['respiratory_rate']!,
+                    T.tr('vitals.respiratory_rate'), '/min',
+                    decimal: false),
+                // -- Body measurements (expanded) --
+                ExpansionTile(
+                  title: Text(T.tr('vitals.body_section')),
+                  children: [
+                    _sheetField(ctrl['waist']!,
+                        T.tr('vitals.waist_circumference'), 'cm'),
+                    _sheetField(ctrl['hip']!,
+                        T.tr('vitals.hip_circumference'), 'cm'),
+                    _sheetField(ctrl['body_fat']!,
+                        T.tr('vitals.body_fat_percentage'), '%'),
+                    _sheetField(ctrl['bmi']!, T.tr('vitals.bmi'), ''),
+                  ],
+                ),
+                // -- Sleep (expanded) --
+                ExpansionTile(
+                  title: Text(T.tr('vitals.sleep_section')),
+                  children: [
+                    _sheetField(ctrl['sleep_duration']!,
+                        T.tr('vitals.sleep_duration'), 'min',
+                        decimal: false),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${T.tr('vitals.sleep_quality')}: $sleepQuality',
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                    color: Theme.of(ctx)
+                                        .colorScheme
+                                        .onSurfaceVariant),
+                          ),
+                          Slider(
+                            value: sleepQuality.toDouble(),
+                            min: 1,
+                            max: 10,
+                            divisions: 9,
+                            label: sleepQuality.toString(),
+                            onChanged: (v) =>
+                                setSheetState(() => sleepQuality = v.round()),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                // -- Advanced --
+                ExpansionTile(
+                  title: Text(T.tr('common.advanced')),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: TextField(
+                        controller: ctrl['device']!,
+                        decoration: InputDecoration(
+                            labelText: T.tr('vitals.device')),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: TextField(
+                        controller: ctrl['notes']!,
+                        decoration: InputDecoration(
+                            labelText: T.tr('common.notes')),
+                        maxLines: 2,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    double? d(String key) =>
+                        double.tryParse(ctrl[key]!.text.trim());
+                    int? i(String key) =>
+                        int.tryParse(ctrl[key]!.text.trim());
+                    final body = <String, dynamic>{
+                      'measured_at': isEdit
+                          ? existing.measuredAt
+                          : DateTime.now().toUtc().toIso8601String(),
+                      if (d('systolic') != null)
+                        'blood_pressure_systolic': d('systolic'),
+                      if (d('diastolic') != null)
+                        'blood_pressure_diastolic': d('diastolic'),
+                      if (d('pulse') != null) 'pulse': d('pulse'),
+                      if (d('weight') != null) 'weight': d('weight'),
+                      if (d('height') != null) 'height': d('height'),
+                      if (d('temp') != null) 'body_temperature': d('temp'),
+                      if (d('spo2') != null) 'oxygen_saturation': d('spo2'),
+                      if (d('glucose') != null) 'blood_glucose': d('glucose'),
+                      if (i('respiratory_rate') != null)
+                        'respiratory_rate': i('respiratory_rate'),
+                      if (d('waist') != null)
+                        'waist_circumference': d('waist'),
+                      if (d('hip') != null) 'hip_circumference': d('hip'),
+                      if (d('body_fat') != null)
+                        'body_fat_percentage': d('body_fat'),
+                      if (d('bmi') != null) 'bmi': d('bmi'),
+                      if (i('sleep_duration') != null)
+                        'sleep_duration_minutes': i('sleep_duration'),
+                      if (existing?.sleepQuality != null ||
+                          sleepQuality != 5)
+                        'sleep_quality': sleepQuality,
+                      if (ctrl['device']!.text.trim().isNotEmpty)
+                        'device': ctrl['device']!.text.trim(),
+                      if (ctrl['notes']!.text.trim().isNotEmpty)
+                        'notes': ctrl['notes']!.text.trim(),
+                    };
+                    try {
+                      final api = ref.read(apiClientProvider);
+                      if (isEdit) {
+                        await api.patch<void>(
+                          '/api/v1/profiles/${widget.profileId}/vitals/${existing.id}',
+                          body: body,
+                        );
+                      } else {
+                        await api.post<void>(
+                          '/api/v1/profiles/${widget.profileId}/vitals',
+                          body: body,
+                        );
+                      }
+                      ref.invalidate(_vitalsProvider(widget.profileId));
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
                     }
-                    ref.invalidate(_vitalsProvider(widget.profileId));
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('Error: $e')));
-                    }
-                  }
-                },
-                child: Text(T.tr('common.save')),
-              ),
-            ],
+                  },
+                  child: Text(T.tr('common.save')),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -212,12 +328,15 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
     }
   }
 
-  Widget _sheetField(TextEditingController ctrl, String label, String suffix) {
+  Widget _sheetField(TextEditingController ctrl, String label, String suffix,
+      {bool decimal = true}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: ctrl,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        keyboardType: decimal
+            ? const TextInputType.numberWithOptions(decimal: true)
+            : const TextInputType.numberWithOptions(decimal: false),
         decoration: InputDecoration(
           labelText: label,
           suffixText: suffix,

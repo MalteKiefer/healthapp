@@ -65,20 +65,56 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
 
   Future<void> _showFormSheet({DiaryEvent? existing}) async {
     final isEdit = existing != null;
+    final titleCtrl =
+        TextEditingController(text: existing?.title ?? '');
     final contentCtrl =
         TextEditingController(text: existing?.content ?? '');
+    final locationCtrl =
+        TextEditingController(text: existing?.location ?? '');
+    final outcomeCtrl =
+        TextEditingController(text: existing?.outcome ?? '');
+    final startedAtCtrl = TextEditingController();
+    final endedAtCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
     String mood = existing?.mood ?? 'neutral';
     int moodScore = existing?.moodScore ?? 5;
+    int severity = existing?.severity ?? 5;
+    String? eventType = existing?.eventType;
+    DateTime? startedAt;
+    DateTime? endedAt;
+
+    if (isEdit && existing.startedAt != null) {
+      try {
+        startedAt = DateTime.parse(existing.startedAt!);
+        startedAtCtrl.text = DateFormat('yyyy-MM-dd HH:mm').format(startedAt.toLocal());
+      } catch (_) {}
+    }
+    if (isEdit && existing.endedAt != null) {
+      try {
+        endedAt = DateTime.parse(existing.endedAt!);
+        endedAtCtrl.text = DateFormat('yyyy-MM-dd HH:mm').format(endedAt.toLocal());
+      } catch (_) {}
+    }
+
+    const eventTypes = [
+      'note',
+      'symptom',
+      'medication',
+      'activity',
+      'food',
+      'sleep',
+      'mood',
+      'other'
+    ];
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.7,
+        initialChildSize: 0.85,
         minChildSize: 0.45,
-        maxChildSize: 0.9,
+        maxChildSize: 0.95,
         builder: (ctx, scrollCtrl) => StatefulBuilder(
           builder: (ctx, setSheetState) => Padding(
             padding: EdgeInsets.only(
@@ -97,6 +133,26 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                     style: Theme.of(ctx).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 20),
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: InputDecoration(
+                        labelText: T.tr('diary.entry_title')),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: eventTypes.contains(eventType) ? eventType : null,
+                    decoration: InputDecoration(
+                        labelText: T.tr('diary.event_type')),
+                    items: eventTypes
+                        .map((t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(T.tr('diary.type_$t')),
+                            ))
+                        .toList(),
+                    onChanged: (v) =>
+                        setSheetState(() => eventType = v),
+                  ),
+                  const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: mood,
                     decoration: const InputDecoration(labelText: 'Mood'),
@@ -136,11 +192,111 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: contentCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Notes',
+                    decoration: InputDecoration(
+                      labelText: T.tr('common.notes'),
                       alignLabelWithHint: true,
                     ),
                     maxLines: 4,
+                  ),
+                  // -- Advanced --
+                  ExpansionTile(
+                    title: Text(T.tr('common.advanced')),
+                    children: [
+                      // Start datetime
+                      TextField(
+                        controller: startedAtCtrl,
+                        decoration: InputDecoration(
+                          labelText: T.tr('diary.started_at'),
+                          suffixIcon: const Icon(Icons.access_time),
+                        ),
+                        readOnly: true,
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: ctx,
+                            initialDate: startedAt ?? DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (date == null) return;
+                          if (!ctx.mounted) return;
+                          final time = await showTimePicker(
+                            context: ctx,
+                            initialTime: startedAt != null
+                                ? TimeOfDay.fromDateTime(startedAt!)
+                                : TimeOfDay.now(),
+                          );
+                          if (time == null) return;
+                          startedAt = DateTime(date.year, date.month,
+                              date.day, time.hour, time.minute);
+                          startedAtCtrl.text = DateFormat('yyyy-MM-dd HH:mm')
+                              .format(startedAt!);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      // End datetime
+                      TextField(
+                        controller: endedAtCtrl,
+                        decoration: InputDecoration(
+                          labelText: T.tr('diary.ended_at'),
+                          suffixIcon: const Icon(Icons.access_time),
+                        ),
+                        readOnly: true,
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: ctx,
+                            initialDate: endedAt ?? DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (date == null) return;
+                          if (!ctx.mounted) return;
+                          final time = await showTimePicker(
+                            context: ctx,
+                            initialTime: endedAt != null
+                                ? TimeOfDay.fromDateTime(endedAt!)
+                                : TimeOfDay.now(),
+                          );
+                          if (time == null) return;
+                          endedAt = DateTime(date.year, date.month,
+                              date.day, time.hour, time.minute);
+                          endedAtCtrl.text = DateFormat('yyyy-MM-dd HH:mm')
+                              .format(endedAt!);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '${T.tr('diary.severity')}: $severity',
+                        style: Theme.of(ctx)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(
+                                color: Theme.of(ctx)
+                                    .colorScheme
+                                    .onSurfaceVariant),
+                      ),
+                      Slider(
+                        value: severity.toDouble(),
+                        min: 1,
+                        max: 10,
+                        divisions: 9,
+                        label: severity.toString(),
+                        onChanged: (v) =>
+                            setSheetState(() => severity = v.round()),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: locationCtrl,
+                        decoration: InputDecoration(
+                            labelText: T.tr('diary.location')),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: outcomeCtrl,
+                        decoration: InputDecoration(
+                            labelText: T.tr('diary.outcome')),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                   ),
                   const SizedBox(height: 20),
                   FilledButton(
@@ -152,8 +308,24 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                             : DateTime.now().toUtc().toIso8601String(),
                         'mood': mood,
                         'mood_score': moodScore,
+                        if (titleCtrl.text.trim().isNotEmpty)
+                          'title': titleCtrl.text.trim(),
+                        if (eventType != null)
+                          'event_type': eventType,
                         if (contentCtrl.text.trim().isNotEmpty)
                           'content': contentCtrl.text.trim(),
+                        if (startedAt != null)
+                          'started_at':
+                              startedAt!.toUtc().toIso8601String(),
+                        if (endedAt != null)
+                          'ended_at':
+                              endedAt!.toUtc().toIso8601String(),
+                        if (existing?.severity != null || severity != 5)
+                          'severity': severity,
+                        if (locationCtrl.text.trim().isNotEmpty)
+                          'location': locationCtrl.text.trim(),
+                        if (outcomeCtrl.text.trim().isNotEmpty)
+                          'outcome': outcomeCtrl.text.trim(),
                       };
                       try {
                         final api = ref.read(apiClientProvider);
@@ -186,7 +358,12 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
         ),
       ),
     );
+    titleCtrl.dispose();
     contentCtrl.dispose();
+    locationCtrl.dispose();
+    outcomeCtrl.dispose();
+    startedAtCtrl.dispose();
+    endedAtCtrl.dispose();
   }
 
   @override
@@ -345,7 +522,7 @@ class _DiaryCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          entry.mood ?? 'Entry',
+                          entry.title ?? entry.mood ?? 'Entry',
                           style: tt.titleSmall
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),

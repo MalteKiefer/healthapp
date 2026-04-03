@@ -84,6 +84,14 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
         TextEditingController(text: existing?.batchNumber ?? '');
     final adminByCtrl =
         TextEditingController(text: existing?.administeredBy ?? '');
+    final tradeNameCtrl =
+        TextEditingController(text: existing?.tradeName ?? '');
+    final manufacturerCtrl =
+        TextEditingController(text: existing?.manufacturer ?? '');
+    final doseNumberCtrl = TextEditingController(
+        text: existing?.doseNumber?.toString() ?? '');
+    final siteCtrl = TextEditingController(text: existing?.site ?? '');
+    final notesCtrl = TextEditingController(text: existing?.notes ?? '');
     final formKey = GlobalKey<FormState>();
 
     await showModalBottomSheet(
@@ -91,9 +99,9 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.75,
+        initialChildSize: 0.85,
         minChildSize: 0.5,
-        maxChildSize: 0.9,
+        maxChildSize: 0.95,
         builder: (ctx, scrollCtrl) => Padding(
           padding: EdgeInsets.only(
             left: 20,
@@ -184,6 +192,44 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                   decoration:
                       const InputDecoration(labelText: 'Administered By'),
                 ),
+                // -- Advanced --
+                ExpansionTile(
+                  title: Text(T.tr('common.advanced')),
+                  children: [
+                    TextField(
+                      controller: tradeNameCtrl,
+                      decoration: InputDecoration(
+                          labelText: T.tr('vaccinations.trade_name')),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: manufacturerCtrl,
+                      decoration: InputDecoration(
+                          labelText: T.tr('vaccinations.manufacturer')),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: doseNumberCtrl,
+                      decoration: InputDecoration(
+                          labelText: T.tr('vaccinations.dose_number')),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: siteCtrl,
+                      decoration: InputDecoration(
+                          labelText: T.tr('vaccinations.site')),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: notesCtrl,
+                      decoration: InputDecoration(
+                          labelText: T.tr('common.notes')),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: () async {
@@ -201,6 +247,17 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                         'batch_number': lotCtrl.text.trim(),
                       if (adminByCtrl.text.trim().isNotEmpty)
                         'administered_by': adminByCtrl.text.trim(),
+                      if (tradeNameCtrl.text.trim().isNotEmpty)
+                        'trade_name': tradeNameCtrl.text.trim(),
+                      if (manufacturerCtrl.text.trim().isNotEmpty)
+                        'manufacturer': manufacturerCtrl.text.trim(),
+                      if (int.tryParse(doseNumberCtrl.text.trim()) != null)
+                        'dose_number':
+                            int.tryParse(doseNumberCtrl.text.trim()),
+                      if (siteCtrl.text.trim().isNotEmpty)
+                        'site': siteCtrl.text.trim(),
+                      if (notesCtrl.text.trim().isNotEmpty)
+                        'notes': notesCtrl.text.trim(),
                     };
                     try {
                       final api = ref.read(apiClientProvider);
@@ -237,6 +294,11 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
     nextDueCtrl.dispose();
     lotCtrl.dispose();
     adminByCtrl.dispose();
+    tradeNameCtrl.dispose();
+    manufacturerCtrl.dispose();
+    doseNumberCtrl.dispose();
+    siteCtrl.dispose();
+    notesCtrl.dispose();
   }
 
   @override

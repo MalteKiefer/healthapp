@@ -6,9 +6,18 @@ class Vital {
   final double? diastolic;
   final double? pulse;
   final double? weight;
+  final double? height;
   final double? temperature;
   final double? oxygenSaturation;
   final double? bloodGlucose;
+  final int? respiratoryRate;
+  final double? waistCircumference;
+  final double? hipCircumference;
+  final double? bodyFatPercentage;
+  final double? bmi;
+  final int? sleepDurationMinutes;
+  final int? sleepQuality;
+  final String? device;
   final String? notes;
 
   Vital({
@@ -19,9 +28,18 @@ class Vital {
     this.diastolic,
     this.pulse,
     this.weight,
+    this.height,
     this.temperature,
     this.oxygenSaturation,
     this.bloodGlucose,
+    this.respiratoryRate,
+    this.waistCircumference,
+    this.hipCircumference,
+    this.bodyFatPercentage,
+    this.bmi,
+    this.sleepDurationMinutes,
+    this.sleepQuality,
+    this.device,
     this.notes,
   });
 
@@ -33,10 +51,21 @@ class Vital {
         diastolic: (json['blood_pressure_diastolic'] as num?)?.toDouble(),
         pulse: (json['pulse'] as num?)?.toDouble(),
         weight: (json['weight'] as num?)?.toDouble(),
+        height: (json['height'] as num?)?.toDouble(),
         temperature: (json['body_temperature'] as num?)?.toDouble(),
         oxygenSaturation: (json['oxygen_saturation'] as num?)?.toDouble(),
         bloodGlucose: (json['blood_glucose'] as num?)?.toDouble(),
-        notes: json['notes'],
+        respiratoryRate: json['respiratory_rate'] as int?,
+        waistCircumference:
+            (json['waist_circumference'] as num?)?.toDouble(),
+        hipCircumference: (json['hip_circumference'] as num?)?.toDouble(),
+        bodyFatPercentage:
+            (json['body_fat_percentage'] as num?)?.toDouble(),
+        bmi: (json['bmi'] as num?)?.toDouble(),
+        sleepDurationMinutes: json['sleep_duration_minutes'] as int?,
+        sleepQuality: json['sleep_quality'] as int?,
+        device: json['device'] as String?,
+        notes: json['notes'] as String?,
       );
 
   Map<String, dynamic> toJson() {
@@ -45,9 +74,24 @@ class Vital {
     if (diastolic != null) map['blood_pressure_diastolic'] = diastolic;
     if (pulse != null) map['pulse'] = pulse;
     if (weight != null) map['weight'] = weight;
+    if (height != null) map['height'] = height;
     if (temperature != null) map['body_temperature'] = temperature;
     if (oxygenSaturation != null) map['oxygen_saturation'] = oxygenSaturation;
     if (bloodGlucose != null) map['blood_glucose'] = bloodGlucose;
+    if (respiratoryRate != null) map['respiratory_rate'] = respiratoryRate;
+    if (waistCircumference != null) {
+      map['waist_circumference'] = waistCircumference;
+    }
+    if (hipCircumference != null) map['hip_circumference'] = hipCircumference;
+    if (bodyFatPercentage != null) {
+      map['body_fat_percentage'] = bodyFatPercentage;
+    }
+    if (bmi != null) map['bmi'] = bmi;
+    if (sleepDurationMinutes != null) {
+      map['sleep_duration_minutes'] = sleepDurationMinutes;
+    }
+    if (sleepQuality != null) map['sleep_quality'] = sleepQuality;
+    if (device != null) map['device'] = device;
     if (notes != null) map['notes'] = notes;
     return map;
   }

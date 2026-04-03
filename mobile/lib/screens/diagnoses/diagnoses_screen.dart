@@ -75,116 +75,187 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                 ? existing.diagnosedAt!.substring(0, 10)
                 : existing.diagnosedAt!)
             : '');
+    final resolvedCtrl = TextEditingController(
+        text: isEdit && existing.resolvedAt != null
+            ? (existing.resolvedAt!.length >= 10
+                ? existing.resolvedAt!.substring(0, 10)
+                : existing.resolvedAt!)
+            : '');
+    final diagnosedByCtrl =
+        TextEditingController(text: existing?.diagnosedBy ?? '');
     final notesCtrl = TextEditingController(text: existing?.notes ?? '');
     final formKey = GlobalKey<FormState>();
+    String? status = existing?.status;
+
+    const statuses = ['active', 'resolved', 'remission'];
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.65,
+        initialChildSize: 0.80,
         minChildSize: 0.45,
-        maxChildSize: 0.9,
-        builder: (ctx, scrollCtrl) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: Form(
-            key: formKey,
-            child: ListView(
-              controller: scrollCtrl,
-              children: [
-                const SizedBox(height: 8),
-                Text(
-                  isEdit ? T.tr('diagnoses.edit') : T.tr('diagnoses.add'),
-                  style: Theme.of(ctx).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Name *'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: icdCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'ICD-10 Code'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: dateCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Diagnosed Date',
-                    hintText: 'YYYY-MM-DD',
-                    suffixIcon: const Icon(Icons.calendar_today),
+        maxChildSize: 0.95,
+        builder: (ctx, scrollCtrl) => StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: Form(
+              key: formKey,
+              child: ListView(
+                controller: scrollCtrl,
+                children: [
+                  const SizedBox(height: 8),
+                  Text(
+                    isEdit ? T.tr('diagnoses.edit') : T.tr('diagnoses.add'),
+                    style: Theme.of(ctx).textTheme.titleLarge,
                   ),
-                  readOnly: true,
-                  onTap: () async {
-                    final initDate = dateCtrl.text.isNotEmpty
-                        ? (DateTime.tryParse(dateCtrl.text) ?? DateTime.now())
-                        : DateTime.now();
-                    final picked = await showDatePicker(
-                      context: ctx,
-                      initialDate: initDate,
-                      firstDate: DateTime(1900),
-                      lastDate: DateTime.now(),
-                    );
-                    if (picked != null) {
-                      dateCtrl.text = DateFormat('yyyy-MM-dd').format(picked);
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: notesCtrl,
-                  decoration: const InputDecoration(labelText: 'Notes'),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: () async {
-                    if (!formKey.currentState!.validate()) return;
-                    Navigator.pop(ctx);
-                    final body = <String, dynamic>{
-                      'name': nameCtrl.text.trim(),
-                      if (icdCtrl.text.trim().isNotEmpty)
-                        'icd_code': icdCtrl.text.trim(),
-                      if (dateCtrl.text.trim().isNotEmpty)
-                        'diagnosed_at':
-                            '${dateCtrl.text.trim()}T00:00:00.000Z',
-                      if (notesCtrl.text.trim().isNotEmpty)
-                        'notes': notesCtrl.text.trim(),
-                    };
-                    try {
-                      final api = ref.read(apiClientProvider);
-                      if (isEdit) {
-                        await api.patch<void>(
-                          '/api/v1/profiles/${widget.profileId}/diagnoses/${existing.id}',
-                          body: body,
-                        );
-                      } else {
-                        await api.post<void>(
-                          '/api/v1/profiles/${widget.profileId}/diagnoses',
-                          body: body,
-                        );
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Name *'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: icdCtrl,
+                    decoration:
+                        const InputDecoration(labelText: 'ICD-10 Code'),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: statuses.contains(status) ? status : null,
+                    decoration: InputDecoration(
+                        labelText: T.tr('diagnoses.status')),
+                    items: statuses
+                        .map((s) => DropdownMenuItem(
+                              value: s,
+                              child: Text(T.tr('diagnoses.status_$s')),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setSheetState(() => status = v),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: dateCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Diagnosed Date',
+                      hintText: 'YYYY-MM-DD',
+                      suffixIcon: const Icon(Icons.calendar_today),
+                    ),
+                    readOnly: true,
+                    onTap: () async {
+                      final initDate = dateCtrl.text.isNotEmpty
+                          ? (DateTime.tryParse(dateCtrl.text) ?? DateTime.now())
+                          : DateTime.now();
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: initDate,
+                        firstDate: DateTime(1900),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        dateCtrl.text = DateFormat('yyyy-MM-dd').format(picked);
                       }
-                      ref.invalidate(
-                          _diagnosesProvider(widget.profileId));
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('$e')));
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesCtrl,
+                    decoration: InputDecoration(
+                        labelText: T.tr('common.notes')),
+                    maxLines: 2,
+                  ),
+                  // -- Advanced --
+                  ExpansionTile(
+                    title: Text(T.tr('common.advanced')),
+                    children: [
+                      TextField(
+                        controller: diagnosedByCtrl,
+                        decoration: InputDecoration(
+                            labelText: T.tr('diagnoses.diagnosed_by')),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: resolvedCtrl,
+                        decoration: InputDecoration(
+                          labelText: T.tr('diagnoses.resolved_at'),
+                          hintText: 'YYYY-MM-DD',
+                          suffixIcon: const Icon(Icons.calendar_today),
+                        ),
+                        readOnly: true,
+                        onTap: () async {
+                          final initDate = resolvedCtrl.text.isNotEmpty
+                              ? (DateTime.tryParse(resolvedCtrl.text) ??
+                                  DateTime.now())
+                              : DateTime.now();
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: initDate,
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime.now(),
+                          );
+                          if (picked != null) {
+                            resolvedCtrl.text =
+                                DateFormat('yyyy-MM-dd').format(picked);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+                      Navigator.pop(ctx);
+                      final body = <String, dynamic>{
+                        'name': nameCtrl.text.trim(),
+                        if (icdCtrl.text.trim().isNotEmpty)
+                          'icd_code': icdCtrl.text.trim(),
+                        if (status != null) 'status': status,
+                        if (dateCtrl.text.trim().isNotEmpty)
+                          'diagnosed_at':
+                              '${dateCtrl.text.trim()}T00:00:00.000Z',
+                        if (resolvedCtrl.text.trim().isNotEmpty)
+                          'resolved_at':
+                              '${resolvedCtrl.text.trim()}T00:00:00.000Z',
+                        if (diagnosedByCtrl.text.trim().isNotEmpty)
+                          'diagnosed_by': diagnosedByCtrl.text.trim(),
+                        if (notesCtrl.text.trim().isNotEmpty)
+                          'notes': notesCtrl.text.trim(),
+                      };
+                      try {
+                        final api = ref.read(apiClientProvider);
+                        if (isEdit) {
+                          await api.patch<void>(
+                            '/api/v1/profiles/${widget.profileId}/diagnoses/${existing.id}',
+                            body: body,
+                          );
+                        } else {
+                          await api.post<void>(
+                            '/api/v1/profiles/${widget.profileId}/diagnoses',
+                            body: body,
+                          );
+                        }
+                        ref.invalidate(
+                            _diagnosesProvider(widget.profileId));
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text('$e')));
+                        }
                       }
-                    }
-                  },
-                  child: Text(T.tr('common.save')),
-                ),
-              ],
+                    },
+                    child: Text(T.tr('common.save')),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -193,6 +264,8 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
     nameCtrl.dispose();
     icdCtrl.dispose();
     dateCtrl.dispose();
+    resolvedCtrl.dispose();
+    diagnosedByCtrl.dispose();
     notesCtrl.dispose();
   }
 

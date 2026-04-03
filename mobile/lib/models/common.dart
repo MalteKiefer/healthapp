@@ -3,7 +3,11 @@ class Allergy {
   final String allergen;
   final String? reaction;
   final String? severity;
+  final String? category;
+  final String? onsetDate;
   final String? diagnosedAt;
+  final String? diagnosedBy;
+  final String? status;
   final String? notes;
   final String? orderedBy;
 
@@ -12,7 +16,11 @@ class Allergy {
     required this.allergen,
     this.reaction,
     this.severity,
+    this.category,
+    this.onsetDate,
     this.diagnosedAt,
+    this.diagnosedBy,
+    this.status,
     this.notes,
     this.orderedBy,
   });
@@ -22,7 +30,11 @@ class Allergy {
         allergen: json['allergen'],
         reaction: json['reaction'],
         severity: json['severity'],
+        category: json['category'],
+        onsetDate: json['onset_date'],
         diagnosedAt: json['diagnosed_at'],
+        diagnosedBy: json['diagnosed_by'],
+        status: json['status'],
         notes: json['notes'],
         orderedBy: json['ordered_by'],
       );
@@ -35,8 +47,8 @@ class Diagnosis {
   final String? status;
   final String? diagnosedAt;
   final String? resolvedAt;
-  final String? notes;
   final String? diagnosedBy;
+  final String? notes;
 
   Diagnosis({
     required this.id,
@@ -45,8 +57,8 @@ class Diagnosis {
     this.status,
     this.diagnosedAt,
     this.resolvedAt,
-    this.notes,
     this.diagnosedBy,
+    this.notes,
   });
 
   factory Diagnosis.fromJson(Map<String, dynamic> json) => Diagnosis(
@@ -56,8 +68,8 @@ class Diagnosis {
         status: json['status'],
         diagnosedAt: json['diagnosed_at'],
         resolvedAt: json['resolved_at'],
-        notes: json['notes'],
         diagnosedBy: json['diagnosed_by'],
+        notes: json['notes'],
       );
 }
 
@@ -68,6 +80,10 @@ class Vaccination {
   final String? administeredAt;
   final String? nextDueAt;
   final String? batchNumber;
+  final String? tradeName;
+  final String? manufacturer;
+  final int? doseNumber;
+  final String? site;
   final String? notes;
   final String? administeredBy;
 
@@ -78,6 +94,10 @@ class Vaccination {
     this.administeredAt,
     this.nextDueAt,
     this.batchNumber,
+    this.tradeName,
+    this.manufacturer,
+    this.doseNumber,
+    this.site,
     this.notes,
     this.administeredBy,
   });
@@ -89,6 +109,10 @@ class Vaccination {
         administeredAt: json['administered_at'],
         nextDueAt: json['next_due_at'],
         batchNumber: json['batch_number'],
+        tradeName: json['trade_name'],
+        manufacturer: json['manufacturer'],
+        doseNumber: json['dose_number'] as int?,
+        site: json['site'],
         notes: json['notes'],
         administeredBy: json['administered_by'],
       );
@@ -105,6 +129,7 @@ class Appointment {
   final String? preparationNotes;
   final String? status;
   final String? recurrence;
+  final List<int>? reminderDaysBefore;
 
   Appointment({
     required this.id,
@@ -117,6 +142,7 @@ class Appointment {
     this.preparationNotes,
     this.status,
     this.recurrence,
+    this.reminderDaysBefore,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) => Appointment(
@@ -130,36 +156,51 @@ class Appointment {
         preparationNotes: json['preparation_notes'],
         status: json['status'],
         recurrence: json['recurrence'],
+        reminderDaysBefore: (json['reminder_days_before'] as List?)
+            ?.map((e) => e as int)
+            .toList(),
       );
 }
 
 class Contact {
   final String id;
   final String name;
+  final String? contactType;
   final String? specialty;
+  final String? facility;
   final String? phone;
   final String? email;
   final String? address;
+  final String? country;
   final String? notes;
+  final bool isEmergencyContact;
 
   Contact({
     required this.id,
     required this.name,
+    this.contactType,
     this.specialty,
+    this.facility,
     this.phone,
     this.email,
     this.address,
+    this.country,
     this.notes,
+    this.isEmergencyContact = false,
   });
 
   factory Contact.fromJson(Map<String, dynamic> json) => Contact(
         id: json['id'],
         name: json['name'],
+        contactType: json['contact_type'],
         specialty: json['specialty'],
+        facility: json['facility'],
         phone: json['phone'],
         email: json['email'],
         address: json['address'],
+        country: json['country'],
         notes: json['notes'],
+        isEmergencyContact: json['is_emergency_contact'] ?? false,
       );
 }
 
@@ -171,6 +212,7 @@ class Task {
   final bool completed;
   final String? completedAt;
   final String? priority;
+  final String? status;
 
   Task({
     required this.id,
@@ -180,6 +222,7 @@ class Task {
     this.completed = false,
     this.completedAt,
     this.priority,
+    this.status,
   });
 
   factory Task.fromJson(Map<String, dynamic> json) => Task(
@@ -190,36 +233,58 @@ class Task {
         completed: json['completed'] ?? false,
         completedAt: json['completed_at'],
         priority: json['priority'],
+        status: json['status'],
       );
 }
 
 class DiaryEvent {
   final String id;
   final String recordedAt;
+  final String? title;
+  final String? eventType;
   final String? mood;
   final int? moodScore;
   final String? content;
   final String? tags;
   final String? sleepHours;
+  final String? startedAt;
+  final String? endedAt;
+  final int? severity;
+  final String? location;
+  final String? outcome;
 
   DiaryEvent({
     required this.id,
     required this.recordedAt,
+    this.title,
+    this.eventType,
     this.mood,
     this.moodScore,
     this.content,
     this.tags,
     this.sleepHours,
+    this.startedAt,
+    this.endedAt,
+    this.severity,
+    this.location,
+    this.outcome,
   });
 
   factory DiaryEvent.fromJson(Map<String, dynamic> json) => DiaryEvent(
         id: json['id'],
         recordedAt: json['recorded_at'],
+        title: json['title'],
+        eventType: json['event_type'],
         mood: json['mood'],
         moodScore: json['mood_score'],
         content: json['content'],
         tags: json['tags'],
         sleepHours: json['sleep_hours'],
+        startedAt: json['started_at'],
+        endedAt: json['ended_at'],
+        severity: json['severity'] as int?,
+        location: json['location'],
+        outcome: json['outcome'],
       );
 }
 
@@ -231,6 +296,10 @@ class Symptom {
   final String? duration;
   final String? notes;
   final bool isOngoing;
+  final String? triggerFactors;
+  final String? symptomType;
+  final String? bodyRegion;
+  final int? durationMinutes;
 
   Symptom({
     required this.id,
@@ -240,6 +309,10 @@ class Symptom {
     this.duration,
     this.notes,
     this.isOngoing = false,
+    this.triggerFactors,
+    this.symptomType,
+    this.bodyRegion,
+    this.durationMinutes,
   });
 
   factory Symptom.fromJson(Map<String, dynamic> json) => Symptom(
@@ -250,6 +323,12 @@ class Symptom {
         duration: json['duration'],
         notes: json['notes'],
         isOngoing: json['is_ongoing'] ?? false,
+        triggerFactors: json['trigger_factors'] is List
+            ? (json['trigger_factors'] as List).join(', ')
+            : json['trigger_factors'] as String?,
+        symptomType: json['symptom_type'],
+        bodyRegion: json['body_region'],
+        durationMinutes: json['duration_minutes'] as int?,
       );
 }
 
@@ -261,6 +340,7 @@ class Document {
   final int? fileSize;
   final String? uploadedAt;
   final String? notes;
+  final String? tags;
 
   Document({
     required this.id,
@@ -270,15 +350,22 @@ class Document {
     this.fileSize,
     this.uploadedAt,
     this.notes,
+    this.tags,
   });
 
   factory Document.fromJson(Map<String, dynamic> json) => Document(
         id: json['id'],
-        filename: json['filename_enc'] ?? json['filename'] ?? json['file_name'] ?? 'Untitled',
+        filename: json['filename_enc'] ??
+            json['filename'] ??
+            json['file_name'] ??
+            'Untitled',
         category: json['category'],
         mimeType: json['mime_type'],
         fileSize: json['file_size'],
         uploadedAt: json['uploaded_at'] ?? json['created_at'],
         notes: json['notes'],
+        tags: json['tags'] is List
+            ? (json['tags'] as List).join(', ')
+            : json['tags'] as String?,
       );
 }

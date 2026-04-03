@@ -29,6 +29,23 @@ final _trendsProvider =
       .toList();
 });
 
+// -- Marker row model for form ------------------------------------------------
+
+class _MarkerEntry {
+  final TextEditingController markerCtrl;
+  final TextEditingController valueCtrl;
+  final TextEditingController unitCtrl;
+  _MarkerEntry({String marker = '', String value = '', String unit = ''})
+      : markerCtrl = TextEditingController(text: marker),
+        valueCtrl = TextEditingController(text: value),
+        unitCtrl = TextEditingController(text: unit);
+  void dispose() {
+    markerCtrl.dispose();
+    valueCtrl.dispose();
+    unitCtrl.dispose();
+  }
+}
+
 // -- Screen -------------------------------------------------------------------
 
 enum _View { list, trends }
@@ -56,145 +73,280 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
                 ? existing.sampleDate.substring(0, 10)
                 : existing.sampleDate)
             : '');
-    final markerCtrl = TextEditingController(
-        text: isEdit && existing.values.isNotEmpty
-            ? existing.values.first.marker
+    final resultDateCtrl = TextEditingController(
+        text: isEdit && existing.resultDate != null
+            ? (existing.resultDate!.length >= 10
+                ? existing.resultDate!.substring(0, 10)
+                : existing.resultDate!)
             : '');
-    final valueCtrl = TextEditingController(
-        text: isEdit && existing.values.isNotEmpty && existing.values.first.value != null
-            ? existing.values.first.value.toString()
-            : '');
-    final unitCtrl = TextEditingController(
-        text: isEdit && existing.values.isNotEmpty
-            ? (existing.values.first.unit ?? '')
-            : '');
+    final orderedByCtrl =
+        TextEditingController(text: existing?.orderedBy ?? '');
+    final notesCtrl = TextEditingController(text: existing?.notes ?? '');
+
+    // Multi-marker rows
+    final markers = <_MarkerEntry>[];
+    if (isEdit && existing.values.isNotEmpty) {
+      for (final v in existing.values) {
+        markers.add(_MarkerEntry(
+          marker: v.marker,
+          value: v.value?.toString() ?? '',
+          unit: v.unit ?? '',
+        ));
+      }
+    } else {
+      markers.add(_MarkerEntry());
+    }
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.7,
+        initialChildSize: 0.85,
         minChildSize: 0.5,
-        maxChildSize: 0.9,
-        builder: (ctx, scrollCtrl) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: ListView(
-            controller: scrollCtrl,
-            children: [
-              const SizedBox(height: 8),
-              Text(
-                isEdit ? T.tr('labs.edit') : T.tr('labs.add'),
-                style: Theme.of(ctx).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: labNameCtrl,
-                decoration: const InputDecoration(labelText: 'Lab Name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: sampleDateCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Sample Date',
-                  hintText: 'YYYY-MM-DD',
+        maxChildSize: 0.95,
+        builder: (ctx, scrollCtrl) => StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: ListView(
+              controller: scrollCtrl,
+              children: [
+                const SizedBox(height: 8),
+                Text(
+                  isEdit ? T.tr('labs.edit') : T.tr('labs.add'),
+                  style: Theme.of(ctx).textTheme.titleLarge,
                 ),
-                keyboardType: TextInputType.datetime,
-              ),
-              const SizedBox(height: 16),
-              Text('First Marker',
-                  style: Theme.of(ctx)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(
-                          color:
-                              Theme.of(ctx).colorScheme.onSurfaceVariant)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: markerCtrl,
-                decoration: const InputDecoration(labelText: 'Marker Name'),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: valueCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
-                      decoration: const InputDecoration(labelText: 'Value'),
-                    ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: labNameCtrl,
+                  decoration: InputDecoration(
+                      labelText: T.tr('labs.lab_name')),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: sampleDateCtrl,
+                  decoration: InputDecoration(
+                    labelText: T.tr('labs.sample_date'),
+                    hintText: 'YYYY-MM-DD',
+                    suffixIcon: const Icon(Icons.calendar_today),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: unitCtrl,
-                      decoration: const InputDecoration(labelText: 'Unit'),
+                  readOnly: true,
+                  onTap: () async {
+                    final initDate = sampleDateCtrl.text.isNotEmpty
+                        ? (DateTime.tryParse(sampleDateCtrl.text) ??
+                            DateTime.now())
+                        : DateTime.now();
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: initDate,
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      sampleDateCtrl.text =
+                          DateFormat('yyyy-MM-dd').format(picked);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                // -- Markers section --
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(T.tr('labs.marker'),
+                          style: Theme.of(ctx)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(
+                                  color: Theme.of(ctx)
+                                      .colorScheme
+                                      .onSurfaceVariant)),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  final dateStr = sampleDateCtrl.text.trim().isNotEmpty
-                      ? '${sampleDateCtrl.text.trim()}T00:00:00.000Z'
-                      : DateTime.now().toUtc().toIso8601String();
-                  final body = <String, dynamic>{
-                    'sample_date': dateStr,
-                    if (labNameCtrl.text.trim().isNotEmpty)
-                      'lab_name': labNameCtrl.text.trim(),
-                    'values': [
-                      if (markerCtrl.text.trim().isNotEmpty)
-                        {
-                          'marker': markerCtrl.text.trim(),
-                          if (double.tryParse(valueCtrl.text.trim()) != null)
-                            'value':
-                                double.tryParse(valueCtrl.text.trim()),
-                          if (unitCtrl.text.trim().isNotEmpty)
-                            'unit': unitCtrl.text.trim(),
-                        },
-                    ],
-                  };
-                  try {
-                    final api = ref.read(apiClientProvider);
-                    if (isEdit) {
-                      await api.patch<void>(
-                        '/api/v1/profiles/${widget.profileId}/labs/${existing.id}',
-                        body: body,
-                      );
-                    } else {
-                      await api.post<void>(
-                        '/api/v1/profiles/${widget.profileId}/labs',
-                        body: body,
-                      );
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      tooltip: T.tr('labs.add_marker'),
+                      onPressed: () {
+                        setSheetState(() => markers.add(_MarkerEntry()));
+                      },
+                    ),
+                  ],
+                ),
+                ...List.generate(markers.length, (i) {
+                  final m = markers[i];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: m.markerCtrl,
+                                decoration: InputDecoration(
+                                    labelText: T.tr('labs.marker_name')),
+                              ),
+                            ),
+                            if (markers.length > 1)
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline,
+                                    size: 20),
+                                onPressed: () {
+                                  setSheetState(() {
+                                    markers[i].dispose();
+                                    markers.removeAt(i);
+                                  });
+                                },
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: m.valueCtrl,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                decoration: InputDecoration(
+                                    labelText: T.tr('labs.value')),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: m.unitCtrl,
+                                decoration: InputDecoration(
+                                    labelText: T.tr('labs.unit')),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (i < markers.length - 1)
+                          const Divider(height: 24),
+                      ],
+                    ),
+                  );
+                }),
+                // -- Advanced section --
+                ExpansionTile(
+                  title: Text(T.tr('common.advanced')),
+                  children: [
+                    TextField(
+                      controller: resultDateCtrl,
+                      decoration: InputDecoration(
+                        labelText: T.tr('labs.result_date'),
+                        hintText: 'YYYY-MM-DD',
+                        suffixIcon: const Icon(Icons.calendar_today),
+                      ),
+                      readOnly: true,
+                      onTap: () async {
+                        final initDate = resultDateCtrl.text.isNotEmpty
+                            ? (DateTime.tryParse(resultDateCtrl.text) ??
+                                DateTime.now())
+                            : DateTime.now();
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: initDate,
+                          firstDate: DateTime(1900),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          resultDateCtrl.text =
+                              DateFormat('yyyy-MM-dd').format(picked);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: orderedByCtrl,
+                      decoration: InputDecoration(
+                          labelText: T.tr('labs.ordered_by')),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: notesCtrl,
+                      decoration: InputDecoration(
+                          labelText: T.tr('common.notes')),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    final dateStr = sampleDateCtrl.text.trim().isNotEmpty
+                        ? '${sampleDateCtrl.text.trim()}T00:00:00.000Z'
+                        : DateTime.now().toUtc().toIso8601String();
+                    final markerValues = markers
+                        .where((m) => m.markerCtrl.text.trim().isNotEmpty)
+                        .map((m) => <String, dynamic>{
+                              'marker': m.markerCtrl.text.trim(),
+                              if (double.tryParse(m.valueCtrl.text.trim()) !=
+                                  null)
+                                'value':
+                                    double.tryParse(m.valueCtrl.text.trim()),
+                              if (m.unitCtrl.text.trim().isNotEmpty)
+                                'unit': m.unitCtrl.text.trim(),
+                            })
+                        .toList();
+                    final body = <String, dynamic>{
+                      'sample_date': dateStr,
+                      if (labNameCtrl.text.trim().isNotEmpty)
+                        'lab_name': labNameCtrl.text.trim(),
+                      if (resultDateCtrl.text.trim().isNotEmpty)
+                        'result_date':
+                            '${resultDateCtrl.text.trim()}T00:00:00.000Z',
+                      if (orderedByCtrl.text.trim().isNotEmpty)
+                        'ordered_by': orderedByCtrl.text.trim(),
+                      if (notesCtrl.text.trim().isNotEmpty)
+                        'notes': notesCtrl.text.trim(),
+                      'values': markerValues,
+                    };
+                    try {
+                      final api = ref.read(apiClientProvider);
+                      if (isEdit) {
+                        await api.patch<void>(
+                          '/api/v1/profiles/${widget.profileId}/labs/${existing.id}',
+                          body: body,
+                        );
+                      } else {
+                        await api.post<void>(
+                          '/api/v1/profiles/${widget.profileId}/labs',
+                          body: body,
+                        );
+                      }
+                      ref.invalidate(_labsProvider(widget.profileId));
+                      ref.invalidate(_trendsProvider(widget.profileId));
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
                     }
-                    ref.invalidate(_labsProvider(widget.profileId));
-                    ref.invalidate(_trendsProvider(widget.profileId));
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('Error: $e')));
-                    }
-                  }
-                },
-                child: Text(T.tr('common.save')),
-              ),
-            ],
+                  },
+                  child: Text(T.tr('common.save')),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
     labNameCtrl.dispose();
     sampleDateCtrl.dispose();
-    markerCtrl.dispose();
-    valueCtrl.dispose();
-    unitCtrl.dispose();
+    resultDateCtrl.dispose();
+    orderedByCtrl.dispose();
+    notesCtrl.dispose();
+    for (final m in markers) {
+      m.dispose();
+    }
   }
 
   @override

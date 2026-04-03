@@ -70,17 +70,30 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
     final reactionCtrl =
         TextEditingController(text: existing?.reaction ?? '');
     final notesCtrl = TextEditingController(text: existing?.notes ?? '');
+    final onsetDateCtrl = TextEditingController(
+        text: isEdit && existing.onsetDate != null
+            ? (existing.onsetDate!.length >= 10
+                ? existing.onsetDate!.substring(0, 10)
+                : existing.onsetDate!)
+            : '');
+    final diagnosedByCtrl =
+        TextEditingController(text: existing?.diagnosedBy ?? '');
     final formKey = GlobalKey<FormState>();
     String severity = existing?.severity ?? 'mild';
+    String? category = existing?.category;
+    String? status = existing?.status;
+
+    const categories = ['food', 'drug', 'environmental', 'other'];
+    const statuses = ['active', 'inactive', 'resolved'];
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.65,
+        initialChildSize: 0.80,
         minChildSize: 0.45,
-        maxChildSize: 0.9,
+        maxChildSize: 0.95,
         builder: (ctx, scrollCtrl) => StatefulBuilder(
           builder: (ctx, setSheetState) => Padding(
             padding: EdgeInsets.only(
@@ -125,10 +138,76 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                     decoration: const InputDecoration(labelText: 'Reaction'),
                   ),
                   const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: categories.contains(category) ? category : null,
+                    decoration: InputDecoration(
+                        labelText: T.tr('allergies.category')),
+                    items: categories
+                        .map((c) => DropdownMenuItem(
+                              value: c,
+                              child: Text(T.tr('allergies.cat_$c')),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setSheetState(() => category = v),
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: notesCtrl,
-                    decoration: const InputDecoration(labelText: 'Notes'),
+                    decoration: InputDecoration(
+                        labelText: T.tr('common.notes')),
                     maxLines: 2,
+                  ),
+                  // -- Advanced --
+                  ExpansionTile(
+                    title: Text(T.tr('common.advanced')),
+                    children: [
+                      TextField(
+                        controller: onsetDateCtrl,
+                        decoration: InputDecoration(
+                          labelText: T.tr('allergies.onset_date'),
+                          hintText: 'YYYY-MM-DD',
+                          suffixIcon: const Icon(Icons.calendar_today),
+                        ),
+                        readOnly: true,
+                        onTap: () async {
+                          final initDate = onsetDateCtrl.text.isNotEmpty
+                              ? (DateTime.tryParse(onsetDateCtrl.text) ??
+                                  DateTime.now())
+                              : DateTime.now();
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: initDate,
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime.now(),
+                          );
+                          if (picked != null) {
+                            onsetDateCtrl.text =
+                                DateFormat('yyyy-MM-dd').format(picked);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: diagnosedByCtrl,
+                        decoration: InputDecoration(
+                            labelText: T.tr('allergies.diagnosed_by')),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: statuses.contains(status) ? status : null,
+                        decoration: InputDecoration(
+                            labelText: T.tr('allergies.status')),
+                        items: statuses
+                            .map((s) => DropdownMenuItem(
+                                  value: s,
+                                  child:
+                                      Text(T.tr('allergies.status_$s')),
+                                ))
+                            .toList(),
+                        onChanged: (v) => setSheetState(() => status = v),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                   ),
                   const SizedBox(height: 20),
                   FilledButton(
@@ -140,6 +219,13 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                         'severity': severity,
                         if (reactionCtrl.text.trim().isNotEmpty)
                           'reaction': reactionCtrl.text.trim(),
+                        if (category != null) 'category': category,
+                        if (onsetDateCtrl.text.trim().isNotEmpty)
+                          'onset_date':
+                              '${onsetDateCtrl.text.trim()}T00:00:00.000Z',
+                        if (diagnosedByCtrl.text.trim().isNotEmpty)
+                          'diagnosed_by': diagnosedByCtrl.text.trim(),
+                        if (status != null) 'status': status,
                         if (notesCtrl.text.trim().isNotEmpty)
                           'notes': notesCtrl.text.trim(),
                       };
@@ -177,6 +263,8 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
     allergenCtrl.dispose();
     reactionCtrl.dispose();
     notesCtrl.dispose();
+    onsetDateCtrl.dispose();
+    diagnosedByCtrl.dispose();
   }
 
   @override

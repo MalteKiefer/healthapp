@@ -75,9 +75,28 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     final doctorCtrl = TextEditingController();
     final notesCtrl =
         TextEditingController(text: existing?.preparationNotes ?? '');
+    final durationCtrl = TextEditingController(
+        text: existing?.durationMinutes?.toString() ?? '');
     final formKey = GlobalKey<FormState>();
     DateTime? selectedDateTime;
     String? selectedDoctorId = existing?.doctorId;
+    String? appointmentType = existing?.appointmentType;
+    String? status = existing?.status;
+    String? recurrence = existing?.recurrence;
+    List<int> reminderDays = existing?.reminderDaysBefore ?? [];
+
+    const types = [
+      'general',
+      'followup',
+      'specialist',
+      'emergency',
+      'screening',
+      'lab',
+      'imaging'
+    ];
+    const statuses = ['scheduled', 'completed', 'cancelled', 'no_show'];
+    const recurrences = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
+    const reminderOptions = [1, 3, 7];
 
     if (isEdit) {
       try {
@@ -97,166 +116,278 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.80,
+        initialChildSize: 0.85,
         minChildSize: 0.5,
         maxChildSize: 0.95,
-        builder: (ctx, scrollCtrl) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: Form(
-            key: formKey,
-            child: ListView(
-              controller: scrollCtrl,
-              children: [
-                const SizedBox(height: 8),
-                Text(
-                  isEdit
-                      ? T.tr('appointments.edit')
-                      : T.tr('appointments.add'),
-                  style: Theme.of(ctx).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: titleCtrl,
-                  decoration: InputDecoration(
-                      labelText: T.tr('appointments.field_title')),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? T.tr('common.required') : null,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: dateCtrl,
-                  decoration: InputDecoration(
-                    labelText: T.tr('appointments.field_date'),
-                    suffixIcon: const Icon(Icons.calendar_today),
+        builder: (ctx, scrollCtrl) => StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: Form(
+              key: formKey,
+              child: ListView(
+                controller: scrollCtrl,
+                children: [
+                  const SizedBox(height: 8),
+                  Text(
+                    isEdit
+                        ? T.tr('appointments.edit')
+                        : T.tr('appointments.add'),
+                    style: Theme.of(ctx).textTheme.titleLarge,
                   ),
-                  readOnly: true,
-                  onTap: () async {
-                    final locale = T.lang == 'de' ? const Locale('de') : const Locale('en');
-                    final date = await showDatePicker(
-                      context: ctx,
-                      initialDate: selectedDateTime ?? DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                      locale: locale,
-                    );
-                    if (date == null) return;
-                    if (!ctx.mounted) return;
-                    final time = await showTimePicker(
-                      context: ctx,
-                      initialTime: selectedDateTime != null
-                          ? TimeOfDay.fromDateTime(selectedDateTime!)
-                          : TimeOfDay.now(),
-                    );
-                    if (time == null) return;
-                    selectedDateTime = DateTime(
-                      date.year,
-                      date.month,
-                      date.day,
-                      time.hour,
-                      time.minute,
-                    );
-                    dateCtrl.text = DateFormat(
-                            T.lang == 'de'
-                                ? 'dd.MM.yyyy \u2013 HH:mm'
-                                : 'MMM d, yyyy \u2013 HH:mm')
-                        .format(selectedDateTime!);
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: locationCtrl,
-                  decoration: InputDecoration(
-                      labelText: T.tr('appointments.field_location')),
-                ),
-                const SizedBox(height: 12),
-                // Doctor / Contact picker
-                TextField(
-                  controller: doctorCtrl,
-                  decoration: InputDecoration(
-                    labelText: T.tr('appointments.field_doctor'),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.contacts_outlined),
-                      tooltip: T.tr('contacts.title'),
-                      onPressed: () async {
-                        final result = await _showContactPicker(ctx);
-                        if (result != null) {
-                          doctorCtrl.text = result['name'] as String;
-                          selectedDoctorId = result['id'] as String?;
-                          final addr = result['address'];
-                          if (addr != null && addr.isNotEmpty && locationCtrl.text.isEmpty) {
-                            locationCtrl.text = addr;
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: titleCtrl,
+                    decoration: InputDecoration(
+                        labelText: T.tr('appointments.field_title')),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty)
+                            ? T.tr('common.required')
+                            : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: dateCtrl,
+                    decoration: InputDecoration(
+                      labelText: T.tr('appointments.field_date'),
+                      suffixIcon: const Icon(Icons.calendar_today),
+                    ),
+                    readOnly: true,
+                    onTap: () async {
+                      final locale = T.lang == 'de'
+                          ? const Locale('de')
+                          : const Locale('en');
+                      final date = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedDateTime ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                        locale: locale,
+                      );
+                      if (date == null) return;
+                      if (!ctx.mounted) return;
+                      final time = await showTimePicker(
+                        context: ctx,
+                        initialTime: selectedDateTime != null
+                            ? TimeOfDay.fromDateTime(selectedDateTime!)
+                            : TimeOfDay.now(),
+                      );
+                      if (time == null) return;
+                      selectedDateTime = DateTime(
+                        date.year,
+                        date.month,
+                        date.day,
+                        time.hour,
+                        time.minute,
+                      );
+                      dateCtrl.text = DateFormat(
+                              T.lang == 'de'
+                                  ? 'dd.MM.yyyy \u2013 HH:mm'
+                                  : 'MMM d, yyyy \u2013 HH:mm')
+                          .format(selectedDateTime!);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: types.contains(appointmentType)
+                        ? appointmentType
+                        : null,
+                    decoration: InputDecoration(
+                        labelText: T.tr('appointments.type')),
+                    items: types
+                        .map((t) => DropdownMenuItem(
+                              value: t,
+                              child:
+                                  Text(T.tr('appointments.type_$t')),
+                            ))
+                        .toList(),
+                    onChanged: (v) =>
+                        setSheetState(() => appointmentType = v),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: locationCtrl,
+                    decoration: InputDecoration(
+                        labelText: T.tr('appointments.field_location')),
+                  ),
+                  const SizedBox(height: 12),
+                  // Doctor / Contact picker
+                  TextField(
+                    controller: doctorCtrl,
+                    decoration: InputDecoration(
+                      labelText: T.tr('appointments.field_doctor'),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.contacts_outlined),
+                        tooltip: T.tr('contacts.title'),
+                        onPressed: () async {
+                          final result =
+                              await _showContactPicker(ctx);
+                          if (result != null) {
+                            doctorCtrl.text = result['name'] as String;
+                            selectedDoctorId =
+                                result['id'] as String?;
+                            final addr = result['address'];
+                            if (addr != null &&
+                                addr.isNotEmpty &&
+                                locationCtrl.text.isEmpty) {
+                              locationCtrl.text = addr;
+                            }
                           }
-                        }
-                      },
+                        },
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: notesCtrl,
-                  decoration: InputDecoration(
-                      labelText: T.tr('appointments.field_notes')),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: () async {
-                    if (!formKey.currentState!.validate()) return;
-                    if (selectedDateTime == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content:
-                                Text(T.tr('appointments.date_required'))),
-                      );
-                      return;
-                    }
-                    Navigator.pop(ctx);
-                    final body = <String, dynamic>{
-                      'title': titleCtrl.text.trim(),
-                      'scheduled_at':
-                          selectedDateTime!.toUtc().toIso8601String(),
-                      if (isEdit && existing.appointmentType != null)
-                        'appointment_type': existing.appointmentType,
-                      if (isEdit && existing.status != null)
-                        'status': existing.status,
-                      if (isEdit && existing.recurrence != null)
-                        'recurrence': existing.recurrence,
-                      if (locationCtrl.text.trim().isNotEmpty)
-                        'location': locationCtrl.text.trim(),
-                      if (selectedDoctorId != null)
-                        'doctor_id': selectedDoctorId,
-                      if (notesCtrl.text.trim().isNotEmpty)
-                        'preparation_notes': notesCtrl.text.trim(),
-                    };
-                    try {
-                      final api = ref.read(apiClientProvider);
-                      if (isEdit) {
-                        await api.patch<void>(
-                          '/api/v1/profiles/${widget.profileId}/appointments/${existing.id}',
-                          body: body,
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesCtrl,
+                    decoration: InputDecoration(
+                        labelText: T.tr('appointments.field_notes')),
+                    maxLines: 2,
+                  ),
+                  // -- Advanced --
+                  ExpansionTile(
+                    title: Text(T.tr('common.advanced')),
+                    children: [
+                      TextField(
+                        controller: durationCtrl,
+                        decoration: InputDecoration(
+                            labelText: T.tr('appointments.duration')),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: statuses.contains(status) ? status : null,
+                        decoration: InputDecoration(
+                            labelText: T.tr('appointments.status')),
+                        items: statuses
+                            .map((s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(T.tr(
+                                      'appointments.status_$s')),
+                                ))
+                            .toList(),
+                        onChanged: (v) =>
+                            setSheetState(() => status = v),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: recurrences.contains(recurrence)
+                            ? recurrence
+                            : null,
+                        decoration: InputDecoration(
+                            labelText:
+                                T.tr('appointments.recurrence')),
+                        items: recurrences
+                            .map((r) => DropdownMenuItem(
+                                  value: r,
+                                  child: Text(T.tr(
+                                      'appointments.recurrence_$r')),
+                                ))
+                            .toList(),
+                        onChanged: (v) =>
+                            setSheetState(() => recurrence = v),
+                      ),
+                      const SizedBox(height: 12),
+                      // Reminder days (multi-select chips)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          T.tr('appointments.reminder'),
+                          style: Theme.of(ctx)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                  color: Theme.of(ctx)
+                                      .colorScheme
+                                      .onSurfaceVariant),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: reminderOptions.map((d) {
+                          final selected = reminderDays.contains(d);
+                          return FilterChip(
+                            label: Text(
+                                T.tr('appointments.reminder_$d')),
+                            selected: selected,
+                            onSelected: (sel) {
+                              setSheetState(() {
+                                if (sel) {
+                                  reminderDays.add(d);
+                                } else {
+                                  reminderDays.remove(d);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+                      if (selectedDateTime == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  T.tr('appointments.date_required'))),
                         );
-                      } else {
-                        await api.post<void>(
-                          '/api/v1/profiles/${widget.profileId}/appointments',
-                          body: body,
-                        );
+                        return;
                       }
-                      ref.invalidate(
-                          _appointmentsProvider(widget.profileId));
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('$e')));
+                      Navigator.pop(ctx);
+                      final body = <String, dynamic>{
+                        'title': titleCtrl.text.trim(),
+                        'scheduled_at':
+                            selectedDateTime!.toUtc().toIso8601String(),
+                        if (appointmentType != null)
+                          'appointment_type': appointmentType,
+                        if (int.tryParse(durationCtrl.text.trim()) != null)
+                          'duration_minutes':
+                              int.tryParse(durationCtrl.text.trim()),
+                        if (status != null) 'status': status,
+                        if (recurrence != null) 'recurrence': recurrence,
+                        if (locationCtrl.text.trim().isNotEmpty)
+                          'location': locationCtrl.text.trim(),
+                        if (selectedDoctorId != null)
+                          'doctor_id': selectedDoctorId,
+                        if (notesCtrl.text.trim().isNotEmpty)
+                          'preparation_notes': notesCtrl.text.trim(),
+                        if (reminderDays.isNotEmpty)
+                          'reminder_days_before': reminderDays,
+                      };
+                      try {
+                        final api = ref.read(apiClientProvider);
+                        if (isEdit) {
+                          await api.patch<void>(
+                            '/api/v1/profiles/${widget.profileId}/appointments/${existing.id}',
+                            body: body,
+                          );
+                        } else {
+                          await api.post<void>(
+                            '/api/v1/profiles/${widget.profileId}/appointments',
+                            body: body,
+                          );
+                        }
+                        ref.invalidate(
+                            _appointmentsProvider(widget.profileId));
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text('$e')));
+                        }
                       }
-                    }
-                  },
-                  child: Text(T.tr('common.save')),
-                ),
-              ],
+                    },
+                    child: Text(T.tr('common.save')),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -267,10 +398,10 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     locationCtrl.dispose();
     doctorCtrl.dispose();
     notesCtrl.dispose();
+    durationCtrl.dispose();
   }
 
   Future<Map<String, String?>?> _showContactPicker(BuildContext ctx) async {
-    // Load contacts from API
     List<dynamic> contacts = [];
     try {
       final api = ref.read(apiClientProvider);

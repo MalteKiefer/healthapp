@@ -93,15 +93,18 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         TextEditingController(text: existing?.description ?? '');
     final formKey = GlobalKey<FormState>();
     String priority = existing?.priority ?? 'medium';
+    String? status = existing?.status;
+
+    const statuses = ['open', 'in_progress', 'completed', 'cancelled'];
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.65,
+        initialChildSize: 0.75,
         minChildSize: 0.45,
-        maxChildSize: 0.9,
+        maxChildSize: 0.95,
         builder: (ctx, scrollCtrl) => StatefulBuilder(
           builder: (ctx, setSheetState) => Padding(
             padding: EdgeInsets.only(
@@ -129,10 +132,10 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: dueDateCtrl,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Due Date',
                       hintText: 'YYYY-MM-DD',
-                      suffixIcon: Icon(Icons.calendar_today),
+                      suffixIcon: const Icon(Icons.calendar_today),
                     ),
                     readOnly: true,
                     onTap: () async {
@@ -157,19 +160,37 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     value: priority,
                     decoration: const InputDecoration(labelText: 'Priority'),
                     items: [
-                      DropdownMenuItem(value: 'low', child: Text(T.tr('priority.low'))),
                       DropdownMenuItem(
-                          value: 'medium', child: Text(T.tr('priority.medium'))),
-                      DropdownMenuItem(value: 'high', child: Text(T.tr('priority.high'))),
+                          value: 'low', child: Text(T.tr('priority.low'))),
+                      DropdownMenuItem(
+                          value: 'medium',
+                          child: Text(T.tr('priority.medium'))),
+                      DropdownMenuItem(
+                          value: 'high',
+                          child: Text(T.tr('priority.high'))),
                     ],
                     onChanged: (v) {
                       if (v != null) setSheetState(() => priority = v);
                     },
                   ),
                   const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: statuses.contains(status) ? status : null,
+                    decoration: InputDecoration(
+                        labelText: T.tr('tasks.status')),
+                    items: statuses
+                        .map((s) => DropdownMenuItem(
+                              value: s,
+                              child: Text(T.tr('tasks.status_$s')),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setSheetState(() => status = v),
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: notesCtrl,
-                    decoration: const InputDecoration(labelText: 'Notes'),
+                    decoration: InputDecoration(
+                        labelText: T.tr('common.notes')),
                     maxLines: 2,
                   ),
                   const SizedBox(height: 20),
@@ -180,6 +201,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                       final body = <String, dynamic>{
                         'title': titleCtrl.text.trim(),
                         'priority': priority,
+                        if (status != null) 'status': status,
                         if (dueDateCtrl.text.trim().isNotEmpty)
                           'due_at':
                               '${dueDateCtrl.text.trim()}T00:00:00.000Z',

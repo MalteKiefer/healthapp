@@ -70,6 +70,11 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         TextEditingController(text: existing?.specialty ?? '');
     final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
     final emailCtrl = TextEditingController(text: existing?.email ?? '');
+    final facilityCtrl =
+        TextEditingController(text: existing?.facility ?? '');
+    final countryCtrl =
+        TextEditingController(text: existing?.country ?? '');
+    final notesCtrl = TextEditingController(text: existing?.notes ?? '');
 
     // Parse address into parts if editing
     String existingStreet = '';
@@ -91,132 +96,202 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     final cityCtrl = TextEditingController(text: existingCity);
     final postalCtrl = TextEditingController(text: existingPostal);
     final formKey = GlobalKey<FormState>();
+    String? contactType = existing?.contactType;
+    bool isEmergency = existing?.isEmergencyContact ?? false;
+
+    const contactTypes = [
+      'doctor',
+      'specialist',
+      'hospital',
+      'pharmacy',
+      'therapist',
+      'other'
+    ];
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.8,
+        initialChildSize: 0.85,
         minChildSize: 0.5,
         maxChildSize: 0.95,
-        builder: (ctx, scrollCtrl) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: Form(
-            key: formKey,
-            child: ListView(
-              controller: scrollCtrl,
-              children: [
-                const SizedBox(height: 8),
-                Text(
-                  isEdit ? T.tr('contacts.edit') : T.tr('contacts.add'),
-                  style: Theme.of(ctx).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Name *'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: specialtyCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Specialty'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: phoneCtrl,
-                  decoration: const InputDecoration(labelText: 'Phone'),
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: emailCtrl,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: streetCtrl,
-                  decoration: const InputDecoration(labelText: 'Street'),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        controller: postalCtrl,
-                        decoration:
-                            const InputDecoration(labelText: 'Postal Code'),
-                        keyboardType: TextInputType.number,
+        builder: (ctx, scrollCtrl) => StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: Form(
+              key: formKey,
+              child: ListView(
+                controller: scrollCtrl,
+                children: [
+                  const SizedBox(height: 8),
+                  Text(
+                    isEdit ? T.tr('contacts.edit') : T.tr('contacts.add'),
+                    style: Theme.of(ctx).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Name *'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: contactTypes.contains(contactType)
+                        ? contactType
+                        : null,
+                    decoration: InputDecoration(
+                        labelText: T.tr('contacts.contact_type')),
+                    items: contactTypes
+                        .map((t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(T.tr('contacts.type_$t')),
+                            ))
+                        .toList(),
+                    onChanged: (v) =>
+                        setSheetState(() => contactType = v),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: specialtyCtrl,
+                    decoration:
+                        const InputDecoration(labelText: 'Specialty'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: phoneCtrl,
+                    decoration: const InputDecoration(labelText: 'Phone'),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: emailCtrl,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: streetCtrl,
+                    decoration: const InputDecoration(labelText: 'Street'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: postalCtrl,
+                          decoration:
+                              const InputDecoration(labelText: 'Postal Code'),
+                          keyboardType: TextInputType.number,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 3,
-                      child: TextField(
-                        controller: cityCtrl,
-                        decoration:
-                            const InputDecoration(labelText: 'City'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 3,
+                        child: TextField(
+                          controller: cityCtrl,
+                          decoration:
+                              const InputDecoration(labelText: 'City'),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: () async {
-                    if (!formKey.currentState!.validate()) return;
-                    Navigator.pop(ctx);
-                    final addrParts = [
-                      streetCtrl.text.trim(),
-                      if (postalCtrl.text.trim().isNotEmpty ||
-                          cityCtrl.text.trim().isNotEmpty)
-                        '${postalCtrl.text.trim()} ${cityCtrl.text.trim()}'
-                            .trim(),
-                    ].where((s) => s.isNotEmpty).toList();
-                    final body = <String, dynamic>{
-                      'name': nameCtrl.text.trim(),
-                      if (specialtyCtrl.text.trim().isNotEmpty)
-                        'specialty': specialtyCtrl.text.trim(),
-                      if (phoneCtrl.text.trim().isNotEmpty)
-                        'phone': phoneCtrl.text.trim(),
-                      if (emailCtrl.text.trim().isNotEmpty)
-                        'email': emailCtrl.text.trim(),
-                      if (addrParts.isNotEmpty)
-                        'address': addrParts.join(', '),
-                    };
-                    try {
-                      final api = ref.read(apiClientProvider);
-                      if (isEdit) {
-                        await api.patch<void>(
-                          '/api/v1/profiles/${widget.profileId}/contacts/${existing.id}',
-                          body: body,
-                        );
-                      } else {
-                        await api.post<void>(
-                          '/api/v1/profiles/${widget.profileId}/contacts',
-                          body: body,
-                        );
+                    ],
+                  ),
+                  // -- Advanced --
+                  ExpansionTile(
+                    title: Text(T.tr('common.advanced')),
+                    children: [
+                      TextField(
+                        controller: facilityCtrl,
+                        decoration: InputDecoration(
+                            labelText: T.tr('contacts.facility')),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: countryCtrl,
+                        decoration: InputDecoration(
+                            labelText: T.tr('contacts.country')),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: notesCtrl,
+                        decoration: InputDecoration(
+                            labelText: T.tr('common.notes')),
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: Text(T.tr('contacts.is_emergency')),
+                        value: isEmergency,
+                        onChanged: (v) =>
+                            setSheetState(() => isEmergency = v),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+                      Navigator.pop(ctx);
+                      final addrParts = [
+                        streetCtrl.text.trim(),
+                        if (postalCtrl.text.trim().isNotEmpty ||
+                            cityCtrl.text.trim().isNotEmpty)
+                          '${postalCtrl.text.trim()} ${cityCtrl.text.trim()}'
+                              .trim(),
+                      ].where((s) => s.isNotEmpty).toList();
+                      final body = <String, dynamic>{
+                        'name': nameCtrl.text.trim(),
+                        if (contactType != null)
+                          'contact_type': contactType,
+                        if (specialtyCtrl.text.trim().isNotEmpty)
+                          'specialty': specialtyCtrl.text.trim(),
+                        if (facilityCtrl.text.trim().isNotEmpty)
+                          'facility': facilityCtrl.text.trim(),
+                        if (phoneCtrl.text.trim().isNotEmpty)
+                          'phone': phoneCtrl.text.trim(),
+                        if (emailCtrl.text.trim().isNotEmpty)
+                          'email': emailCtrl.text.trim(),
+                        if (addrParts.isNotEmpty)
+                          'address': addrParts.join(', '),
+                        if (countryCtrl.text.trim().isNotEmpty)
+                          'country': countryCtrl.text.trim(),
+                        if (notesCtrl.text.trim().isNotEmpty)
+                          'notes': notesCtrl.text.trim(),
+                        'is_emergency_contact': isEmergency,
+                      };
+                      try {
+                        final api = ref.read(apiClientProvider);
+                        if (isEdit) {
+                          await api.patch<void>(
+                            '/api/v1/profiles/${widget.profileId}/contacts/${existing.id}',
+                            body: body,
+                          );
+                        } else {
+                          await api.post<void>(
+                            '/api/v1/profiles/${widget.profileId}/contacts',
+                            body: body,
+                          );
+                        }
+                        ref.invalidate(
+                            _contactsProvider(widget.profileId));
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text('$e')));
+                        }
                       }
-                      ref.invalidate(
-                          _contactsProvider(widget.profileId));
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('$e')));
-                      }
-                    }
-                  },
-                  child: Text(T.tr('common.save')),
-                ),
-              ],
+                    },
+                    child: Text(T.tr('common.save')),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -229,6 +304,9 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     streetCtrl.dispose();
     cityCtrl.dispose();
     postalCtrl.dispose();
+    facilityCtrl.dispose();
+    countryCtrl.dispose();
+    notesCtrl.dispose();
   }
 
   @override
@@ -346,10 +424,21 @@ class _ContactCard extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            contact.name,
-                            style: tt.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  contact.name,
+                                  style: tt.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              if (contact.isEmergencyContact) ...[
+                                const SizedBox(width: 6),
+                                Icon(Icons.emergency,
+                                    size: 16, color: cs.error),
+                              ],
+                            ],
                           ),
                         ),
                         if (contact.specialty != null)

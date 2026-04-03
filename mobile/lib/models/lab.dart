@@ -30,6 +30,8 @@ class LabResult {
   final String? labName;
   final String? orderedBy;
   final String sampleDate;
+  final String? resultDate;
+  final String? notes;
   final List<LabValue> values;
   final String? createdAt;
 
@@ -38,6 +40,8 @@ class LabResult {
     this.labName,
     this.orderedBy,
     required this.sampleDate,
+    this.resultDate,
+    this.notes,
     this.values = const [],
     this.createdAt,
   });
@@ -47,6 +51,8 @@ class LabResult {
         labName: json['lab_name'],
         orderedBy: json['ordered_by'],
         sampleDate: json['sample_date'],
+        resultDate: json['result_date'],
+        notes: json['notes'],
         values: (json['values'] as List?)
                 ?.map((v) => LabValue.fromJson(v as Map<String, dynamic>))
                 .toList() ??

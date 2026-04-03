@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/medication.dart';
@@ -69,6 +70,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
     final isEdit = existing != null;
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final dosageCtrl = TextEditingController(text: existing?.dosage ?? '');
+    final unitCtrl = TextEditingController(text: existing?.unit ?? '');
     final freqCtrl = TextEditingController(text: existing?.frequency ?? '');
     final startCtrl = TextEditingController(
         text: isEdit && existing.startedAt != null
@@ -76,98 +78,232 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                 ? existing.startedAt!.substring(0, 10)
                 : existing.startedAt!)
             : '');
+    final endCtrl = TextEditingController(
+        text: isEdit && existing.endedAt != null
+            ? (existing.endedAt!.length >= 10
+                ? existing.endedAt!.substring(0, 10)
+                : existing.endedAt!)
+            : '');
+    final prescribedByCtrl =
+        TextEditingController(text: existing?.prescribedBy ?? '');
+    final reasonCtrl = TextEditingController(text: existing?.reason ?? '');
+    final notesCtrl = TextEditingController(text: existing?.notes ?? '');
     final formKey = GlobalKey<FormState>();
+    String? route = existing?.route;
+
+    const routes = [
+      'oral',
+      'iv',
+      'im',
+      'sc',
+      'topical',
+      'inhaled',
+      'rectal',
+      'other'
+    ];
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.65,
+        initialChildSize: 0.80,
         minChildSize: 0.45,
-        maxChildSize: 0.9,
-        builder: (ctx, scrollCtrl) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: Form(
-            key: formKey,
-            child: ListView(
-              controller: scrollCtrl,
-              children: [
-                const SizedBox(height: 8),
-                Text(
-                  isEdit ? T.tr('meds.edit') : T.tr('meds.add'),
-                  style: Theme.of(ctx).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Name *'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: dosageCtrl,
-                  decoration: const InputDecoration(labelText: 'Dosage'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: freqCtrl,
-                  decoration: const InputDecoration(labelText: 'Frequency'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: startCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Start date',
-                    hintText: 'YYYY-MM-DD',
+        maxChildSize: 0.95,
+        builder: (ctx, scrollCtrl) => StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: Form(
+              key: formKey,
+              child: ListView(
+                controller: scrollCtrl,
+                children: [
+                  const SizedBox(height: 8),
+                  Text(
+                    isEdit ? T.tr('meds.edit') : T.tr('meds.add'),
+                    style: Theme.of(ctx).textTheme.titleLarge,
                   ),
-                  keyboardType: TextInputType.datetime,
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: () async {
-                    if (!formKey.currentState!.validate()) return;
-                    Navigator.pop(ctx);
-                    final body = <String, dynamic>{
-                      'name': nameCtrl.text.trim(),
-                      if (dosageCtrl.text.trim().isNotEmpty)
-                        'dosage': dosageCtrl.text.trim(),
-                      if (freqCtrl.text.trim().isNotEmpty)
-                        'frequency': freqCtrl.text.trim(),
-                      if (startCtrl.text.trim().isNotEmpty)
-                        'started_at':
-                            '${startCtrl.text.trim()}T00:00:00.000Z',
-                    };
-                    try {
-                      final api = ref.read(apiClientProvider);
-                      if (isEdit) {
-                        await api.patch<void>(
-                          '/api/v1/profiles/${widget.profileId}/medications/${existing.id}',
-                          body: body,
-                        );
-                      } else {
-                        await api.post<void>(
-                          '/api/v1/profiles/${widget.profileId}/medications',
-                          body: body,
-                        );
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Name *'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: dosageCtrl,
+                          decoration:
+                              const InputDecoration(labelText: 'Dosage'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: unitCtrl,
+                          decoration: InputDecoration(
+                              labelText: T.tr('meds.unit'),
+                              hintText: 'mg, ml...'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: freqCtrl,
+                    decoration: const InputDecoration(labelText: 'Frequency'),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: routes.contains(route) ? route : null,
+                    decoration: InputDecoration(
+                        labelText: T.tr('meds.route')),
+                    items: routes
+                        .map((r) => DropdownMenuItem(
+                              value: r,
+                              child: Text(T.tr('meds.route_$r')),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setSheetState(() => route = v),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: startCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Start date',
+                      hintText: 'YYYY-MM-DD',
+                      suffixIcon: const Icon(Icons.calendar_today),
+                    ),
+                    readOnly: true,
+                    onTap: () async {
+                      final initDate = startCtrl.text.isNotEmpty
+                          ? (DateTime.tryParse(startCtrl.text) ??
+                              DateTime.now())
+                          : DateTime.now();
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: initDate,
+                        firstDate: DateTime(1900),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        startCtrl.text =
+                            DateFormat('yyyy-MM-dd').format(picked);
                       }
-                      ref.invalidate(
-                          medicationsProvider(widget.profileId));
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('$e')));
+                    },
+                  ),
+                  // -- Advanced --
+                  ExpansionTile(
+                    title: Text(T.tr('common.advanced')),
+                    children: [
+                      TextField(
+                        controller: endCtrl,
+                        decoration: InputDecoration(
+                          labelText: T.tr('meds.ended_at'),
+                          hintText: 'YYYY-MM-DD',
+                          suffixIcon: const Icon(Icons.calendar_today),
+                        ),
+                        readOnly: true,
+                        onTap: () async {
+                          final initDate = endCtrl.text.isNotEmpty
+                              ? (DateTime.tryParse(endCtrl.text) ??
+                                  DateTime.now())
+                              : DateTime.now();
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: initDate,
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            endCtrl.text =
+                                DateFormat('yyyy-MM-dd').format(picked);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: prescribedByCtrl,
+                        decoration: InputDecoration(
+                            labelText: T.tr('meds.prescribed_by')),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: reasonCtrl,
+                        decoration: InputDecoration(
+                            labelText: T.tr('meds.reason')),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: notesCtrl,
+                        decoration: InputDecoration(
+                            labelText: T.tr('common.notes')),
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+                      Navigator.pop(ctx);
+                      final body = <String, dynamic>{
+                        'name': nameCtrl.text.trim(),
+                        if (dosageCtrl.text.trim().isNotEmpty)
+                          'dosage': dosageCtrl.text.trim(),
+                        if (unitCtrl.text.trim().isNotEmpty)
+                          'unit': unitCtrl.text.trim(),
+                        if (freqCtrl.text.trim().isNotEmpty)
+                          'frequency': freqCtrl.text.trim(),
+                        if (route != null) 'route': route,
+                        if (startCtrl.text.trim().isNotEmpty)
+                          'started_at':
+                              '${startCtrl.text.trim()}T00:00:00.000Z',
+                        if (endCtrl.text.trim().isNotEmpty)
+                          'ended_at':
+                              '${endCtrl.text.trim()}T00:00:00.000Z',
+                        if (prescribedByCtrl.text.trim().isNotEmpty)
+                          'prescribed_by': prescribedByCtrl.text.trim(),
+                        if (reasonCtrl.text.trim().isNotEmpty)
+                          'reason': reasonCtrl.text.trim(),
+                        if (notesCtrl.text.trim().isNotEmpty)
+                          'notes': notesCtrl.text.trim(),
+                      };
+                      try {
+                        final api = ref.read(apiClientProvider);
+                        if (isEdit) {
+                          await api.patch<void>(
+                            '/api/v1/profiles/${widget.profileId}/medications/${existing.id}',
+                            body: body,
+                          );
+                        } else {
+                          await api.post<void>(
+                            '/api/v1/profiles/${widget.profileId}/medications',
+                            body: body,
+                          );
+                        }
+                        ref.invalidate(
+                            medicationsProvider(widget.profileId));
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text('$e')));
+                        }
                       }
-                    }
-                  },
-                  child: Text(T.tr('common.save')),
-                ),
-              ],
+                    },
+                    child: Text(T.tr('common.save')),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -175,8 +311,13 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
     );
     nameCtrl.dispose();
     dosageCtrl.dispose();
+    unitCtrl.dispose();
     freqCtrl.dispose();
     startCtrl.dispose();
+    endCtrl.dispose();
+    prescribedByCtrl.dispose();
+    reasonCtrl.dispose();
+    notesCtrl.dispose();
   }
 
   void _shareMedications(List<Medication> meds) {
@@ -369,7 +510,8 @@ class _MedCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         [
-                          if (med.dosage != null) med.dosage!,
+                          if (med.dosage != null)
+                            '${med.dosage!}${med.unit != null ? ' ${med.unit}' : ''}',
                           if (med.frequency != null) med.frequency!,
                         ].join(' \u00b7 '),
                         style: tt.bodySmall
