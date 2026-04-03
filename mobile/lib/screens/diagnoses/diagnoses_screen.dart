@@ -66,6 +66,7 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
   }
 
   Future<void> _showFormSheet({Diagnosis? existing}) async {
+    final api = ref.read(apiClientProvider);
     final isEdit = existing != null;
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final icdCtrl = TextEditingController(text: existing?.icdCode ?? '');
@@ -231,7 +232,6 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                           'notes': notesCtrl.text.trim(),
                       };
                       try {
-                        final api = ref.read(apiClientProvider);
                         if (isEdit) {
                           await api.patch<void>(
                             '/api/v1/profiles/${widget.profileId}/diagnoses/${existing.id}',

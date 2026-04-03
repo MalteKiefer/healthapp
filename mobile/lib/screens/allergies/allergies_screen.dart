@@ -64,6 +64,7 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
   }
 
   Future<void> _showFormSheet({Allergy? existing}) async {
+    final api = ref.read(apiClientProvider);
     final isEdit = existing != null;
     final allergenCtrl =
         TextEditingController(text: existing?.allergen ?? '');
@@ -230,7 +231,6 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                           'notes': notesCtrl.text.trim(),
                       };
                       try {
-                        final api = ref.read(apiClientProvider);
                         if (isEdit) {
                           await api.patch<void>(
                             '/api/v1/profiles/${widget.profileId}/allergies/${existing.id}',

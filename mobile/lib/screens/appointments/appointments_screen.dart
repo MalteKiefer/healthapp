@@ -67,6 +67,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
   }
 
   Future<void> _showFormSheet({Appointment? existing}) async {
+    final api = ref.read(apiClientProvider);
     final isEdit = existing != null;
     final titleCtrl = TextEditingController(text: existing?.title ?? '');
     final dateCtrl = TextEditingController();
@@ -363,7 +364,6 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                           'reminder_days_before': reminderDays,
                       };
                       try {
-                        final api = ref.read(apiClientProvider);
                         if (isEdit) {
                           await api.patch<void>(
                             '/api/v1/profiles/${widget.profileId}/appointments/${existing.id}',

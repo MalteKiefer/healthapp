@@ -64,6 +64,7 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
   }
 
   Future<void> _showFormSheet({DiaryEvent? existing}) async {
+    final api = ref.read(apiClientProvider);
     final isEdit = existing != null;
     final titleCtrl =
         TextEditingController(text: existing?.title ?? '');
@@ -328,7 +329,6 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                           'outcome': outcomeCtrl.text.trim(),
                       };
                       try {
-                        final api = ref.read(apiClientProvider);
                         if (isEdit) {
                           await api.patch<void>(
                             '/api/v1/profiles/${widget.profileId}/diary/${existing.id}',

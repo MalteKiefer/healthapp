@@ -64,6 +64,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
   }
 
   Future<void> _showFormSheet({Contact? existing}) async {
+    final api = ref.read(apiClientProvider);
     final isEdit = existing != null;
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final specialtyCtrl =
@@ -267,7 +268,6 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                         'is_emergency_contact': isEmergency,
                       };
                       try {
-                        final api = ref.read(apiClientProvider);
                         if (isEdit) {
                           await api.patch<void>(
                             '/api/v1/profiles/${widget.profileId}/contacts/${existing.id}',

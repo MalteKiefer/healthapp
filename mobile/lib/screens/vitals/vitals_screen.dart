@@ -111,6 +111,7 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
   // -- Add/Edit vital bottom sheet --------------------------------------------
 
   Future<void> _showFormSheet({Vital? existing}) async {
+    final api = ref.read(apiClientProvider);
     final isEdit = existing != null;
     final ctrl = {
       'systolic': TextEditingController(
@@ -295,7 +296,6 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                         'notes': ctrl['notes']!.text.trim(),
                     };
                     try {
-                      final api = ref.read(apiClientProvider);
                       if (isEdit) {
                         await api.patch<void>(
                           '/api/v1/profiles/${widget.profileId}/vitals/${existing.id}',

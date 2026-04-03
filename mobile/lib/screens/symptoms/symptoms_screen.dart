@@ -66,6 +66,7 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
   }
 
   Future<void> _showFormSheet({Symptom? existing}) async {
+    final api = ref.read(apiClientProvider);
     final isEdit = existing != null;
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final notesCtrl = TextEditingController(text: existing?.notes ?? '');
@@ -229,7 +230,6 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                               int.tryParse(durationMinCtrl.text.trim()),
                       };
                       try {
-                        final api = ref.read(apiClientProvider);
                         if (isEdit) {
                           await api.patch<void>(
                             '/api/v1/profiles/${widget.profileId}/symptoms/${existing.id}',

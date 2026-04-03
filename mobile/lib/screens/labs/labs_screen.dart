@@ -64,6 +64,7 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
   String _range = '3d';
 
   Future<void> _showFormSheet({LabResult? existing}) async {
+    final api = ref.read(apiClientProvider);
     final isEdit = existing != null;
     final labNameCtrl =
         TextEditingController(text: existing?.labName ?? '');
@@ -310,7 +311,6 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
                       'values': markerValues,
                     };
                     try {
-                      final api = ref.read(apiClientProvider);
                       if (isEdit) {
                         await api.patch<void>(
                           '/api/v1/profiles/${widget.profileId}/labs/${existing.id}',

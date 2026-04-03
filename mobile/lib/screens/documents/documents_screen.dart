@@ -157,6 +157,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   }
 
   Future<void> _showEditSheet(Document doc) async {
+    final api = ref.read(apiClientProvider);
     const categories = [
       'lab_result',
       'imaging',
@@ -251,7 +252,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                       if (tagArray != null) 'tags': tagArray,
                     };
                     try {
-                      await ref.read(apiClientProvider).patch<void>(
+                      await api.patch<void>(
                             '/api/v1/profiles/${widget.profileId}/documents/${doc.id}',
                             body: body,
                           );

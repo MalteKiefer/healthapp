@@ -81,6 +81,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   }
 
   Future<void> _showFormSheet({Task? existing}) async {
+    final api = ref.read(apiClientProvider);
     final isEdit = existing != null;
     final titleCtrl = TextEditingController(text: existing?.title ?? '');
     final dueDateCtrl = TextEditingController(
@@ -209,7 +210,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                           'description': notesCtrl.text.trim(),
                       };
                       try {
-                        final api = ref.read(apiClientProvider);
                         if (isEdit) {
                           await api.patch<void>(
                             '/api/v1/profiles/${widget.profileId}/tasks/${existing.id}',

@@ -65,6 +65,7 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
   }
 
   Future<void> _showFormSheet({Vaccination? existing}) async {
+    final api = ref.read(apiClientProvider);
     final isEdit = existing != null;
     final vaccineCtrl =
         TextEditingController(text: existing?.vaccine ?? '');
@@ -260,7 +261,6 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                         'notes': notesCtrl.text.trim(),
                     };
                     try {
-                      final api = ref.read(apiClientProvider);
                       if (isEdit) {
                         await api.patch<void>(
                           '/api/v1/profiles/${widget.profileId}/vaccinations/${existing.id}',
