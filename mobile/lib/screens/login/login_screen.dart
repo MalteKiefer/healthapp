@@ -36,8 +36,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await api.setBaseUrl(_serverCtrl.text);
 
       // Derive auth hash on isolate to keep UI responsive
+      final password = _passwordCtrl.text;
+      final email = _emailCtrl.text;
       final authHash = await Isolate.run(() =>
-        AuthCrypto.deriveAuthHash(_passwordCtrl.text, _emailCtrl.text)
+        AuthCrypto.deriveAuthHash(password, email)
       );
 
       await api.post<Map<String, dynamic>>(
