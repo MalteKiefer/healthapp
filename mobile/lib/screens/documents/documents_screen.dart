@@ -86,6 +86,105 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
+  Future<void> _showEditSheet(Document doc) async {
+    const categories = [
+      'lab_result',
+      'imaging',
+      'prescription',
+      'referral',
+      'vaccination_record',
+      'discharge_summary',
+      'report',
+      'legal',
+      'other',
+    ];
+
+    final filenameCtrl = TextEditingController(text: doc.filename);
+    String? selectedCategory = doc.category;
+    final formKey = GlobalKey<FormState>();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: Form(
+          key: formKey,
+          child: StatefulBuilder(
+            builder: (ctx, setSheetState) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 16),
+                Text(
+                  T.tr('documents.edit'),
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: filenameCtrl,
+                  decoration: InputDecoration(
+                    labelText: T.tr('documents.field_filename'),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty)
+                          ? T.tr('common.required')
+                          : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: categories.contains(selectedCategory)
+                      ? selectedCategory
+                      : null,
+                  decoration: InputDecoration(
+                    labelText: T.tr('documents.field_category'),
+                  ),
+                  items: categories
+                      .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(_categoryLabel(c)),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setSheetState(() => selectedCategory = v),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    Navigator.pop(ctx);
+                    final body = <String, dynamic>{
+                      'filename_enc': filenameCtrl.text.trim(),
+                      if (selectedCategory != null)
+                        'category': selectedCategory,
+                    };
+                    try {
+                      await ref.read(apiClientProvider).patch<void>(
+                            '/api/v1/profiles/${widget.profileId}/documents/${doc.id}',
+                            body: body,
+                          );
+                      ref.invalidate(_documentsProvider(widget.profileId));
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text('$e')));
+                      }
+                    }
+                  },
+                  child: Text(T.tr('common.save')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    filenameCtrl.dispose();
+  }
+
   Future<void> _openDocument(Document doc) async {
     final mimeType = doc.mimeType ?? '';
 
@@ -304,7 +403,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                         itemBuilder: (_, i) => _DocumentCard(
                           document: filtered[i],
                           onDelete: () => _delete(filtered[i].id),
-                          onTap: () => _openDocument(filtered[i]),
+                          onTap: () => _showEditSheet(filtered[i]),
+                          onOpen: () => _openDocument(filtered[i]),
                           onShare: () => _shareDocument(filtered[i]),
                           formatSize: _formatFileSize,
                         ),
@@ -324,12 +424,14 @@ class _DocumentCard extends StatelessWidget {
   final Document document;
   final VoidCallback onDelete;
   final VoidCallback onTap;
+  final VoidCallback onOpen;
   final VoidCallback onShare;
   final String Function(int?) formatSize;
   const _DocumentCard({
     required this.document,
     required this.onDelete,
     required this.onTap,
+    required this.onOpen,
     required this.onShare,
     required this.formatSize,
   });
@@ -446,6 +548,11 @@ class _DocumentCard extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.open_in_new, size: 18),
+                tooltip: T.tr('common.open'),
+                onPressed: onOpen,
               ),
               IconButton(
                 icon: const Icon(Icons.share, size: 18),

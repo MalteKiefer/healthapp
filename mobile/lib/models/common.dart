@@ -274,7 +274,7 @@ class Document {
 
   factory Document.fromJson(Map<String, dynamic> json) => Document(
         id: json['id'],
-        filename: json['filename'] ?? json['file_name'] ?? 'Untitled',
+        filename: json['filename_enc'] ?? json['filename'] ?? json['file_name'] ?? 'Untitled',
         category: json['category'],
         mimeType: json['mime_type'],
         fileSize: json['file_size'],

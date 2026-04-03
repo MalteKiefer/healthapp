@@ -186,6 +186,10 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                         if (result != null) {
                           doctorCtrl.text = result['name'] as String;
                           selectedDoctorId = result['id'] as String?;
+                          final addr = result['address'];
+                          if (addr != null && addr.isNotEmpty && locationCtrl.text.isEmpty) {
+                            locationCtrl.text = addr;
+                          }
                         }
                       },
                     ),
@@ -215,13 +219,12 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                       'title': titleCtrl.text.trim(),
                       'scheduled_at':
                           selectedDateTime!.toUtc().toIso8601String(),
-                      'appointment_type': 'general',
-                      'status': isEdit
-                          ? (existing.status ?? 'scheduled')
-                          : 'scheduled',
-                      'recurrence': isEdit
-                          ? (existing.recurrence ?? 'none')
-                          : 'none',
+                      if (isEdit && existing.appointmentType != null)
+                        'appointment_type': existing.appointmentType,
+                      if (isEdit && existing.status != null)
+                        'status': existing.status,
+                      if (isEdit && existing.recurrence != null)
+                        'recurrence': existing.recurrence,
                       if (locationCtrl.text.trim().isNotEmpty)
                         'location': locationCtrl.text.trim(),
                       if (selectedDoctorId != null)
@@ -266,7 +269,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     notesCtrl.dispose();
   }
 
-  Future<Map<String, String>?> _showContactPicker(BuildContext ctx) async {
+  Future<Map<String, String?>?> _showContactPicker(BuildContext ctx) async {
     // Load contacts from API
     List<dynamic> contacts = [];
     try {
@@ -285,7 +288,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       return null;
     }
 
-    return showModalBottomSheet<Map<String, String>>(
+    return showModalBottomSheet<Map<String, String?>>(
       context: ctx,
       builder: (sheetCtx) {
         final searchCtrl = TextEditingController();
@@ -331,6 +334,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                             Navigator.pop(sheetCtx, {
                               'id': c['id']?.toString() ?? '',
                               'name': c['name']?.toString() ?? '',
+                              'address': c['address']?.toString() ?? '',
                             });
                           },
                         );
