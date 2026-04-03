@@ -1,11 +1,20 @@
-import 'dart:isolate';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api/api_client.dart';
 import '../../core/crypto/auth_crypto.dart';
 import '../../models/auth.dart';
 import '../../providers/providers.dart';
+
+// Top-level function for compute() - must not be a closure
+class _HashParams {
+  final String password;
+  final String email;
+  _HashParams(this.password, this.email);
+}
+
+String _deriveHash(_HashParams p) =>
+    AuthCrypto.deriveAuthHash(p.password, p.email);
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -35,11 +44,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final api = ref.read(apiClientProvider);
       await api.setBaseUrl(_serverCtrl.text);
 
-      // Derive auth hash on isolate to keep UI responsive
+      // Derive auth hash on background isolate via compute()
       final password = _passwordCtrl.text;
       final email = _emailCtrl.text;
-      final authHash = await Isolate.run(() =>
-        AuthCrypto.deriveAuthHash(password, email)
+      final authHash = await compute(
+        _deriveHash,
+        _HashParams(password, email),
       );
 
       await api.post<Map<String, dynamic>>(
