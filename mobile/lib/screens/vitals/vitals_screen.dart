@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/vital.dart';
 import '../../providers/providers.dart';
@@ -107,17 +108,25 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
       ..sort((a, b) => a.measuredAt.compareTo(b.measuredAt));
   }
 
-  // -- Add vital bottom sheet -------------------------------------------------
+  // -- Add/Edit vital bottom sheet --------------------------------------------
 
-  Future<void> _showAddSheet() async {
+  Future<void> _showFormSheet({Vital? existing}) async {
+    final isEdit = existing != null;
     final ctrl = {
-      'systolic': TextEditingController(),
-      'diastolic': TextEditingController(),
-      'pulse': TextEditingController(),
-      'weight': TextEditingController(),
-      'temp': TextEditingController(),
-      'spo2': TextEditingController(),
-      'glucose': TextEditingController(),
+      'systolic': TextEditingController(
+          text: existing?.systolic?.toStringAsFixed(0) ?? ''),
+      'diastolic': TextEditingController(
+          text: existing?.diastolic?.toStringAsFixed(0) ?? ''),
+      'pulse': TextEditingController(
+          text: existing?.pulse?.toStringAsFixed(0) ?? ''),
+      'weight': TextEditingController(
+          text: existing?.weight?.toStringAsFixed(1) ?? ''),
+      'temp': TextEditingController(
+          text: existing?.temperature?.toStringAsFixed(1) ?? ''),
+      'spo2': TextEditingController(
+          text: existing?.oxygenSaturation?.toStringAsFixed(0) ?? ''),
+      'glucose': TextEditingController(
+          text: existing?.bloodGlucose?.toStringAsFixed(0) ?? ''),
     };
 
     await showModalBottomSheet(
@@ -138,7 +147,10 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
             controller: scrollCtrl,
             children: [
               const SizedBox(height: 8),
-              Text(T.tr('vitals.add'), style: Theme.of(ctx).textTheme.titleLarge),
+              Text(
+                isEdit ? T.tr('vitals.edit') : T.tr('vitals.add'),
+                style: Theme.of(ctx).textTheme.titleLarge,
+              ),
               const SizedBox(height: 20),
               _sheetField(ctrl['systolic']!, 'Systolic', 'mmHg'),
               _sheetField(ctrl['diastolic']!, 'Diastolic', 'mmHg'),
@@ -154,7 +166,9 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                   double? d(String key) =>
                       double.tryParse(ctrl[key]!.text.trim());
                   final body = <String, dynamic>{
-                    'measured_at': DateTime.now().toUtc().toIso8601String(),
+                    'measured_at': isEdit
+                        ? existing.measuredAt
+                        : DateTime.now().toUtc().toIso8601String(),
                     if (d('systolic') != null)
                       'blood_pressure_systolic': d('systolic'),
                     if (d('diastolic') != null)
@@ -167,10 +181,17 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                   };
                   try {
                     final api = ref.read(apiClientProvider);
-                    await api.post<void>(
-                      '/api/v1/profiles/${widget.profileId}/vitals',
-                      body: body,
-                    );
+                    if (isEdit) {
+                      await api.patch<void>(
+                        '/api/v1/profiles/${widget.profileId}/vitals/${existing.id}',
+                        body: body,
+                      );
+                    } else {
+                      await api.post<void>(
+                        '/api/v1/profiles/${widget.profileId}/vitals',
+                        body: body,
+                      );
+                    }
                     ref.invalidate(_vitalsProvider(widget.profileId));
                   } catch (e) {
                     if (mounted) {
@@ -242,6 +263,36 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
     }
   }
 
+  // -- Share ------------------------------------------------------------------
+
+  void _shareVitals(List<Vital> vitals) {
+    if (vitals.isEmpty) return;
+    final latest = vitals.last;
+    final parts = <String>[
+      'My Vitals (${DateFormat('dd.MM.yyyy').format(DateTime.now())})',
+    ];
+    if (latest.systolic != null && latest.diastolic != null) {
+      parts.add(
+          'BP: ${latest.systolic!.toInt()}/${latest.diastolic!.toInt()} mmHg');
+    }
+    if (latest.pulse != null) {
+      parts.add('Pulse: ${latest.pulse!.toInt()} bpm');
+    }
+    if (latest.weight != null) {
+      parts.add('Weight: ${latest.weight!.toStringAsFixed(1)} kg');
+    }
+    if (latest.temperature != null) {
+      parts.add('Temp: ${latest.temperature!.toStringAsFixed(1)} \u00b0C');
+    }
+    if (latest.oxygenSaturation != null) {
+      parts.add('SpO\u2082: ${latest.oxygenSaturation!.toInt()} %');
+    }
+    if (latest.bloodGlucose != null) {
+      parts.add('Glucose: ${latest.bloodGlucose!.toInt()} mg/dL');
+    }
+    Share.share(parts.join('\n'));
+  }
+
   // -- Build ------------------------------------------------------------------
 
   @override
@@ -254,9 +305,19 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
       appBar: AppBar(
         title: Text(T.tr('vitals.title')),
         automaticallyImplyLeading: false,
+        actions: [
+          vitalsAsync.whenOrNull(
+                data: (vitals) => IconButton(
+                  icon: const Icon(Icons.share),
+                  tooltip: T.tr('common.share'),
+                  onPressed: () => _shareVitals(_filtered(vitals)),
+                ),
+              ) ??
+              const SizedBox.shrink(),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSheet,
+        onPressed: () => _showFormSheet(),
         child: const Icon(Icons.add),
       ),
       body: vitalsAsync.when(
@@ -355,7 +416,11 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                   delegate: SliverChildBuilderDelegate(
                     (_, i) {
                       final v = filtered[filtered.length - 1 - i]; // newest first
-                      return _VitalCard(vital: v, onDelete: () => _delete(v.id));
+                      return _VitalCard(
+                        vital: v,
+                        onDelete: () => _delete(v.id),
+                        onTap: () => _showFormSheet(existing: v),
+                      );
                     },
                     childCount: filtered.length,
                   ),
@@ -534,7 +599,12 @@ class _ChartSection extends StatelessWidget {
 class _VitalCard extends StatelessWidget {
   final Vital vital;
   final VoidCallback onDelete;
-  const _VitalCard({required this.vital, required this.onDelete});
+  final VoidCallback onTap;
+  const _VitalCard({
+    required this.vital,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -569,6 +639,7 @@ class _VitalCard extends StatelessWidget {
       child: Card(
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
           onLongPress: onDelete,
           child: Padding(
             padding: const EdgeInsets.all(16),

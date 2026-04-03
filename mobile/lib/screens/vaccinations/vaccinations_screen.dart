@@ -64,12 +64,26 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
     }
   }
 
-  Future<void> _showAddSheet() async {
-    final vaccineCtrl = TextEditingController();
-    final adminDateCtrl = TextEditingController();
-    final nextDueCtrl = TextEditingController();
-    final lotCtrl = TextEditingController();
-    final adminByCtrl = TextEditingController();
+  Future<void> _showFormSheet({Vaccination? existing}) async {
+    final isEdit = existing != null;
+    final vaccineCtrl =
+        TextEditingController(text: existing?.vaccine ?? '');
+    final adminDateCtrl = TextEditingController(
+        text: isEdit && existing.administeredAt != null
+            ? (existing.administeredAt!.length >= 10
+                ? existing.administeredAt!.substring(0, 10)
+                : existing.administeredAt!)
+            : '');
+    final nextDueCtrl = TextEditingController(
+        text: isEdit && existing.nextDueAt != null
+            ? (existing.nextDueAt!.length >= 10
+                ? existing.nextDueAt!.substring(0, 10)
+                : existing.nextDueAt!)
+            : '');
+    final lotCtrl =
+        TextEditingController(text: existing?.batchNumber ?? '');
+    final adminByCtrl =
+        TextEditingController(text: existing?.administeredBy ?? '');
     final formKey = GlobalKey<FormState>();
 
     await showModalBottomSheet(
@@ -92,8 +106,12 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
               controller: scrollCtrl,
               children: [
                 const SizedBox(height: 8),
-                Text(T.tr('vaccinations.add'),
-                    style: Theme.of(ctx).textTheme.titleLarge),
+                Text(
+                  isEdit
+                      ? T.tr('vaccinations.edit')
+                      : T.tr('vaccinations.add'),
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: vaccineCtrl,
@@ -112,9 +130,13 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                   ),
                   readOnly: true,
                   onTap: () async {
+                    final initDate = adminDateCtrl.text.isNotEmpty
+                        ? (DateTime.tryParse(adminDateCtrl.text) ??
+                            DateTime.now())
+                        : DateTime.now();
                     final picked = await showDatePicker(
                       context: ctx,
-                      initialDate: DateTime.now(),
+                      initialDate: initDate,
                       firstDate: DateTime(1900),
                       lastDate: DateTime.now(),
                     );
@@ -134,9 +156,13 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                   ),
                   readOnly: true,
                   onTap: () async {
+                    final initDate = nextDueCtrl.text.isNotEmpty
+                        ? (DateTime.tryParse(nextDueCtrl.text) ??
+                            DateTime.now())
+                        : DateTime.now();
                     final picked = await showDatePicker(
                       context: ctx,
-                      initialDate: DateTime.now(),
+                      initialDate: initDate,
                       firstDate: DateTime.now(),
                       lastDate: DateTime(2100),
                     );
@@ -177,10 +203,18 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                         'administered_by': adminByCtrl.text.trim(),
                     };
                     try {
-                      await ref.read(apiClientProvider).post<void>(
-                            '/api/v1/profiles/${widget.profileId}/vaccinations',
-                            body: body,
-                          );
+                      final api = ref.read(apiClientProvider);
+                      if (isEdit) {
+                        await api.patch<void>(
+                          '/api/v1/profiles/${widget.profileId}/vaccinations/${existing.id}',
+                          body: body,
+                        );
+                      } else {
+                        await api.post<void>(
+                          '/api/v1/profiles/${widget.profileId}/vaccinations',
+                          body: body,
+                        );
+                      }
                       ref.invalidate(
                           _vaccinationsProvider(widget.profileId));
                     } catch (e) {
@@ -190,7 +224,7 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                       }
                     }
                   },
-                  child: Text(T.tr('vaccinations.add')),
+                  child: Text(T.tr('common.save')),
                 ),
               ],
             ),
@@ -217,7 +251,7 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSheet,
+        onPressed: () => _showFormSheet(),
         tooltip: T.tr('vaccinations.add'),
         child: const Icon(Icons.add),
       ),
@@ -255,6 +289,7 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
             itemBuilder: (_, i) => _VaccinationCard(
               vaccination: items[i],
               onDelete: () => _delete(items[i].id),
+              onTap: () => _showFormSheet(existing: items[i]),
             ),
           );
         },
@@ -268,8 +303,12 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
 class _VaccinationCard extends StatelessWidget {
   final Vaccination vaccination;
   final VoidCallback onDelete;
-  const _VaccinationCard(
-      {required this.vaccination, required this.onDelete});
+  final VoidCallback onTap;
+  const _VaccinationCard({
+    required this.vaccination,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -302,6 +341,7 @@ class _VaccinationCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
         onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.all(16),

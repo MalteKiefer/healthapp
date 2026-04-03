@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
@@ -92,6 +95,23 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       await _downloadPdf(doc);
     } else {
       _showFileInfo(doc);
+    }
+  }
+
+  Future<void> _shareDocument(Document doc) async {
+    try {
+      final bytes = await ref.read(apiClientProvider).getBytes(
+            '/api/v1/profiles/${widget.profileId}/documents/${doc.id}/download',
+          );
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/${doc.filename}');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles([XFile(file.path)], text: doc.filename);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 
@@ -285,6 +305,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           document: filtered[i],
                           onDelete: () => _delete(filtered[i].id),
                           onTap: () => _openDocument(filtered[i]),
+                          onShare: () => _shareDocument(filtered[i]),
                           formatSize: _formatFileSize,
                         ),
                       ),
@@ -303,11 +324,13 @@ class _DocumentCard extends StatelessWidget {
   final Document document;
   final VoidCallback onDelete;
   final VoidCallback onTap;
+  final VoidCallback onShare;
   final String Function(int?) formatSize;
   const _DocumentCard({
     required this.document,
     required this.onDelete,
     required this.onTap,
+    required this.onShare,
     required this.formatSize,
   });
 
@@ -423,6 +446,11 @@ class _DocumentCard extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.share, size: 18),
+                tooltip: T.tr('common.share'),
+                onPressed: onShare,
               ),
             ],
           ),

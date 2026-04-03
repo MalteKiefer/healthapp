@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/lab.dart';
 import '../../providers/providers.dart';
@@ -45,12 +46,28 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
   _View _view = _View.list;
   String _range = '3d';
 
-  Future<void> _showAddSheet() async {
-    final labNameCtrl = TextEditingController();
-    final sampleDateCtrl = TextEditingController();
-    final markerCtrl = TextEditingController();
-    final valueCtrl = TextEditingController();
-    final unitCtrl = TextEditingController();
+  Future<void> _showFormSheet({LabResult? existing}) async {
+    final isEdit = existing != null;
+    final labNameCtrl =
+        TextEditingController(text: existing?.labName ?? '');
+    final sampleDateCtrl = TextEditingController(
+        text: existing != null
+            ? (existing.sampleDate.length >= 10
+                ? existing.sampleDate.substring(0, 10)
+                : existing.sampleDate)
+            : '');
+    final markerCtrl = TextEditingController(
+        text: isEdit && existing.values.isNotEmpty
+            ? existing.values.first.marker
+            : '');
+    final valueCtrl = TextEditingController(
+        text: isEdit && existing.values.isNotEmpty && existing.values.first.value != null
+            ? existing.values.first.value.toString()
+            : '');
+    final unitCtrl = TextEditingController(
+        text: isEdit && existing.values.isNotEmpty
+            ? (existing.values.first.unit ?? '')
+            : '');
 
     await showModalBottomSheet(
       context: context,
@@ -70,8 +87,10 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
             controller: scrollCtrl,
             children: [
               const SizedBox(height: 8),
-              Text(T.tr('labs.add'),
-                  style: Theme.of(ctx).textTheme.titleLarge),
+              Text(
+                isEdit ? T.tr('labs.edit') : T.tr('labs.add'),
+                style: Theme.of(ctx).textTheme.titleLarge,
+              ),
               const SizedBox(height: 20),
               TextField(
                 controller: labNameCtrl,
@@ -143,10 +162,18 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
                     ],
                   };
                   try {
-                    await ref.read(apiClientProvider).post<void>(
-                          '/api/v1/profiles/${widget.profileId}/labs',
-                          body: body,
-                        );
+                    final api = ref.read(apiClientProvider);
+                    if (isEdit) {
+                      await api.patch<void>(
+                        '/api/v1/profiles/${widget.profileId}/labs/${existing.id}',
+                        body: body,
+                      );
+                    } else {
+                      await api.post<void>(
+                        '/api/v1/profiles/${widget.profileId}/labs',
+                        body: body,
+                      );
+                    }
                     ref.invalidate(_labsProvider(widget.profileId));
                     ref.invalidate(_trendsProvider(widget.profileId));
                   } catch (e) {
@@ -178,7 +205,7 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSheet,
+        onPressed: () => _showFormSheet(),
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -219,7 +246,10 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
             ),
           Expanded(
             child: _view == _View.list
-                ? _ListTab(profileId: widget.profileId)
+                ? _ListTab(
+                    profileId: widget.profileId,
+                    onEdit: (lab) => _showFormSheet(existing: lab),
+                  )
                 : _TrendsTab(profileId: widget.profileId, range: _range),
           ),
         ],
@@ -232,7 +262,8 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
 
 class _ListTab extends ConsumerWidget {
   final String profileId;
-  const _ListTab({required this.profileId});
+  final void Function(LabResult) onEdit;
+  const _ListTab({required this.profileId, required this.onEdit});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -269,7 +300,11 @@ class _ListTab extends ConsumerWidget {
               itemCount: labs.length,
               itemBuilder: (_, i) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: _LabCard(result: labs[i]),
+                child: _LabCard(
+                  result: labs[i],
+                  onEdit: () => onEdit(labs[i]),
+                  profileId: profileId,
+                ),
               ),
             );
           },
@@ -279,13 +314,32 @@ class _ListTab extends ConsumerWidget {
 
 class _LabCard extends StatefulWidget {
   final LabResult result;
-  const _LabCard({required this.result});
+  final VoidCallback onEdit;
+  final String profileId;
+  const _LabCard({
+    required this.result,
+    required this.onEdit,
+    required this.profileId,
+  });
   @override
   State<_LabCard> createState() => _LabCardState();
 }
 
 class _LabCardState extends State<_LabCard> {
   bool _expanded = false;
+
+  void _shareLabResult() {
+    final r = widget.result;
+    final parts = <String>[
+      'Lab Result: ${r.labName ?? T.tr('labs.title')}',
+      'Date: ${r.sampleDate.length >= 10 ? r.sampleDate.substring(0, 10) : r.sampleDate}',
+    ];
+    for (final v in r.values) {
+      parts.add(
+          '${v.marker}: ${v.value ?? '-'} ${v.unit ?? ''} ${v.flag != null ? '(${v.flag})' : ''}');
+    }
+    Share.share(parts.join('\n'));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -335,6 +389,16 @@ class _LabCardState extends State<_LabCard> {
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.share, size: 18),
+                    tooltip: T.tr('common.share'),
+                    onPressed: _shareLabResult,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    tooltip: T.tr('common.edit'),
+                    onPressed: widget.onEdit,
                   ),
                   Container(
                     padding:

@@ -63,14 +63,33 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     }
   }
 
-  Future<void> _showAddSheet() async {
-    final nameCtrl = TextEditingController();
-    final specialtyCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    final streetCtrl = TextEditingController();
-    final cityCtrl = TextEditingController();
-    final postalCtrl = TextEditingController();
+  Future<void> _showFormSheet({Contact? existing}) async {
+    final isEdit = existing != null;
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final specialtyCtrl =
+        TextEditingController(text: existing?.specialty ?? '');
+    final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
+    final emailCtrl = TextEditingController(text: existing?.email ?? '');
+
+    // Parse address into parts if editing
+    String existingStreet = '';
+    String existingPostal = '';
+    String existingCity = '';
+    if (isEdit && existing.address != null) {
+      final parts = existing.address!.split(', ');
+      if (parts.isNotEmpty) existingStreet = parts[0];
+      if (parts.length > 1) {
+        final cityParts = parts[1].split(' ');
+        if (cityParts.isNotEmpty) existingPostal = cityParts[0];
+        if (cityParts.length > 1) {
+          existingCity = cityParts.sublist(1).join(' ');
+        }
+      }
+    }
+
+    final streetCtrl = TextEditingController(text: existingStreet);
+    final cityCtrl = TextEditingController(text: existingCity);
+    final postalCtrl = TextEditingController(text: existingPostal);
     final formKey = GlobalKey<FormState>();
 
     await showModalBottomSheet(
@@ -93,8 +112,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               controller: scrollCtrl,
               children: [
                 const SizedBox(height: 8),
-                Text(T.tr('contacts.add'),
-                    style: Theme.of(ctx).textTheme.titleLarge),
+                Text(
+                  isEdit ? T.tr('contacts.edit') : T.tr('contacts.add'),
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: nameCtrl,
@@ -172,10 +193,18 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                         'address': addrParts.join(', '),
                     };
                     try {
-                      await ref.read(apiClientProvider).post<void>(
-                            '/api/v1/profiles/${widget.profileId}/contacts',
-                            body: body,
-                          );
+                      final api = ref.read(apiClientProvider);
+                      if (isEdit) {
+                        await api.patch<void>(
+                          '/api/v1/profiles/${widget.profileId}/contacts/${existing.id}',
+                          body: body,
+                        );
+                      } else {
+                        await api.post<void>(
+                          '/api/v1/profiles/${widget.profileId}/contacts',
+                          body: body,
+                        );
+                      }
                       ref.invalidate(
                           _contactsProvider(widget.profileId));
                     } catch (e) {
@@ -185,7 +214,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                       }
                     }
                   },
-                  child: Text(T.tr('contacts.add')),
+                  child: Text(T.tr('common.save')),
                 ),
               ],
             ),
@@ -214,7 +243,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSheet,
+        onPressed: () => _showFormSheet(),
         tooltip: T.tr('contacts.add'),
         child: const Icon(Icons.add),
       ),
@@ -252,6 +281,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
             itemBuilder: (_, i) => _ContactCard(
               contact: items[i],
               onDelete: () => _delete(items[i].id),
+              onTap: () => _showFormSheet(existing: items[i]),
             ),
           );
         },
@@ -265,7 +295,12 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
 class _ContactCard extends StatelessWidget {
   final Contact contact;
   final VoidCallback onDelete;
-  const _ContactCard({required this.contact, required this.onDelete});
+  final VoidCallback onTap;
+  const _ContactCard({
+    required this.contact,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   void _launchPhone(String phone) {
     launchUrl(Uri(scheme: 'tel', path: phone));
@@ -288,6 +323,7 @@ class _ContactCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
         onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.all(16),

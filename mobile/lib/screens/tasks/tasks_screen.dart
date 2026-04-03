@@ -80,12 +80,19 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     }
   }
 
-  Future<void> _showAddSheet() async {
-    final titleCtrl = TextEditingController();
-    final dueDateCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
+  Future<void> _showFormSheet({Task? existing}) async {
+    final isEdit = existing != null;
+    final titleCtrl = TextEditingController(text: existing?.title ?? '');
+    final dueDateCtrl = TextEditingController(
+        text: isEdit && existing.dueAt != null
+            ? (existing.dueAt!.length >= 10
+                ? existing.dueAt!.substring(0, 10)
+                : existing.dueAt!)
+            : '');
+    final notesCtrl =
+        TextEditingController(text: existing?.description ?? '');
     final formKey = GlobalKey<FormState>();
-    String priority = 'medium';
+    String priority = existing?.priority ?? 'medium';
 
     await showModalBottomSheet(
       context: context,
@@ -108,8 +115,10 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                 controller: scrollCtrl,
                 children: [
                   const SizedBox(height: 8),
-                  Text(T.tr('tasks.add'),
-                      style: Theme.of(ctx).textTheme.titleLarge),
+                  Text(
+                    isEdit ? T.tr('tasks.edit') : T.tr('tasks.add'),
+                    style: Theme.of(ctx).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: titleCtrl,
@@ -127,9 +136,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     ),
                     readOnly: true,
                     onTap: () async {
+                      final initDate = dueDateCtrl.text.isNotEmpty
+                          ? (DateTime.tryParse(dueDateCtrl.text) ??
+                              DateTime.now())
+                          : DateTime.now();
                       final picked = await showDatePicker(
                         context: ctx,
-                        initialDate: DateTime.now(),
+                        initialDate: initDate,
                         firstDate: DateTime.now(),
                         lastDate: DateTime(2100),
                       );
@@ -174,10 +187,18 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                           'description': notesCtrl.text.trim(),
                       };
                       try {
-                        await ref.read(apiClientProvider).post<void>(
-                              '/api/v1/profiles/${widget.profileId}/tasks',
-                              body: body,
-                            );
+                        final api = ref.read(apiClientProvider);
+                        if (isEdit) {
+                          await api.patch<void>(
+                            '/api/v1/profiles/${widget.profileId}/tasks/${existing.id}',
+                            body: body,
+                          );
+                        } else {
+                          await api.post<void>(
+                            '/api/v1/profiles/${widget.profileId}/tasks',
+                            body: body,
+                          );
+                        }
                         ref.invalidate(
                             _tasksProvider(widget.profileId));
                       } catch (e) {
@@ -187,7 +208,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                         }
                       }
                     },
-                    child: Text(T.tr('tasks.add')),
+                    child: Text(T.tr('common.save')),
                   ),
                 ],
               ),
@@ -213,7 +234,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSheet,
+        onPressed: () => _showFormSheet(),
         tooltip: T.tr('tasks.add'),
         child: const Icon(Icons.add),
       ),
@@ -283,6 +304,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     task: list[i],
                     onDelete: () => _delete(list[i].id),
                     onToggle: () => _toggleCompletion(list[i]),
+                    onEdit: () => _showFormSheet(existing: list[i]),
                   ),
                 );
               },
@@ -300,10 +322,12 @@ class _TaskCard extends StatelessWidget {
   final Task task;
   final VoidCallback onDelete;
   final VoidCallback onToggle;
+  final VoidCallback onEdit;
   const _TaskCard({
     required this.task,
     required this.onDelete,
     required this.onToggle,
+    required this.onEdit,
   });
 
   Color _priorityColor(String? priority, ColorScheme cs) {
@@ -340,7 +364,7 @@ class _TaskCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onLongPress: onDelete,
-        onTap: onToggle,
+        onTap: onEdit,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(

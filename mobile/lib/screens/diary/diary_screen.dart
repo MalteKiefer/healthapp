@@ -63,11 +63,13 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
     }
   }
 
-  Future<void> _showAddSheet() async {
-    final contentCtrl = TextEditingController();
+  Future<void> _showFormSheet({DiaryEvent? existing}) async {
+    final isEdit = existing != null;
+    final contentCtrl =
+        TextEditingController(text: existing?.content ?? '');
     final formKey = GlobalKey<FormState>();
-    String mood = 'neutral';
-    int moodScore = 5;
+    String mood = existing?.mood ?? 'neutral';
+    int moodScore = existing?.moodScore ?? 5;
 
     await showModalBottomSheet(
       context: context,
@@ -90,8 +92,10 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                 controller: scrollCtrl,
                 children: [
                   const SizedBox(height: 8),
-                  Text(T.tr('diary.add'),
-                      style: Theme.of(ctx).textTheme.titleLarge),
+                  Text(
+                    isEdit ? T.tr('diary.edit') : T.tr('diary.add'),
+                    style: Theme.of(ctx).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 20),
                   DropdownButtonFormField<String>(
                     value: mood,
@@ -143,18 +147,27 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                     onPressed: () async {
                       Navigator.pop(ctx);
                       final body = <String, dynamic>{
-                        'recorded_at':
-                            DateTime.now().toUtc().toIso8601String(),
+                        'recorded_at': isEdit
+                            ? existing.recordedAt
+                            : DateTime.now().toUtc().toIso8601String(),
                         'mood': mood,
                         'mood_score': moodScore,
                         if (contentCtrl.text.trim().isNotEmpty)
                           'content': contentCtrl.text.trim(),
                       };
                       try {
-                        await ref.read(apiClientProvider).post<void>(
-                              '/api/v1/profiles/${widget.profileId}/diary',
-                              body: body,
-                            );
+                        final api = ref.read(apiClientProvider);
+                        if (isEdit) {
+                          await api.patch<void>(
+                            '/api/v1/profiles/${widget.profileId}/diary/${existing.id}',
+                            body: body,
+                          );
+                        } else {
+                          await api.post<void>(
+                            '/api/v1/profiles/${widget.profileId}/diary',
+                            body: body,
+                          );
+                        }
                         ref.invalidate(
                             _diaryProvider(widget.profileId));
                       } catch (e) {
@@ -188,7 +201,7 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSheet,
+        onPressed: () => _showFormSheet(),
         tooltip: T.tr('diary.add'),
         child: const Icon(Icons.add),
       ),
@@ -259,6 +272,7 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                         child: _DiaryCard(
                           entry: e,
                           onDelete: () => _delete(e.id),
+                          onTap: () => _showFormSheet(existing: e),
                         ),
                       )),
                 ],
@@ -276,7 +290,12 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
 class _DiaryCard extends StatelessWidget {
   final DiaryEvent entry;
   final VoidCallback onDelete;
-  const _DiaryCard({required this.entry, required this.onDelete});
+  final VoidCallback onTap;
+  const _DiaryCard({
+    required this.entry,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   Color _moodColor(int? score, ColorScheme cs) {
     if (score == null) return cs.primary;
@@ -302,6 +321,7 @@ class _DiaryCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
         onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.all(16),

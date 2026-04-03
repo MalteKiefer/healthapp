@@ -65,11 +65,17 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
     }
   }
 
-  Future<void> _showAddSheet() async {
-    final nameCtrl = TextEditingController();
-    final icdCtrl = TextEditingController();
-    final dateCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
+  Future<void> _showFormSheet({Diagnosis? existing}) async {
+    final isEdit = existing != null;
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final icdCtrl = TextEditingController(text: existing?.icdCode ?? '');
+    final dateCtrl = TextEditingController(
+        text: isEdit && existing.diagnosedAt != null
+            ? (existing.diagnosedAt!.length >= 10
+                ? existing.diagnosedAt!.substring(0, 10)
+                : existing.diagnosedAt!)
+            : '');
+    final notesCtrl = TextEditingController(text: existing?.notes ?? '');
     final formKey = GlobalKey<FormState>();
 
     await showModalBottomSheet(
@@ -92,8 +98,10 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
               controller: scrollCtrl,
               children: [
                 const SizedBox(height: 8),
-                Text(T.tr('diagnoses.add'),
-                    style: Theme.of(ctx).textTheme.titleLarge),
+                Text(
+                  isEdit ? T.tr('diagnoses.edit') : T.tr('diagnoses.add'),
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: nameCtrl,
@@ -117,9 +125,12 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                   ),
                   readOnly: true,
                   onTap: () async {
+                    final initDate = dateCtrl.text.isNotEmpty
+                        ? (DateTime.tryParse(dateCtrl.text) ?? DateTime.now())
+                        : DateTime.now();
                     final picked = await showDatePicker(
                       context: ctx,
-                      initialDate: DateTime.now(),
+                      initialDate: initDate,
                       firstDate: DateTime(1900),
                       lastDate: DateTime.now(),
                     );
@@ -150,10 +161,18 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                         'notes': notesCtrl.text.trim(),
                     };
                     try {
-                      await ref.read(apiClientProvider).post<void>(
-                            '/api/v1/profiles/${widget.profileId}/diagnoses',
-                            body: body,
-                          );
+                      final api = ref.read(apiClientProvider);
+                      if (isEdit) {
+                        await api.patch<void>(
+                          '/api/v1/profiles/${widget.profileId}/diagnoses/${existing.id}',
+                          body: body,
+                        );
+                      } else {
+                        await api.post<void>(
+                          '/api/v1/profiles/${widget.profileId}/diagnoses',
+                          body: body,
+                        );
+                      }
                       ref.invalidate(
                           _diagnosesProvider(widget.profileId));
                     } catch (e) {
@@ -163,7 +182,7 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                       }
                     }
                   },
-                  child: Text(T.tr('diagnoses.add')),
+                  child: Text(T.tr('common.save')),
                 ),
               ],
             ),
@@ -189,7 +208,7 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSheet,
+        onPressed: () => _showFormSheet(),
         tooltip: T.tr('diagnoses.add'),
         child: const Icon(Icons.add),
       ),
@@ -258,6 +277,7 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                   itemBuilder: (_, i) => _DiagnosisCard(
                     diagnosis: list[i],
                     onDelete: () => _delete(list[i].id),
+                    onTap: () => _showFormSheet(existing: list[i]),
                   ),
                 );
               },
@@ -274,7 +294,12 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
 class _DiagnosisCard extends StatelessWidget {
   final Diagnosis diagnosis;
   final VoidCallback onDelete;
-  const _DiagnosisCard({required this.diagnosis, required this.onDelete});
+  final VoidCallback onTap;
+  const _DiagnosisCard({
+    required this.diagnosis,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -306,6 +331,7 @@ class _DiagnosisCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
         onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.all(16),

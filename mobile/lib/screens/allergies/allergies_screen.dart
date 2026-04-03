@@ -63,12 +63,15 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
     }
   }
 
-  Future<void> _showAddSheet() async {
-    final allergenCtrl = TextEditingController();
-    final reactionCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
+  Future<void> _showFormSheet({Allergy? existing}) async {
+    final isEdit = existing != null;
+    final allergenCtrl =
+        TextEditingController(text: existing?.allergen ?? '');
+    final reactionCtrl =
+        TextEditingController(text: existing?.reaction ?? '');
+    final notesCtrl = TextEditingController(text: existing?.notes ?? '');
     final formKey = GlobalKey<FormState>();
-    String severity = 'mild';
+    String severity = existing?.severity ?? 'mild';
 
     await showModalBottomSheet(
       context: context,
@@ -91,8 +94,10 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                 controller: scrollCtrl,
                 children: [
                   const SizedBox(height: 8),
-                  Text(T.tr('allergies.add'),
-                      style: Theme.of(ctx).textTheme.titleLarge),
+                  Text(
+                    isEdit ? T.tr('allergies.edit') : T.tr('allergies.add'),
+                    style: Theme.of(ctx).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: allergenCtrl,
@@ -139,10 +144,18 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                           'notes': notesCtrl.text.trim(),
                       };
                       try {
-                        await ref.read(apiClientProvider).post<void>(
-                              '/api/v1/profiles/${widget.profileId}/allergies',
-                              body: body,
-                            );
+                        final api = ref.read(apiClientProvider);
+                        if (isEdit) {
+                          await api.patch<void>(
+                            '/api/v1/profiles/${widget.profileId}/allergies/${existing.id}',
+                            body: body,
+                          );
+                        } else {
+                          await api.post<void>(
+                            '/api/v1/profiles/${widget.profileId}/allergies',
+                            body: body,
+                          );
+                        }
                         ref.invalidate(
                             _allergiesProvider(widget.profileId));
                       } catch (e) {
@@ -152,7 +165,7 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                         }
                       }
                     },
-                    child: Text(T.tr('allergies.add')),
+                    child: Text(T.tr('common.save')),
                   ),
                 ],
               ),
@@ -178,7 +191,7 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSheet,
+        onPressed: () => _showFormSheet(),
         tooltip: T.tr('allergies.add'),
         child: const Icon(Icons.add),
       ),
@@ -217,6 +230,7 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
             itemBuilder: (_, i) => _AllergyCard(
               allergy: items[i],
               onDelete: () => _delete(items[i].id),
+              onTap: () => _showFormSheet(existing: items[i]),
             ),
           );
         },
@@ -230,7 +244,12 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
 class _AllergyCard extends StatelessWidget {
   final Allergy allergy;
   final VoidCallback onDelete;
-  const _AllergyCard({required this.allergy, required this.onDelete});
+  final VoidCallback onTap;
+  const _AllergyCard({
+    required this.allergy,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   Color _severityColor(String? severity, ColorScheme cs) {
     switch (severity?.toLowerCase()) {
@@ -253,6 +272,7 @@ class _AllergyCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
         onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.all(16),

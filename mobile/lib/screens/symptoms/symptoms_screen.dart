@@ -65,11 +65,14 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
     }
   }
 
-  Future<void> _showAddSheet() async {
-    final nameCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
+  Future<void> _showFormSheet({Symptom? existing}) async {
+    final isEdit = existing != null;
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final notesCtrl = TextEditingController(text: existing?.notes ?? '');
     final formKey = GlobalKey<FormState>();
-    int intensity = 5;
+    int intensity = isEdit
+        ? (int.tryParse(existing.severity ?? '') ?? 5)
+        : 5;
 
     await showModalBottomSheet(
       context: context,
@@ -92,8 +95,10 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                 controller: scrollCtrl,
                 children: [
                   const SizedBox(height: 8),
-                  Text(T.tr('symptoms.add'),
-                      style: Theme.of(ctx).textTheme.titleLarge),
+                  Text(
+                    isEdit ? T.tr('symptoms.edit') : T.tr('symptoms.add'),
+                    style: Theme.of(ctx).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: nameCtrl,
@@ -134,17 +139,27 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                       final body = <String, dynamic>{
                         'name': nameCtrl.text.trim(),
                         'severity': intensity.toString(),
-                        'recorded_at':
-                            DateTime.now().toUtc().toIso8601String(),
-                        'is_ongoing': true,
+                        'recorded_at': isEdit
+                            ? (existing.recordedAt ??
+                                DateTime.now().toUtc().toIso8601String())
+                            : DateTime.now().toUtc().toIso8601String(),
+                        'is_ongoing': isEdit ? existing.isOngoing : true,
                         if (notesCtrl.text.trim().isNotEmpty)
                           'notes': notesCtrl.text.trim(),
                       };
                       try {
-                        await ref.read(apiClientProvider).post<void>(
-                              '/api/v1/profiles/${widget.profileId}/symptoms',
-                              body: body,
-                            );
+                        final api = ref.read(apiClientProvider);
+                        if (isEdit) {
+                          await api.patch<void>(
+                            '/api/v1/profiles/${widget.profileId}/symptoms/${existing.id}',
+                            body: body,
+                          );
+                        } else {
+                          await api.post<void>(
+                            '/api/v1/profiles/${widget.profileId}/symptoms',
+                            body: body,
+                          );
+                        }
                         ref.invalidate(
                             _symptomsProvider(widget.profileId));
                       } catch (e) {
@@ -154,7 +169,7 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                         }
                       }
                     },
-                    child: Text(T.tr('symptoms.add')),
+                    child: Text(T.tr('common.save')),
                   ),
                 ],
               ),
@@ -179,7 +194,7 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSheet,
+        onPressed: () => _showFormSheet(),
         tooltip: T.tr('symptoms.add'),
         child: const Icon(Icons.add),
       ),
@@ -248,6 +263,7 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                   itemBuilder: (_, i) => _SymptomCard(
                     symptom: list[i],
                     onDelete: () => _delete(list[i].id),
+                    onTap: () => _showFormSheet(existing: list[i]),
                   ),
                 );
               },
@@ -264,7 +280,12 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
 class _SymptomCard extends StatelessWidget {
   final Symptom symptom;
   final VoidCallback onDelete;
-  const _SymptomCard({required this.symptom, required this.onDelete});
+  final VoidCallback onTap;
+  const _SymptomCard({
+    required this.symptom,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   Color _intensityColor(int? val, ColorScheme cs) {
     if (val == null) return cs.primary;
@@ -295,6 +316,7 @@ class _SymptomCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
         onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.all(16),

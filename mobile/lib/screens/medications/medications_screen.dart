@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/medication.dart';
 import '../../providers/providers.dart';
@@ -64,11 +65,17 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
     }
   }
 
-  Future<void> _showAddSheet() async {
-    final nameCtrl = TextEditingController();
-    final dosageCtrl = TextEditingController();
-    final freqCtrl = TextEditingController();
-    final startCtrl = TextEditingController();
+  Future<void> _showFormSheet({Medication? existing}) async {
+    final isEdit = existing != null;
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final dosageCtrl = TextEditingController(text: existing?.dosage ?? '');
+    final freqCtrl = TextEditingController(text: existing?.frequency ?? '');
+    final startCtrl = TextEditingController(
+        text: isEdit && existing.startedAt != null
+            ? (existing.startedAt!.length >= 10
+                ? existing.startedAt!.substring(0, 10)
+                : existing.startedAt!)
+            : '');
     final formKey = GlobalKey<FormState>();
 
     await showModalBottomSheet(
@@ -91,8 +98,10 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
               controller: scrollCtrl,
               children: [
                 const SizedBox(height: 8),
-                Text(T.tr('meds.add'),
-                    style: Theme.of(ctx).textTheme.titleLarge),
+                Text(
+                  isEdit ? T.tr('meds.edit') : T.tr('meds.add'),
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: nameCtrl,
@@ -135,10 +144,18 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                             '${startCtrl.text.trim()}T00:00:00.000Z',
                     };
                     try {
-                      await ref.read(apiClientProvider).post<void>(
-                            '/api/v1/profiles/${widget.profileId}/medications',
-                            body: body,
-                          );
+                      final api = ref.read(apiClientProvider);
+                      if (isEdit) {
+                        await api.patch<void>(
+                          '/api/v1/profiles/${widget.profileId}/medications/${existing.id}',
+                          body: body,
+                        );
+                      } else {
+                        await api.post<void>(
+                          '/api/v1/profiles/${widget.profileId}/medications',
+                          body: body,
+                        );
+                      }
                       ref.invalidate(
                           medicationsProvider(widget.profileId));
                     } catch (e) {
@@ -148,7 +165,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                       }
                     }
                   },
-                  child: Text(T.tr('meds.add')),
+                  child: Text(T.tr('common.save')),
                 ),
               ],
             ),
@@ -162,6 +179,24 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
     startCtrl.dispose();
   }
 
+  void _shareMedications(List<Medication> meds) {
+    if (meds.isEmpty) return;
+    final active = meds.where((m) => m.isActive).toList();
+    final parts = <String>[
+      'My Medications (${active.length} active)',
+      '',
+    ];
+    for (final m in active) {
+      final details = [
+        m.name,
+        if (m.dosage != null) m.dosage!,
+        if (m.frequency != null) m.frequency!,
+      ].join(' - ');
+      parts.add(details);
+    }
+    Share.share(parts.join('\n'));
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -172,9 +207,19 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
       appBar: AppBar(
         title: Text(T.tr('meds.title')),
         automaticallyImplyLeading: false,
+        actions: [
+          async.whenOrNull(
+                data: (items) => IconButton(
+                  icon: const Icon(Icons.share),
+                  tooltip: T.tr('common.share'),
+                  onPressed: () => _shareMedications(items),
+                ),
+              ) ??
+              const SizedBox.shrink(),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSheet,
+        onPressed: () => _showFormSheet(),
         tooltip: T.tr('meds.add'),
         child: const Icon(Icons.add),
       ),
@@ -245,6 +290,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                   itemBuilder: (_, i) => _MedCard(
                     med: list[i],
                     onDelete: () => _delete(list[i].id),
+                    onTap: () => _showFormSheet(existing: list[i]),
                   ),
                 );
               },
@@ -261,7 +307,12 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
 class _MedCard extends StatelessWidget {
   final Medication med;
   final VoidCallback onDelete;
-  const _MedCard({required this.med, required this.onDelete});
+  final VoidCallback onTap;
+  const _MedCard({
+    required this.med,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -272,6 +323,7 @@ class _MedCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
         onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.all(16),

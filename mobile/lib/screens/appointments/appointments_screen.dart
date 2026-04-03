@@ -66,15 +66,31 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     }
   }
 
-  Future<void> _showAddSheet() async {
-    final titleCtrl = TextEditingController();
+  Future<void> _showFormSheet({Appointment? existing}) async {
+    final isEdit = existing != null;
+    final titleCtrl = TextEditingController(text: existing?.title ?? '');
     final dateCtrl = TextEditingController();
-    final locationCtrl = TextEditingController();
+    final locationCtrl =
+        TextEditingController(text: existing?.location ?? '');
     final doctorCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
+    final notesCtrl =
+        TextEditingController(text: existing?.preparationNotes ?? '');
     final formKey = GlobalKey<FormState>();
     DateTime? selectedDateTime;
-    String? selectedDoctorId;
+    String? selectedDoctorId = existing?.doctorId;
+
+    if (isEdit) {
+      try {
+        selectedDateTime = DateTime.parse(existing.scheduledAt);
+        dateCtrl.text = DateFormat(
+                T.lang == 'de'
+                    ? 'dd.MM.yyyy \u2013 HH:mm'
+                    : 'MMM d, yyyy \u2013 HH:mm')
+            .format(selectedDateTime.toLocal());
+      } catch (_) {
+        dateCtrl.text = existing.scheduledAt;
+      }
+    }
 
     await showModalBottomSheet(
       context: context,
@@ -96,8 +112,12 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
               controller: scrollCtrl,
               children: [
                 const SizedBox(height: 8),
-                Text(T.tr('appointments.add'),
-                    style: Theme.of(ctx).textTheme.titleLarge),
+                Text(
+                  isEdit
+                      ? T.tr('appointments.edit')
+                      : T.tr('appointments.add'),
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: titleCtrl,
@@ -118,7 +138,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                     final locale = T.lang == 'de' ? const Locale('de') : const Locale('en');
                     final date = await showDatePicker(
                       context: ctx,
-                      initialDate: DateTime.now(),
+                      initialDate: selectedDateTime ?? DateTime.now(),
                       firstDate: DateTime(2000),
                       lastDate: DateTime(2100),
                       locale: locale,
@@ -127,7 +147,9 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                     if (!ctx.mounted) return;
                     final time = await showTimePicker(
                       context: ctx,
-                      initialTime: TimeOfDay.now(),
+                      initialTime: selectedDateTime != null
+                          ? TimeOfDay.fromDateTime(selectedDateTime!)
+                          : TimeOfDay.now(),
                     );
                     if (time == null) return;
                     selectedDateTime = DateTime(
@@ -194,8 +216,12 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                       'scheduled_at':
                           selectedDateTime!.toUtc().toIso8601String(),
                       'appointment_type': 'general',
-                      'status': 'scheduled',
-                      'recurrence': 'none',
+                      'status': isEdit
+                          ? (existing.status ?? 'scheduled')
+                          : 'scheduled',
+                      'recurrence': isEdit
+                          ? (existing.recurrence ?? 'none')
+                          : 'none',
                       if (locationCtrl.text.trim().isNotEmpty)
                         'location': locationCtrl.text.trim(),
                       if (selectedDoctorId != null)
@@ -204,10 +230,18 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                         'preparation_notes': notesCtrl.text.trim(),
                     };
                     try {
-                      await ref.read(apiClientProvider).post<void>(
-                            '/api/v1/profiles/${widget.profileId}/appointments',
-                            body: body,
-                          );
+                      final api = ref.read(apiClientProvider);
+                      if (isEdit) {
+                        await api.patch<void>(
+                          '/api/v1/profiles/${widget.profileId}/appointments/${existing.id}',
+                          body: body,
+                        );
+                      } else {
+                        await api.post<void>(
+                          '/api/v1/profiles/${widget.profileId}/appointments',
+                          body: body,
+                        );
+                      }
                       ref.invalidate(
                           _appointmentsProvider(widget.profileId));
                     } catch (e) {
@@ -217,7 +251,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                       }
                     }
                   },
-                  child: Text(T.tr('appointments.add')),
+                  child: Text(T.tr('common.save')),
                 ),
               ],
             ),
@@ -324,7 +358,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSheet,
+        onPressed: () => _showFormSheet(),
         tooltip: T.tr('appointments.add'),
         child: const Icon(Icons.add),
       ),
@@ -404,6 +438,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                   itemBuilder: (_, i) => _AppointmentCard(
                     appointment: list[i],
                     onDelete: () => _delete(list[i].id),
+                    onTap: () => _showFormSheet(existing: list[i]),
                   ),
                 );
               },
@@ -420,8 +455,12 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
 class _AppointmentCard extends StatelessWidget {
   final Appointment appointment;
   final VoidCallback onDelete;
-  const _AppointmentCard(
-      {required this.appointment, required this.onDelete});
+  final VoidCallback onTap;
+  const _AppointmentCard({
+    required this.appointment,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -446,6 +485,7 @@ class _AppointmentCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
         onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.all(16),
