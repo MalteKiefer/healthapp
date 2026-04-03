@@ -125,15 +125,15 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                 TextFormField(
                   controller: vaccineCtrl,
                   decoration:
-                      const InputDecoration(labelText: 'Vaccine Name *'),
+                      InputDecoration(labelText: T.tr('field.vaccine_name_required')),
                   validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      (v == null || v.trim().isEmpty) ? T.tr('common.required') : null,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: adminDateCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Administered Date',
+                    labelText: T.tr('field.administered_date'),
                     hintText: 'YYYY-MM-DD',
                     suffixIcon: const Icon(Icons.calendar_today),
                   ),
@@ -159,7 +159,7 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                 TextField(
                   controller: nextDueCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Next Due Date',
+                    labelText: T.tr('field.next_due_date'),
                     hintText: 'YYYY-MM-DD',
                     suffixIcon: const Icon(Icons.calendar_today),
                   ),
@@ -185,13 +185,13 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                 TextField(
                   controller: lotCtrl,
                   decoration:
-                      const InputDecoration(labelText: 'Lot Number'),
+                      InputDecoration(labelText: T.tr('field.lot_number')),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: adminByCtrl,
                   decoration:
-                      const InputDecoration(labelText: 'Administered By'),
+                      InputDecoration(labelText: T.tr('field.administered_by')),
                 ),
                 // -- Advanced --
                 ExpansionTile(
@@ -431,7 +431,7 @@ class _VaccinationCard extends StatelessWidget {
                     if (adminDate != null) ...[
                       const SizedBox(height: 4),
                       Text(
-                        'Administered: $adminDate',
+                        '${T.tr('field.administered_date')}: $adminDate',
                         style: tt.bodySmall
                             ?.copyWith(color: cs.onSurfaceVariant),
                       ),
@@ -439,7 +439,7 @@ class _VaccinationCard extends StatelessWidget {
                     if (nextDue != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Next due: $nextDue',
+                        '${T.tr('field.next_due_date')}: $nextDue',
                         style: tt.bodySmall?.copyWith(
                           color: isOverdue ? cs.error : cs.onSurfaceVariant,
                           fontWeight:
@@ -453,9 +453,9 @@ class _VaccinationCard extends StatelessWidget {
                       Text(
                         [
                           if (vaccination.batchNumber != null)
-                            'Lot: ${vaccination.batchNumber}',
+                            '${T.tr('field.lot_number')}: ${vaccination.batchNumber}',
                           if (vaccination.administeredBy != null)
-                            'By: ${vaccination.administeredBy}',
+                            '${T.tr('field.administered_by')}: ${vaccination.administeredBy}',
                         ].join(' \u00b7 '),
                         style: tt.bodySmall?.copyWith(color: cs.outline),
                       ),

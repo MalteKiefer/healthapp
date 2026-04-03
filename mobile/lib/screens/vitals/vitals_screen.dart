@@ -172,14 +172,14 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                 ),
                 const SizedBox(height: 20),
                 // -- Core vitals --
-                _sheetField(ctrl['systolic']!, 'Systolic', 'mmHg'),
-                _sheetField(ctrl['diastolic']!, 'Diastolic', 'mmHg'),
-                _sheetField(ctrl['pulse']!, 'Pulse', 'bpm'),
-                _sheetField(ctrl['weight']!, 'Weight', 'kg'),
+                _sheetField(ctrl['systolic']!, T.tr('vitals.systolic'), 'mmHg'),
+                _sheetField(ctrl['diastolic']!, T.tr('vitals.diastolic'), 'mmHg'),
+                _sheetField(ctrl['pulse']!, T.tr('vitals.pulse'), 'bpm'),
+                _sheetField(ctrl['weight']!, T.tr('vitals.weight'), 'kg'),
                 _sheetField(ctrl['height']!, T.tr('vitals.height'), 'cm'),
-                _sheetField(ctrl['temp']!, 'Temperature', '\u00b0C'),
-                _sheetField(ctrl['spo2']!, 'SpO\u2082', '%'),
-                _sheetField(ctrl['glucose']!, 'Blood Glucose', 'mg/dL'),
+                _sheetField(ctrl['temp']!, T.tr('vitals.temperature'), '\u00b0C'),
+                _sheetField(ctrl['spo2']!, T.tr('vitals.spo2'), '%'),
+                _sheetField(ctrl['glucose']!, T.tr('vitals.blood_glucose'), 'mg/dL'),
                 _sheetField(ctrl['respiratory_rate']!,
                     T.tr('vitals.respiratory_rate'), '/min',
                     decimal: false),
@@ -735,22 +735,22 @@ class _VitalCard extends StatelessWidget {
 
     final entries = <MapEntry<String, String>>[];
     if (vital.systolic != null && vital.diastolic != null) {
-      entries.add(MapEntry('BP', '${vital.systolic!.toInt()}/${vital.diastolic!.toInt()} mmHg'));
+      entries.add(MapEntry(T.tr('vitals.bp'), '${vital.systolic!.toInt()}/${vital.diastolic!.toInt()} mmHg'));
     }
     if (vital.pulse != null) {
-      entries.add(MapEntry('Pulse', '${vital.pulse!.toInt()} bpm'));
+      entries.add(MapEntry(T.tr('vitals.pulse'), '${vital.pulse!.toInt()} bpm'));
     }
     if (vital.weight != null) {
-      entries.add(MapEntry('Weight', '${vital.weight!.toStringAsFixed(1)} kg'));
+      entries.add(MapEntry(T.tr('vitals.weight'), '${vital.weight!.toStringAsFixed(1)} kg'));
     }
     if (vital.temperature != null) {
-      entries.add(MapEntry('Temp', '${vital.temperature!.toStringAsFixed(1)} \u00b0C'));
+      entries.add(MapEntry(T.tr('vitals.temperature'), '${vital.temperature!.toStringAsFixed(1)} \u00b0C'));
     }
     if (vital.oxygenSaturation != null) {
-      entries.add(MapEntry('SpO\u2082', '${vital.oxygenSaturation!.toInt()} %'));
+      entries.add(MapEntry(T.tr('vitals.spo2'), '${vital.oxygenSaturation!.toInt()} %'));
     }
     if (vital.bloodGlucose != null) {
-      entries.add(MapEntry('Glucose', '${vital.bloodGlucose!.toInt()} mg/dL'));
+      entries.add(MapEntry(T.tr('vitals.blood_glucose'), '${vital.bloodGlucose!.toInt()} mg/dL'));
     }
 
     return Padding(

@@ -122,9 +122,9 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(labelText: 'Name *'),
+                    decoration: InputDecoration(labelText: T.tr('field.name_required')),
                     validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        (v == null || v.trim().isEmpty) ? T.tr('common.required') : null,
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
@@ -144,7 +144,7 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Intensity: $intensity',
+                    '${T.tr('field.intensity')}: $intensity',
                     style: Theme.of(ctx)
                         .textTheme
                         .titleSmall
@@ -482,7 +482,7 @@ class _SymptomCard extends StatelessWidget {
               if (symptom.duration != null) ...[
                 const SizedBox(height: 6),
                 Text(
-                  'Duration: ${symptom.duration}',
+                  '${T.tr('field.duration_minutes')}: ${symptom.duration}',
                   style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                 ),
               ],

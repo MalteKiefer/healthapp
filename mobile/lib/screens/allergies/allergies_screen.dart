@@ -115,14 +115,14 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: allergenCtrl,
-                    decoration: const InputDecoration(labelText: 'Allergen *'),
+                    decoration: InputDecoration(labelText: T.tr('field.allergen_required')),
                     validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        (v == null || v.trim().isEmpty) ? T.tr('common.required') : null,
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: severity,
-                    decoration: const InputDecoration(labelText: 'Severity'),
+                    decoration: InputDecoration(labelText: T.tr('field.severity')),
                     items: [
                       DropdownMenuItem(value: 'mild', child: Text(T.tr('severity.mild'))),
                       DropdownMenuItem(
@@ -136,7 +136,7 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: reactionCtrl,
-                    decoration: const InputDecoration(labelText: 'Reaction'),
+                    decoration: InputDecoration(labelText: T.tr('field.reaction')),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(

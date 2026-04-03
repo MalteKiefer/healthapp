@@ -118,15 +118,15 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(labelText: 'Name *'),
+                    decoration: InputDecoration(labelText: T.tr('field.name_required')),
                     validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        (v == null || v.trim().isEmpty) ? T.tr('common.required') : null,
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: icdCtrl,
                     decoration:
-                        const InputDecoration(labelText: 'ICD-10 Code'),
+                        InputDecoration(labelText: T.tr('field.icd10_code')),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
@@ -145,7 +145,7 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                   TextField(
                     controller: dateCtrl,
                     decoration: InputDecoration(
-                      labelText: 'Diagnosed Date',
+                      labelText: T.tr('field.diagnosed_date'),
                       hintText: 'YYYY-MM-DD',
                       suffixIcon: const Icon(Icons.calendar_today),
                     ),
@@ -455,7 +455,7 @@ class _DiagnosisCard extends StatelessWidget {
                       children: [
                         if (diagDate != null) ...[
                           Text(
-                            'Diagnosed: $diagDate',
+                            '${T.tr('field.diagnosed_date')}: $diagDate',
                             style: tt.bodySmall
                                 ?.copyWith(color: cs.onSurfaceVariant),
                           ),

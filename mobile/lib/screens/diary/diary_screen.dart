@@ -156,16 +156,13 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: mood,
-                    decoration: const InputDecoration(labelText: 'Mood'),
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'great', child: Text('Great')),
-                      DropdownMenuItem(value: 'good', child: Text('Good')),
-                      DropdownMenuItem(
-                          value: 'neutral', child: Text('Neutral')),
-                      DropdownMenuItem(value: 'bad', child: Text('Bad')),
-                      DropdownMenuItem(
-                          value: 'terrible', child: Text('Terrible')),
+                    decoration: InputDecoration(labelText: T.tr('field.mood')),
+                    items: [
+                      DropdownMenuItem(value: 'great', child: Text(T.tr('diary.mood_great'))),
+                      DropdownMenuItem(value: 'good', child: Text(T.tr('diary.mood_good'))),
+                      DropdownMenuItem(value: 'neutral', child: Text(T.tr('diary.mood_neutral'))),
+                      DropdownMenuItem(value: 'bad', child: Text(T.tr('diary.mood_bad'))),
+                      DropdownMenuItem(value: 'terrible', child: Text(T.tr('diary.mood_terrible'))),
                     ],
                     onChanged: (v) {
                       if (v != null) setSheetState(() => mood = v);
@@ -173,7 +170,7 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Mood Score: $moodScore',
+                    '${T.tr('field.mood_score')}: $moodScore',
                     style: Theme.of(ctx)
                         .textTheme
                         .titleSmall

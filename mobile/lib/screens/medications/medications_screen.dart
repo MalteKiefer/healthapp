@@ -131,9 +131,9 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(labelText: 'Name *'),
+                    decoration: InputDecoration(labelText: T.tr('field.name_required')),
                     validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        (v == null || v.trim().isEmpty) ? T.tr('common.required') : null,
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -143,7 +143,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                         child: TextField(
                           controller: dosageCtrl,
                           decoration:
-                              const InputDecoration(labelText: 'Dosage'),
+                              InputDecoration(labelText: T.tr('field.dosage')),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -160,7 +160,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: freqCtrl,
-                    decoration: const InputDecoration(labelText: 'Frequency'),
+                    decoration: InputDecoration(labelText: T.tr('field.frequency')),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
@@ -179,7 +179,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                   TextField(
                     controller: startCtrl,
                     decoration: InputDecoration(
-                      labelText: 'Start date',
+                      labelText: T.tr('field.start_date'),
                       hintText: 'YYYY-MM-DD',
                       suffixIcon: const Icon(Icons.calendar_today),
                     ),

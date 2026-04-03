@@ -126,15 +126,15 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: titleCtrl,
-                    decoration: const InputDecoration(labelText: 'Title *'),
+                    decoration: InputDecoration(labelText: T.tr('field.title_required')),
                     validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        (v == null || v.trim().isEmpty) ? T.tr('common.required') : null,
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: dueDateCtrl,
                     decoration: InputDecoration(
-                      labelText: 'Due Date',
+                      labelText: T.tr('field.due_date'),
                       hintText: 'YYYY-MM-DD',
                       suffixIcon: const Icon(Icons.calendar_today),
                     ),
@@ -159,7 +159,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: priority,
-                    decoration: const InputDecoration(labelText: 'Priority'),
+                    decoration: InputDecoration(labelText: T.tr('field.priority')),
                     items: [
                       DropdownMenuItem(
                           value: 'low', child: Text(T.tr('priority.low'))),
@@ -435,7 +435,7 @@ class _TaskCard extends StatelessWidget {
                     if (dueStr != null) ...[
                       const SizedBox(height: 4),
                       Text(
-                        'Due: $dueStr',
+                        '${T.tr('field.due_date')}: $dueStr',
                         style: tt.bodySmall?.copyWith(
                           color: isOverdue ? cs.error : cs.onSurfaceVariant,
                           fontWeight:

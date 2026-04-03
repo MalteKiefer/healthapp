@@ -137,9 +137,9 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(labelText: 'Name *'),
+                    decoration: InputDecoration(labelText: T.tr('field.name_required')),
                     validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        (v == null || v.trim().isEmpty) ? T.tr('common.required') : null,
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
@@ -161,24 +161,24 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                   TextField(
                     controller: specialtyCtrl,
                     decoration:
-                        const InputDecoration(labelText: 'Specialty'),
+                        InputDecoration(labelText: T.tr('field.specialty')),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: phoneCtrl,
-                    decoration: const InputDecoration(labelText: 'Phone'),
+                    decoration: InputDecoration(labelText: T.tr('field.phone')),
                     keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: emailCtrl,
-                    decoration: const InputDecoration(labelText: 'Email'),
+                    decoration: InputDecoration(labelText: T.tr('field.email')),
                     keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: streetCtrl,
-                    decoration: const InputDecoration(labelText: 'Street'),
+                    decoration: InputDecoration(labelText: T.tr('field.street')),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -188,7 +188,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                         child: TextField(
                           controller: postalCtrl,
                           decoration:
-                              const InputDecoration(labelText: 'Postal Code'),
+                              InputDecoration(labelText: T.tr('field.postal_code')),
                           keyboardType: TextInputType.number,
                         ),
                       ),
@@ -198,7 +198,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                         child: TextField(
                           controller: cityCtrl,
                           decoration:
-                              const InputDecoration(labelText: 'City'),
+                              InputDecoration(labelText: T.tr('field.city')),
                         ),
                       ),
                     ],
