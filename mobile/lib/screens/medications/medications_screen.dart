@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/medication.dart';
 import '../../providers/providers.dart';
 
@@ -32,19 +33,19 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Medication'),
-        content: const Text('This medication will be permanently removed.'),
+        title: Text(T.tr('meds.delete')),
+        content: Text(T.tr('meds.delete_body')),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(T.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(T.tr('common.delete')),
           ),
         ],
       ),
@@ -90,7 +91,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
               controller: scrollCtrl,
               children: [
                 const SizedBox(height: 8),
-                Text('Add Medication',
+                Text(T.tr('meds.add'),
                     style: Theme.of(ctx).textTheme.titleLarge),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -147,7 +148,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                       }
                     }
                   },
-                  child: const Text('Add Medication'),
+                  child: Text(T.tr('meds.add')),
                 ),
               ],
             ),
@@ -169,12 +170,12 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Medications'),
+        title: Text(T.tr('meds.title')),
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
-        tooltip: 'Add medication',
+        tooltip: T.tr('meds.add'),
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -185,13 +186,13 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
             child: Row(
               children: [
                 ChoiceChip(
-                  label: const Text('Active'),
+                  label: Text(T.tr('common.active')),
                   selected: _activeOnly,
                   onSelected: (_) => setState(() => _activeOnly = true),
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Text('All'),
+                  label: Text(T.tr('common.all')),
                   selected: !_activeOnly,
                   onSelected: (_) => setState(() => _activeOnly = false),
                 ),
@@ -206,12 +207,12 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.error_outline, size: 48, color: cs.error),
                   const SizedBox(height: 12),
-                  Text('Failed to load', style: tt.bodyLarge),
+                  Text(T.tr('meds.failed'), style: tt.bodyLarge),
                   const SizedBox(height: 12),
                   FilledButton.tonal(
                     onPressed: () => ref
                         .invalidate(medicationsProvider(widget.profileId)),
-                    child: const Text('Retry'),
+                    child: Text(T.tr('common.retry')),
                   ),
                 ]),
               ),
@@ -229,8 +230,8 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                           const SizedBox(height: 12),
                           Text(
                             _activeOnly
-                                ? 'No active medications'
-                                : 'No medications recorded',
+                                ? T.tr('meds.no_active')
+                                : T.tr('meds.no_data'),
                             style: tt.bodyLarge
                                 ?.copyWith(color: cs.onSurfaceVariant),
                           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
 
@@ -33,19 +34,19 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Diagnosis'),
-        content: const Text('This diagnosis will be permanently removed.'),
+        title: Text(T.tr('diagnoses.delete')),
+        content: Text(T.tr('diagnoses.delete_body')),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(T.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(T.tr('common.delete')),
           ),
         ],
       ),
@@ -91,7 +92,7 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
               controller: scrollCtrl,
               children: [
                 const SizedBox(height: 8),
-                Text('Add Diagnosis',
+                Text(T.tr('diagnoses.add'),
                     style: Theme.of(ctx).textTheme.titleLarge),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -109,10 +110,10 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: dateCtrl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Diagnosed Date',
                     hintText: 'YYYY-MM-DD',
-                    suffixIcon: Icon(Icons.calendar_today),
+                    suffixIcon: const Icon(Icons.calendar_today),
                   ),
                   readOnly: true,
                   onTap: () async {
@@ -162,7 +163,7 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                       }
                     }
                   },
-                  child: const Text('Add Diagnosis'),
+                  child: Text(T.tr('diagnoses.add')),
                 ),
               ],
             ),
@@ -184,12 +185,12 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Diagnoses'),
+        title: Text(T.tr('diagnoses.title')),
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
-        tooltip: 'Add diagnosis',
+        tooltip: T.tr('diagnoses.add'),
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -199,13 +200,13 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
             child: Row(
               children: [
                 ChoiceChip(
-                  label: const Text('Active'),
+                  label: Text(T.tr('common.active')),
                   selected: _activeOnly,
                   onSelected: (_) => setState(() => _activeOnly = true),
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Text('All'),
+                  label: Text(T.tr('common.all')),
                   selected: !_activeOnly,
                   onSelected: (_) => setState(() => _activeOnly = false),
                 ),
@@ -219,12 +220,12 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.error_outline, size: 48, color: cs.error),
                   const SizedBox(height: 12),
-                  Text('Failed to load', style: tt.bodyLarge),
+                  Text(T.tr('diagnoses.failed'), style: tt.bodyLarge),
                   const SizedBox(height: 12),
                   FilledButton.tonal(
                     onPressed: () => ref
                         .invalidate(_diagnosesProvider(widget.profileId)),
-                    child: const Text('Retry'),
+                    child: Text(T.tr('common.retry')),
                   ),
                 ]),
               ),
@@ -242,8 +243,8 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                           const SizedBox(height: 12),
                           Text(
                             _activeOnly
-                                ? 'No active diagnoses'
-                                : 'No diagnoses recorded',
+                                ? T.tr('diagnoses.no_active')
+                                : T.tr('diagnoses.no_data'),
                             style: tt.bodyLarge
                                 ?.copyWith(color: cs.onSurfaceVariant),
                           ),
@@ -365,14 +366,14 @@ class _DiagnosisCard extends StatelessWidget {
                           Container(
                             width: 8,
                             height: 8,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.green,
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Resolved${resDate != null ? ' $resDate' : ''}',
+                            '${T.tr('status.resolved')}${resDate != null ? ' $resDate' : ''}',
                             style: tt.bodySmall
                                 ?.copyWith(color: Colors.green),
                           ),

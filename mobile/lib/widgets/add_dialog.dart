@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/i18n/translations.dart';
 
 /// Shows a Material 3 modal bottom sheet form for adding records.
 Future<T?> showAddSheet<T>({
@@ -64,7 +65,7 @@ class AddDialog extends StatelessWidget {
       actions: [
         OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(T.tr('common.cancel')),
         ),
         FilledButton(
           onPressed: onConfirm,

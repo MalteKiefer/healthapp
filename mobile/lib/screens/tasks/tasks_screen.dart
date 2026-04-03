@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
 
@@ -33,19 +34,19 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Task'),
-        content: const Text('This task will be permanently removed.'),
+        title: Text(T.tr('tasks.delete')),
+        content: Text(T.tr('tasks.delete_body')),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(T.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(T.tr('common.delete')),
           ),
         ],
       ),
@@ -107,7 +108,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                 controller: scrollCtrl,
                 children: [
                   const SizedBox(height: 8),
-                  Text('Add Task',
+                  Text(T.tr('tasks.add'),
                       style: Theme.of(ctx).textTheme.titleLarge),
                   const SizedBox(height: 20),
                   TextFormField(
@@ -142,11 +143,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   DropdownButtonFormField<String>(
                     value: priority,
                     decoration: const InputDecoration(labelText: 'Priority'),
-                    items: const [
-                      DropdownMenuItem(value: 'low', child: Text('Low')),
+                    items: [
+                      DropdownMenuItem(value: 'low', child: Text(T.tr('priority.low'))),
                       DropdownMenuItem(
-                          value: 'medium', child: Text('Medium')),
-                      DropdownMenuItem(value: 'high', child: Text('High')),
+                          value: 'medium', child: Text(T.tr('priority.medium'))),
+                      DropdownMenuItem(value: 'high', child: Text(T.tr('priority.high'))),
                     ],
                     onChanged: (v) {
                       if (v != null) setSheetState(() => priority = v);
@@ -186,7 +187,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                         }
                       }
                     },
-                    child: const Text('Add Task'),
+                    child: Text(T.tr('tasks.add')),
                   ),
                 ],
               ),
@@ -208,12 +209,12 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tasks'),
+        title: Text(T.tr('tasks.title')),
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
-        tooltip: 'Add task',
+        tooltip: T.tr('tasks.add'),
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -223,13 +224,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             child: Row(
               children: [
                 ChoiceChip(
-                  label: const Text('Open'),
+                  label: Text(T.tr('status.open')),
                   selected: _openOnly,
                   onSelected: (_) => setState(() => _openOnly = true),
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Text('Completed'),
+                  label: Text(T.tr('status.completed')),
                   selected: !_openOnly,
                   onSelected: (_) => setState(() => _openOnly = false),
                 ),
@@ -243,12 +244,12 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.error_outline, size: 48, color: cs.error),
                   const SizedBox(height: 12),
-                  Text('Failed to load', style: tt.bodyLarge),
+                  Text(T.tr('tasks.failed'), style: tt.bodyLarge),
                   const SizedBox(height: 12),
                   FilledButton.tonal(
                     onPressed: () =>
                         ref.invalidate(_tasksProvider(widget.profileId)),
-                    child: const Text('Retry'),
+                    child: Text(T.tr('common.retry')),
                   ),
                 ]),
               ),
@@ -266,8 +267,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                           const SizedBox(height: 12),
                           Text(
                             _openOnly
-                                ? 'No open tasks'
-                                : 'No completed tasks',
+                                ? T.tr('tasks.no_open')
+                                : T.tr('tasks.no_completed'),
                             style: tt.bodyLarge
                                 ?.copyWith(color: cs.onSurfaceVariant),
                           ),
@@ -375,7 +376,7 @@ class _TaskCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              task.priority!,
+                              T.tr('priority.${task.priority}'),
                               style: TextStyle(
                                 fontSize: 10,
                                 color: priColor,

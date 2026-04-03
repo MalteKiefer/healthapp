@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
 
@@ -32,19 +33,19 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Vaccination'),
-        content: const Text('This vaccination will be permanently removed.'),
+        title: Text(T.tr('vaccinations.delete')),
+        content: Text(T.tr('vaccinations.delete_body')),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(T.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(T.tr('common.delete')),
           ),
         ],
       ),
@@ -91,7 +92,7 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
               controller: scrollCtrl,
               children: [
                 const SizedBox(height: 8),
-                Text('Add Vaccination',
+                Text(T.tr('vaccinations.add'),
                     style: Theme.of(ctx).textTheme.titleLarge),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -104,10 +105,10 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: adminDateCtrl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Administered Date',
                     hintText: 'YYYY-MM-DD',
-                    suffixIcon: Icon(Icons.calendar_today),
+                    suffixIcon: const Icon(Icons.calendar_today),
                   ),
                   readOnly: true,
                   onTap: () async {
@@ -126,10 +127,10 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: nextDueCtrl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Next Due Date',
                     hintText: 'YYYY-MM-DD',
-                    suffixIcon: Icon(Icons.calendar_today),
+                    suffixIcon: const Icon(Icons.calendar_today),
                   ),
                   readOnly: true,
                   onTap: () async {
@@ -189,7 +190,7 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                       }
                     }
                   },
-                  child: const Text('Add Vaccination'),
+                  child: Text(T.tr('vaccinations.add')),
                 ),
               ],
             ),
@@ -212,12 +213,12 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vaccinations'),
+        title: Text(T.tr('vaccinations.title')),
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
-        tooltip: 'Add vaccination',
+        tooltip: T.tr('vaccinations.add'),
         child: const Icon(Icons.add),
       ),
       body: asyncVal.when(
@@ -226,12 +227,12 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.error_outline, size: 48, color: cs.error),
             const SizedBox(height: 12),
-            Text('Failed to load vaccinations', style: tt.bodyLarge),
+            Text(T.tr('vaccinations.failed'), style: tt.bodyLarge),
             const SizedBox(height: 12),
             FilledButton.tonal(
               onPressed: () =>
                   ref.invalidate(_vaccinationsProvider(widget.profileId)),
-              child: const Text('Retry'),
+              child: Text(T.tr('common.retry')),
             ),
           ]),
         ),
@@ -241,7 +242,7 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.vaccines_outlined, size: 48, color: cs.outline),
                 const SizedBox(height: 12),
-                Text('No vaccinations recorded',
+                Text(T.tr('vaccinations.no_data'),
                     style:
                         tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
               ]),
@@ -369,7 +370,7 @@ class _VaccinationCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    'Overdue',
+                    T.tr('status.overdue'),
                     style: TextStyle(
                       fontSize: 10,
                       color: cs.error,

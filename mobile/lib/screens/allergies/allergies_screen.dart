@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
 
@@ -31,19 +32,19 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Allergy'),
-        content: const Text('This allergy will be permanently removed.'),
+        title: Text(T.tr('allergies.delete')),
+        content: Text(T.tr('allergies.delete_body')),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(T.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(T.tr('common.delete')),
           ),
         ],
       ),
@@ -90,7 +91,7 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                 controller: scrollCtrl,
                 children: [
                   const SizedBox(height: 8),
-                  Text('Add Allergy',
+                  Text(T.tr('allergies.add'),
                       style: Theme.of(ctx).textTheme.titleLarge),
                   const SizedBox(height: 20),
                   TextFormField(
@@ -103,11 +104,11 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                   DropdownButtonFormField<String>(
                     value: severity,
                     decoration: const InputDecoration(labelText: 'Severity'),
-                    items: const [
-                      DropdownMenuItem(value: 'mild', child: Text('Mild')),
+                    items: [
+                      DropdownMenuItem(value: 'mild', child: Text(T.tr('severity.mild'))),
                       DropdownMenuItem(
-                          value: 'moderate', child: Text('Moderate')),
-                      DropdownMenuItem(value: 'severe', child: Text('Severe')),
+                          value: 'moderate', child: Text(T.tr('severity.moderate'))),
+                      DropdownMenuItem(value: 'severe', child: Text(T.tr('severity.severe'))),
                     ],
                     onChanged: (v) {
                       if (v != null) setSheetState(() => severity = v);
@@ -151,7 +152,7 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                         }
                       }
                     },
-                    child: const Text('Add Allergy'),
+                    child: Text(T.tr('allergies.add')),
                   ),
                 ],
               ),
@@ -173,12 +174,12 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Allergies'),
+        title: Text(T.tr('allergies.title')),
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
-        tooltip: 'Add allergy',
+        tooltip: T.tr('allergies.add'),
         child: const Icon(Icons.add),
       ),
       body: asyncVal.when(
@@ -187,12 +188,12 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.error_outline, size: 48, color: cs.error),
             const SizedBox(height: 12),
-            Text('Failed to load allergies', style: tt.bodyLarge),
+            Text(T.tr('allergies.failed'), style: tt.bodyLarge),
             const SizedBox(height: 12),
             FilledButton.tonal(
               onPressed: () =>
                   ref.invalidate(_allergiesProvider(widget.profileId)),
-              child: const Text('Retry'),
+              child: Text(T.tr('common.retry')),
             ),
           ]),
         ),
@@ -203,7 +204,7 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                 Icon(Icons.warning_amber_outlined,
                     size: 48, color: cs.outline),
                 const SizedBox(height: 12),
-                Text('No allergies recorded',
+                Text(T.tr('allergies.no_data'),
                     style:
                         tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
               ]),
@@ -289,7 +290,7 @@ class _AllergyCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              allergy.severity!,
+                              T.tr('severity.${allergy.severity}'),
                               style: TextStyle(
                                 fontSize: 10,
                                 color: sevColor,

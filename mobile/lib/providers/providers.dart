@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api/api_client.dart';
 import '../models/profile.dart';
@@ -14,3 +15,6 @@ final profilesProvider =
 });
 
 final selectedProfileProvider = StateProvider<Profile?>((ref) => null);
+
+final languageProvider = StateProvider<String>((ref) => 'de');
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);

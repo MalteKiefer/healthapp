@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/i18n/translations.dart';
 import '../../providers/providers.dart';
 
 class AppShell extends ConsumerWidget {
@@ -11,6 +12,8 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(selectedProfileProvider);
     final location = GoRouterState.of(context).uri.toString();
+    // Watch language to rebuild nav labels on change
+    ref.watch(languageProvider);
 
     int currentIndex = 0;
     if (location.startsWith('/vitals')) {
@@ -28,7 +31,9 @@ class AppShell extends ConsumerWidget {
         location.startsWith('/tasks') ||
         location.startsWith('/diary') ||
         location.startsWith('/symptoms') ||
-        location.startsWith('/documents')) {
+        location.startsWith('/documents') ||
+        location.startsWith('/about') ||
+        location.startsWith('/settings')) {
       currentIndex = 4;
     }
 
@@ -51,31 +56,31 @@ class AppShell extends ConsumerWidget {
               context.go('/more');
           }
         },
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home),
+            label: T.tr('nav.home'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.favorite_outline),
-            selectedIcon: Icon(Icons.favorite),
-            label: 'Vitals',
+            icon: const Icon(Icons.favorite_outline),
+            selectedIcon: const Icon(Icons.favorite),
+            label: T.tr('nav.vitals'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.science_outlined),
-            selectedIcon: Icon(Icons.science),
-            label: 'Labs',
+            icon: const Icon(Icons.science_outlined),
+            selectedIcon: const Icon(Icons.science),
+            label: T.tr('nav.labs'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.medication_outlined),
-            selectedIcon: Icon(Icons.medication),
-            label: 'Meds',
+            icon: const Icon(Icons.medication_outlined),
+            selectedIcon: const Icon(Icons.medication),
+            label: T.tr('nav.meds'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.more_horiz),
-            selectedIcon: Icon(Icons.more_horiz),
-            label: 'More',
+            icon: const Icon(Icons.more_horiz),
+            selectedIcon: const Icon(Icons.more_horiz),
+            label: T.tr('nav.more'),
           ),
         ],
       ),

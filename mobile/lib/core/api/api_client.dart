@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
@@ -68,6 +70,17 @@ class ApiClient {
     final res = await _dio.patch('$_baseUrl$path', data: body);
     _checkResponse(res);
     return fromJson != null ? fromJson(res.data) : res.data as T;
+  }
+
+  Future<Uint8List> getBytes(String path) async {
+    final res = await _dio.get<List<int>>(
+      '$_baseUrl$path',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    if (res.statusCode != null && res.statusCode! >= 400) {
+      throw ApiException(res.statusCode!, 'Download failed');
+    }
+    return Uint8List.fromList(res.data!);
   }
 
   Future<void> delete(String path) async {

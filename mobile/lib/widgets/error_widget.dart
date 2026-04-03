@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/i18n/translations.dart';
 
 class AppErrorWidget extends StatelessWidget {
   final String message;
@@ -29,7 +30,7 @@ class AppErrorWidget extends StatelessWidget {
               const SizedBox(height: 20),
               FilledButton.tonal(
                 onPressed: onRetry,
-                child: const Text('Retry'),
+                child: Text(T.tr('common.retry')),
               ),
             ],
           ],

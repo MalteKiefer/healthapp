@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/crypto/auth_crypto.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/auth.dart';
 import '../../providers/providers.dart';
 
@@ -94,11 +95,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       size: 40, color: cs.onPrimaryContainer),
                 ),
                 const SizedBox(height: 20),
-                Text('HealthVault',
+                Text(T.tr('login.title'),
                     style: tt.headlineMedium
                         ?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text('Your health, your data',
+                Text(T.tr('login.subtitle'),
                     style: tt.bodyMedium
                         ?.copyWith(color: cs.onSurfaceVariant)),
                 const SizedBox(height: 40),
@@ -106,9 +107,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // Fields
                 TextField(
                   controller: _emailCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                  decoration: InputDecoration(
+                    labelText: T.tr('login.email'),
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
@@ -117,7 +118,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextField(
                   controller: _passwordCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: T.tr('login.password'),
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(_obscurePassword
@@ -133,9 +134,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 14),
                 TextField(
                   controller: _serverCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Server',
-                    prefixIcon: Icon(Icons.dns_outlined),
+                  decoration: InputDecoration(
+                    labelText: T.tr('login.server'),
+                    prefixIcon: const Icon(Icons.dns_outlined),
                     hintText: 'health.example.com',
                   ),
                   keyboardType: TextInputType.url,
@@ -181,7 +182,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: cs.onPrimary),
                         )
-                      : const Text('Sign In'),
+                      : Text(T.tr('login.sign_in')),
                 ),
               ],
             ),

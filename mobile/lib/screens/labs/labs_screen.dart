@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/lab.dart';
 import '../../providers/providers.dart';
 
@@ -31,7 +32,7 @@ final _trendsProvider =
 
 enum _View { list, trends }
 
-const _ranges = ['3d', '7d', '30d', '90d', '1y', 'All'];
+const _rangeKeys = ['3d', '7d', '30d', '90d', '1y', 'All'];
 
 class LabsScreen extends ConsumerStatefulWidget {
   final String profileId;
@@ -69,7 +70,7 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
             controller: scrollCtrl,
             children: [
               const SizedBox(height: 8),
-              Text('Add Lab Result',
+              Text(T.tr('labs.add'),
                   style: Theme.of(ctx).textTheme.titleLarge),
               const SizedBox(height: 20),
               TextField(
@@ -155,7 +156,7 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
                     }
                   }
                 },
-                child: const Text('Save'),
+                child: Text(T.tr('common.save')),
               ),
             ],
           ),
@@ -173,7 +174,7 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lab Results'),
+        title: Text(T.tr('labs.title')),
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
@@ -185,15 +186,15 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: SegmentedButton<_View>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                     value: _View.list,
-                    icon: Icon(Icons.list, size: 18),
-                    label: Text('List')),
+                    icon: const Icon(Icons.list, size: 18),
+                    label: Text(T.tr('labs.list'))),
                 ButtonSegment(
                     value: _View.trends,
-                    icon: Icon(Icons.show_chart, size: 18),
-                    label: Text('Trends')),
+                    icon: const Icon(Icons.show_chart, size: 18),
+                    label: Text(T.tr('labs.trends'))),
               ],
               selected: {_view},
               onSelectionChanged: (s) => setState(() => _view = s.first),
@@ -204,11 +205,11 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
-                children: _ranges
+                children: _rangeKeys
                     .map((r) => Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: ChoiceChip(
-                            label: Text(r),
+                            label: Text(T.tr('range.${r.toLowerCase()}')),
                             selected: _range == r,
                             onSelected: (_) => setState(() => _range = r),
                           ),
@@ -244,11 +245,11 @@ class _ListTab extends ConsumerWidget {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.error_outline, size: 48, color: cs.error),
               const SizedBox(height: 12),
-              Text('Failed to load labs', style: tt.bodyLarge),
+              Text(T.tr('labs.failed'), style: tt.bodyLarge),
               const SizedBox(height: 12),
               FilledButton.tonal(
                 onPressed: () => ref.invalidate(_labsProvider(profileId)),
-                child: const Text('Retry'),
+                child: Text(T.tr('common.retry')),
               ),
             ]),
           ),
@@ -258,7 +259,7 @@ class _ListTab extends ConsumerWidget {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.science_outlined, size: 48, color: cs.outline),
                   const SizedBox(height: 12),
-                  Text('No lab results yet',
+                  Text(T.tr('labs.no_data'),
                       style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
                 ]),
               );
@@ -325,7 +326,7 @@ class _LabCardState extends State<_LabCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          r.labName ?? 'Lab Result',
+                          r.labName ?? T.tr('labs.title'),
                           style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         Text(
@@ -449,14 +450,14 @@ class _TrendsTab extends ConsumerWidget {
               const SizedBox(height: 12),
               FilledButton.tonal(
                 onPressed: () => ref.invalidate(_trendsProvider(profileId)),
-                child: const Text('Retry'),
+                child: Text(T.tr('common.retry')),
               ),
             ]),
           ),
           data: (trends) {
             if (trends.isEmpty) {
               return Center(
-                child: Text('No trends yet',
+                child: Text(T.tr('labs.no_trends'),
                     style:
                         tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
               );
@@ -526,7 +527,7 @@ class _TrendCard extends StatelessWidget {
             Expanded(
               child: pts.isEmpty
                   ? Center(
-                      child: Text('No data',
+                      child: Text(T.tr('labs.no_trend_data'),
                           style: tt.bodySmall?.copyWith(color: cs.outline)))
                   : _buildChart(pts, cs),
             ),

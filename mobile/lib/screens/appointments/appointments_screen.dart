@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
 
@@ -34,19 +35,19 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Appointment'),
-        content: const Text('This appointment will be permanently removed.'),
+        title: Text(T.tr('appointments.delete')),
+        content: Text(T.tr('appointments.delete_body')),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(T.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(T.tr('common.delete')),
           ),
         ],
       ),
@@ -94,7 +95,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
               controller: scrollCtrl,
               children: [
                 const SizedBox(height: 8),
-                Text('Add Appointment',
+                Text(T.tr('appointments.add'),
                     style: Theme.of(ctx).textTheme.titleLarge),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -183,7 +184,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                       }
                     }
                   },
-                  child: const Text('Add Appointment'),
+                  child: Text(T.tr('appointments.add')),
                 ),
               ],
             ),
@@ -206,12 +207,12 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Appointments'),
+        title: Text(T.tr('appointments.title')),
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
-        tooltip: 'Add appointment',
+        tooltip: T.tr('appointments.add'),
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -221,13 +222,13 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
             child: Row(
               children: [
                 ChoiceChip(
-                  label: const Text('Upcoming'),
+                  label: Text(T.tr('status.upcoming')),
                   selected: _upcomingOnly,
                   onSelected: (_) => setState(() => _upcomingOnly = true),
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Text('Past'),
+                  label: Text(T.tr('status.past')),
                   selected: !_upcomingOnly,
                   onSelected: (_) => setState(() => _upcomingOnly = false),
                 ),
@@ -241,12 +242,12 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.error_outline, size: 48, color: cs.error),
                   const SizedBox(height: 12),
-                  Text('Failed to load', style: tt.bodyLarge),
+                  Text(T.tr('appointments.failed'), style: tt.bodyLarge),
                   const SizedBox(height: 12),
                   FilledButton.tonal(
                     onPressed: () => ref
                         .invalidate(_appointmentsProvider(widget.profileId)),
-                    child: const Text('Retry'),
+                    child: Text(T.tr('common.retry')),
                   ),
                 ]),
               ),
@@ -277,8 +278,8 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                           const SizedBox(height: 12),
                           Text(
                             _upcomingOnly
-                                ? 'No upcoming appointments'
-                                : 'No past appointments',
+                                ? T.tr('appointments.no_upcoming')
+                                : T.tr('appointments.no_past'),
                             style: tt.bodyLarge
                                 ?.copyWith(color: cs.onSurfaceVariant),
                           ),
@@ -368,9 +369,9 @@ class _AppointmentCard extends StatelessWidget {
                               color: Colors.green.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text(
-                              'Completed',
-                              style: TextStyle(
+                            child: Text(
+                              T.tr('status.completed'),
+                              style: const TextStyle(
                                 fontSize: 10,
                                 color: Colors.green,
                                 fontWeight: FontWeight.w600,

@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
 
@@ -15,6 +18,15 @@ final _documentsProvider =
       .map((e) => Document.fromJson(e as Map<String, dynamic>))
       .toList();
 });
+
+// -- Category translation -----------------------------------------------------
+
+String _categoryLabel(String? cat) {
+  if (cat == null) return T.tr('doc.other');
+  final key = 'doc.$cat';
+  final translated = T.tr(key);
+  return translated == key ? cat : translated;
+}
 
 // -- Screen -------------------------------------------------------------------
 
@@ -33,19 +45,19 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Document'),
-        content: const Text('This document will be permanently removed.'),
+        title: Text(T.tr('documents.delete')),
+        content: Text(T.tr('documents.delete_body')),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(T.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(T.tr('common.delete')),
           ),
         ],
       ),
@@ -71,6 +83,107 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
+  Future<void> _openDocument(Document doc) async {
+    final mimeType = doc.mimeType ?? '';
+
+    if (mimeType.startsWith('image/')) {
+      await _showImageViewer(doc);
+    } else if (mimeType.contains('pdf')) {
+      await _downloadPdf(doc);
+    } else {
+      _showFileInfo(doc);
+    }
+  }
+
+  Future<void> _showImageViewer(Document doc) async {
+    Uint8List? bytes;
+    try {
+      bytes = await ref.read(apiClientProvider).getBytes(
+            '/api/v1/profiles/${widget.profileId}/documents/${doc.id}/download',
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Fehler beim Laden: $e')));
+      }
+      return;
+    }
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog.fullscreen(
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(doc.filename),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ),
+          body: InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Center(
+              child: Image.memory(bytes!, fit: BoxFit.contain),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _downloadPdf(Document doc) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('PDF wird heruntergeladen...')),
+    );
+    try {
+      await ref.read(apiClientProvider).getBytes(
+            '/api/v1/profiles/${widget.profileId}/documents/${doc.id}/download',
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${doc.filename} heruntergeladen')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Fehler beim Laden: $e')));
+      }
+    }
+  }
+
+  void _showFileInfo(Document doc) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(doc.filename),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (doc.category != null)
+              Text('Kategorie: ${_categoryLabel(doc.category)}'),
+            if (doc.mimeType != null) Text('Typ: ${doc.mimeType}'),
+            if (doc.fileSize != null)
+              Text('Größe: ${_formatFileSize(doc.fileSize)}'),
+            if (doc.uploadedAt != null) Text('Hochgeladen: ${doc.uploadedAt}'),
+            if (doc.notes != null) ...[
+              const SizedBox(height: 8),
+              Text('Notizen: ${doc.notes}'),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(T.tr('common.cancel')),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -79,7 +192,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Documents'),
+        title: Text(T.tr('documents.title')),
         automaticallyImplyLeading: false,
       ),
       body: asyncVal.when(
@@ -88,12 +201,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.error_outline, size: 48, color: cs.error),
             const SizedBox(height: 12),
-            Text('Failed to load documents', style: tt.bodyLarge),
+            Text(T.tr('documents.failed'), style: tt.bodyLarge),
             const SizedBox(height: 12),
             FilledButton.tonal(
               onPressed: () =>
                   ref.invalidate(_documentsProvider(widget.profileId)),
-              child: const Text('Retry'),
+              child: Text(T.tr('common.retry')),
             ),
           ]),
         ),
@@ -103,7 +216,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.folder_outlined, size: 48, color: cs.outline),
                 const SizedBox(height: 12),
-                Text('No documents uploaded',
+                Text(T.tr('documents.no_data'),
                     style:
                         tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
               ]),
@@ -136,7 +249,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: FilterChip(
-                          label: const Text('All'),
+                          label: Text(T.tr('common.all')),
                           selected: _selectedCategory == null,
                           onSelected: (_) =>
                               setState(() => _selectedCategory = null),
@@ -145,7 +258,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                       ...categories.map((c) => Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: FilterChip(
-                              label: Text(c!),
+                              label: Text(_categoryLabel(c)),
                               selected: _selectedCategory == c,
                               onSelected: (_) =>
                                   setState(() => _selectedCategory = c),
@@ -158,7 +271,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 child: filtered.isEmpty
                     ? Center(
                         child: Text(
-                          'No documents in this category',
+                          T.tr('documents.no_category'),
                           style: tt.bodyLarge
                               ?.copyWith(color: cs.onSurfaceVariant),
                         ),
@@ -171,6 +284,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                         itemBuilder: (_, i) => _DocumentCard(
                           document: filtered[i],
                           onDelete: () => _delete(filtered[i].id),
+                          onTap: () => _openDocument(filtered[i]),
                           formatSize: _formatFileSize,
                         ),
                       ),
@@ -188,10 +302,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 class _DocumentCard extends StatelessWidget {
   final Document document;
   final VoidCallback onDelete;
+  final VoidCallback onTap;
   final String Function(int?) formatSize;
   const _DocumentCard({
     required this.document,
     required this.onDelete,
+    required this.onTap,
     required this.formatSize,
   });
 
@@ -244,6 +360,7 @@ class _DocumentCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
         onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -286,7 +403,7 @@ class _DocumentCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              document.category!,
+                              _categoryLabel(document.category),
                               style: tt.labelSmall?.copyWith(
                                   color: cs.onTertiaryContainer,
                                   fontWeight: FontWeight.w600),

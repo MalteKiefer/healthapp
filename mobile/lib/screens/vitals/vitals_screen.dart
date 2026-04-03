@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/vital.dart';
 import '../../providers/providers.dart';
 
@@ -68,7 +69,9 @@ extension _MetricExt on _Metric {
       };
 }
 
-const _ranges = ['3d', '7d', '30d', '90d', '1y', 'All'];
+const _rangeKeys = ['3d', '7d', '30d', '90d', '1y', 'All'];
+
+String _rangeLabel(String key) => T.tr('range.${key.toLowerCase()}');
 
 DateTime _rangeStart(String range) {
   final now = DateTime.now();
@@ -135,7 +138,7 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
             controller: scrollCtrl,
             children: [
               const SizedBox(height: 8),
-              Text('Add Vital', style: Theme.of(ctx).textTheme.titleLarge),
+              Text(T.tr('vitals.add'), style: Theme.of(ctx).textTheme.titleLarge),
               const SizedBox(height: 20),
               _sheetField(ctrl['systolic']!, 'Systolic', 'mmHg'),
               _sheetField(ctrl['diastolic']!, 'Diastolic', 'mmHg'),
@@ -176,7 +179,7 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                     }
                   }
                 },
-                child: const Text('Save'),
+                child: Text(T.tr('common.save')),
               ),
             ],
           ),
@@ -208,19 +211,19 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Vital'),
-        content: const Text('This reading will be permanently removed.'),
+        title: Text(T.tr('vitals.delete')),
+        content: Text(T.tr('vitals.delete_body')),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(T.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(T.tr('common.delete')),
           ),
         ],
       ),
@@ -249,7 +252,7 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vitals'),
+        title: Text(T.tr('vitals.title')),
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
@@ -262,12 +265,12 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.error_outline, size: 48, color: cs.error),
             const SizedBox(height: 12),
-            Text('Failed to load vitals', style: tt.bodyLarge),
+            Text(T.tr('vitals.failed'), style: tt.bodyLarge),
             const SizedBox(height: 12),
             FilledButton.tonal(
               onPressed: () =>
                   ref.invalidate(_vitalsProvider(widget.profileId)),
-              child: const Text('Retry'),
+              child: Text(T.tr('common.retry')),
             ),
           ]),
         ),
@@ -304,11 +307,11 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
-                    children: _ranges.map((r) {
+                    children: _rangeKeys.map((r) {
                       return Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: ChoiceChip(
-                          label: Text(r),
+                          label: Text(_rangeLabel(r)),
                           selected: r == _range,
                           onSelected: (_) => setState(() => _range = r),
                         ),
@@ -329,7 +332,7 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Text(
-                    'Readings',
+                    T.tr('vitals.readings'),
                     style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant),
                   ),
                 ),
@@ -341,7 +344,7 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                     padding: const EdgeInsets.all(32),
                     child: Center(
                       child: Text(
-                        'No vitals for this period',
+                        T.tr('vitals.no_data'),
                         style: tt.bodyMedium?.copyWith(color: cs.outline),
                       ),
                     ),
@@ -388,7 +391,7 @@ class _ChartSection extends StatelessWidget {
         height: 180,
         child: Center(
           child: Text(
-            'No ${metric.label} data for this period',
+            '${T.tr('vitals.no_data')} (${metric.label})',
             style: Theme.of(context)
                 .textTheme
                 .bodyMedium

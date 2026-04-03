@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
 
@@ -31,19 +32,19 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Entry'),
-        content: const Text('This diary entry will be permanently removed.'),
+        title: Text(T.tr('diary.delete')),
+        content: Text(T.tr('diary.delete_body')),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(T.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(T.tr('common.delete')),
           ),
         ],
       ),
@@ -89,7 +90,7 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                 controller: scrollCtrl,
                 children: [
                   const SizedBox(height: 8),
-                  Text('Add Diary Entry',
+                  Text(T.tr('diary.add'),
                       style: Theme.of(ctx).textTheme.titleLarge),
                   const SizedBox(height: 20),
                   DropdownButtonFormField<String>(
@@ -163,7 +164,7 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                         }
                       }
                     },
-                    child: const Text('Add Entry'),
+                    child: Text(T.tr('common.save')),
                   ),
                 ],
               ),
@@ -183,12 +184,12 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Diary'),
+        title: Text(T.tr('diary.title')),
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
-        tooltip: 'Add entry',
+        tooltip: T.tr('diary.add'),
         child: const Icon(Icons.add),
       ),
       body: asyncVal.when(
@@ -197,12 +198,12 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.error_outline, size: 48, color: cs.error),
             const SizedBox(height: 12),
-            Text('Failed to load diary', style: tt.bodyLarge),
+            Text(T.tr('diary.failed'), style: tt.bodyLarge),
             const SizedBox(height: 12),
             FilledButton.tonal(
               onPressed: () =>
                   ref.invalidate(_diaryProvider(widget.profileId)),
-              child: const Text('Retry'),
+              child: Text(T.tr('common.retry')),
             ),
           ]),
         ),
@@ -212,7 +213,7 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.book_outlined, size: 48, color: cs.outline),
                 const SizedBox(height: 12),
-                Text('No diary entries yet',
+                Text(T.tr('diary.no_data'),
                     style:
                         tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
               ]),

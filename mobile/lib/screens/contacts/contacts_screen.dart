@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
 
@@ -30,19 +32,19 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Contact'),
-        content: const Text('This contact will be permanently removed.'),
+        title: Text(T.tr('contacts.delete')),
+        content: Text(T.tr('contacts.delete_body')),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(T.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(T.tr('common.delete')),
           ),
         ],
       ),
@@ -91,7 +93,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               controller: scrollCtrl,
               children: [
                 const SizedBox(height: 8),
-                Text('Add Contact',
+                Text(T.tr('contacts.add'),
                     style: Theme.of(ctx).textTheme.titleLarge),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -183,7 +185,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                       }
                     }
                   },
-                  child: const Text('Add Contact'),
+                  child: Text(T.tr('contacts.add')),
                 ),
               ],
             ),
@@ -208,12 +210,12 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Contacts'),
+        title: Text(T.tr('contacts.title')),
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
-        tooltip: 'Add contact',
+        tooltip: T.tr('contacts.add'),
         child: const Icon(Icons.add),
       ),
       body: asyncVal.when(
@@ -222,12 +224,12 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.error_outline, size: 48, color: cs.error),
             const SizedBox(height: 12),
-            Text('Failed to load contacts', style: tt.bodyLarge),
+            Text(T.tr('contacts.failed'), style: tt.bodyLarge),
             const SizedBox(height: 12),
             FilledButton.tonal(
               onPressed: () =>
                   ref.invalidate(_contactsProvider(widget.profileId)),
-              child: const Text('Retry'),
+              child: Text(T.tr('common.retry')),
             ),
           ]),
         ),
@@ -237,7 +239,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.contacts_outlined, size: 48, color: cs.outline),
                 const SizedBox(height: 12),
-                Text('No contacts recorded',
+                Text(T.tr('contacts.no_data'),
                     style:
                         tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
               ]),
@@ -264,6 +266,18 @@ class _ContactCard extends StatelessWidget {
   final Contact contact;
   final VoidCallback onDelete;
   const _ContactCard({required this.contact, required this.onDelete});
+
+  void _launchPhone(String phone) {
+    launchUrl(Uri(scheme: 'tel', path: phone));
+  }
+
+  void _launchEmail(String email) {
+    launchUrl(Uri(scheme: 'mailto', path: email));
+  }
+
+  void _launchMap(String address) {
+    launchUrl(Uri.parse('geo:0,0?q=${Uri.encodeComponent(address)}'));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -321,55 +335,84 @@ class _ContactCard extends StatelessWidget {
                     ),
                     if (contact.phone != null) ...[
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.phone,
-                              size: 14, color: cs.onSurfaceVariant),
-                          const SizedBox(width: 4),
-                          Text(
-                            contact.phone!,
-                            style: tt.bodySmall
-                                ?.copyWith(color: cs.onSurfaceVariant),
+                      InkWell(
+                        onTap: () => _launchPhone(contact.phone!),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              Icon(Icons.phone_outlined,
+                                  size: 14, color: cs.primary),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  contact.phone!,
+                                  style: tt.bodySmall?.copyWith(
+                                    color: cs.primary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ],
                     if (contact.email != null) ...[
                       const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Icon(Icons.email,
-                              size: 14, color: cs.onSurfaceVariant),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              contact.email!,
-                              style: tt.bodySmall
-                                  ?.copyWith(color: cs.onSurfaceVariant),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                      InkWell(
+                        onTap: () => _launchEmail(contact.email!),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              Icon(Icons.email_outlined,
+                                  size: 14, color: cs.primary),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  contact.email!,
+                                  style: tt.bodySmall?.copyWith(
+                                    color: cs.primary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ],
                     if (contact.address != null) ...[
                       const SizedBox(height: 2),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.location_on,
-                              size: 14, color: cs.outline),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              contact.address!,
-                              style:
-                                  tt.bodySmall?.copyWith(color: cs.outline),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                      InkWell(
+                        onTap: () => _launchMap(contact.address!),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.map_outlined,
+                                  size: 14, color: cs.primary),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  contact.address!,
+                                  style: tt.bodySmall?.copyWith(
+                                    color: cs.primary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ],
                   ],

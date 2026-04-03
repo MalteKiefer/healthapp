@@ -15,6 +15,8 @@ import '../../screens/diary/diary_screen.dart';
 import '../../screens/symptoms/symptoms_screen.dart';
 import '../../screens/tasks/tasks_screen.dart';
 import '../../screens/documents/documents_screen.dart';
+import '../../screens/about/about_screen.dart';
+import '../../screens/settings/settings_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/login',
@@ -48,6 +50,14 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/more',
           builder: (_, __) => const MoreScreen(),
+        ),
+        GoRoute(
+          path: '/about',
+          builder: (_, __) => const AboutScreen(),
+        ),
+        GoRoute(
+          path: '/settings',
+          builder: (_, __) => const SettingsScreen(),
         ),
         GoRoute(
           path: '/allergies/:profileId',

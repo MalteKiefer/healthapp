@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/profile.dart';
 import '../../models/vital.dart';
 import '../../models/medication.dart';
@@ -71,7 +72,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final profile = ref.read(selectedProfileProvider);
     if (profile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a profile first.')),
+        SnackBar(content: Text(T.tr('home.select_profile'))),
       );
       return;
     }
@@ -166,7 +167,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.error_outline, size: 48, color: cs.error),
               const SizedBox(height: 16),
-              Text('Failed to load profiles', style: tt.titleMedium),
+              Text(T.tr('home.failed_profiles'), style: tt.titleMedium),
               const SizedBox(height: 8),
               Text(e.toString(),
                   textAlign: TextAlign.center,
@@ -174,7 +175,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 24),
               FilledButton.tonal(
                 onPressed: () => ref.invalidate(profilesProvider('')),
-                child: const Text('Retry'),
+                child: Text(T.tr('common.retry')),
               ),
             ]),
           ),
@@ -195,7 +196,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               if (selected != null) ...[
                 const SizedBox(height: 8),
                 Text(
-                  'Hello, ${selected.displayName}',
+                  '${T.tr('home.welcome')}, ${selected.displayName}',
                   style: tt.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
@@ -207,27 +208,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 20),
 
               // -- Quick Actions -------------------------------------------
-              Text('Quick Actions', style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
+              Text(T.tr('home.quick_actions'), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
               const SizedBox(height: 10),
               Row(
                 children: [
                   _QuickAction(
                     icon: Icons.favorite_outline,
-                    label: 'Add Vital',
+                    label: T.tr('home.add_vital'),
                     color: cs.error,
                     onTap: () => _goTo('/vitals'),
                   ),
                   const SizedBox(width: 12),
                   _QuickAction(
                     icon: Icons.science_outlined,
-                    label: 'Add Lab',
+                    label: T.tr('home.add_lab'),
                     color: cs.tertiary,
                     onTap: () => _goTo('/labs'),
                   ),
                   const SizedBox(width: 12),
                   _QuickAction(
                     icon: Icons.medication_outlined,
-                    label: 'Add Med',
+                    label: T.tr('home.add_med'),
                     color: cs.primary,
                     onTap: () => _goTo('/medications'),
                   ),
@@ -237,19 +238,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
               // -- Recent Vitals -------------------------------------------
               if (pid.isNotEmpty) ...[
-                Text('Recent Vitals', style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
+                Text(T.tr('home.recent_vitals'), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
                 const SizedBox(height: 10),
                 _RecentVitals(profileId: pid),
                 const SizedBox(height: 24),
 
                 // -- Active Medications ------------------------------------
-                Text('Active Medications', style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
+                Text(T.tr('home.active_meds'), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
                 const SizedBox(height: 10),
                 _ActiveMedications(profileId: pid),
                 const SizedBox(height: 24),
 
                 // -- Upcoming Appointments ---------------------------------
-                Text('Upcoming', style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
+                Text(T.tr('home.upcoming'), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
                 const SizedBox(height: 10),
                 _UpcomingAppointments(profileId: pid),
                 const SizedBox(height: 32),
@@ -329,7 +330,7 @@ class _RecentVitals extends ConsumerWidget {
       error: (_, __) => Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text('Could not load vitals', style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+          child: Text(T.tr('home.could_not_load_vitals'), style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
         ),
       ),
       data: (vitals) {
@@ -340,7 +341,7 @@ class _RecentVitals extends ConsumerWidget {
               child: Row(children: [
                 Icon(Icons.favorite_outline, color: cs.outline),
                 const SizedBox(width: 12),
-                Text('No vitals recorded yet', style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                Text(T.tr('home.no_vitals'), style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
               ]),
             ),
           );
@@ -410,7 +411,7 @@ class _RecentVitals extends ConsumerWidget {
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Text('No vital values in latest reading', style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+              child: Text(T.tr('home.no_vital_values'), style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
             ),
           );
         }
@@ -423,7 +424,7 @@ class _RecentVitals extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Text('Latest Reading', style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant)),
+                    Text(T.tr('home.latest_reading'), style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant)),
                     const Spacer(),
                     Text(
                       _formatDate(latest.measuredAt),
@@ -529,7 +530,7 @@ class _ActiveMedications extends ConsumerWidget {
       error: (_, __) => Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text('Could not load medications', style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+          child: Text(T.tr('home.could_not_load_meds'), style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
         ),
       ),
       data: (meds) {
@@ -541,7 +542,7 @@ class _ActiveMedications extends ConsumerWidget {
               child: Row(children: [
                 Icon(Icons.medication_outlined, color: cs.outline),
                 const SizedBox(width: 12),
-                Text('No active medications', style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                Text(T.tr('home.no_active_meds'), style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
               ]),
             ),
           );
@@ -588,7 +589,7 @@ class _ActiveMedications extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
-                    '+${active.length - 3} more',
+                    '+${active.length - 3} ${T.tr('home.more_count')}',
                     style: tt.labelSmall?.copyWith(color: cs.primary),
                   ),
                 ),
@@ -620,7 +621,7 @@ class _UpcomingAppointments extends ConsumerWidget {
       error: (_, __) => Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text('Could not load appointments', style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+          child: Text(T.tr('home.could_not_load_appts'), style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
         ),
       ),
       data: (appts) {
@@ -639,7 +640,7 @@ class _UpcomingAppointments extends ConsumerWidget {
               child: Row(children: [
                 Icon(Icons.event_outlined, color: cs.outline),
                 const SizedBox(width: 12),
-                Text('No upcoming appointments', style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                Text(T.tr('home.no_upcoming'), style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
               ]),
             ),
           );

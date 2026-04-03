@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
 
@@ -33,19 +34,19 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Symptom'),
-        content: const Text('This symptom will be permanently removed.'),
+        title: Text(T.tr('symptoms.delete')),
+        content: Text(T.tr('symptoms.delete_body')),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(T.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(T.tr('common.delete')),
           ),
         ],
       ),
@@ -91,7 +92,7 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                 controller: scrollCtrl,
                 children: [
                   const SizedBox(height: 8),
-                  Text('Add Symptom',
+                  Text(T.tr('symptoms.add'),
                       style: Theme.of(ctx).textTheme.titleLarge),
                   const SizedBox(height: 20),
                   TextFormField(
@@ -153,7 +154,7 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                         }
                       }
                     },
-                    child: const Text('Add Symptom'),
+                    child: Text(T.tr('symptoms.add')),
                   ),
                 ],
               ),
@@ -174,12 +175,12 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Symptoms'),
+        title: Text(T.tr('symptoms.title')),
         automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
-        tooltip: 'Add symptom',
+        tooltip: T.tr('symptoms.add'),
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -189,13 +190,13 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
             child: Row(
               children: [
                 ChoiceChip(
-                  label: const Text('Active'),
+                  label: Text(T.tr('common.active')),
                   selected: _activeOnly,
                   onSelected: (_) => setState(() => _activeOnly = true),
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Text('Resolved'),
+                  label: Text(T.tr('status.resolved')),
                   selected: !_activeOnly,
                   onSelected: (_) => setState(() => _activeOnly = false),
                 ),
@@ -209,12 +210,12 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.error_outline, size: 48, color: cs.error),
                   const SizedBox(height: 12),
-                  Text('Failed to load', style: tt.bodyLarge),
+                  Text(T.tr('symptoms.failed'), style: tt.bodyLarge),
                   const SizedBox(height: 12),
                   FilledButton.tonal(
                     onPressed: () =>
                         ref.invalidate(_symptomsProvider(widget.profileId)),
-                    child: const Text('Retry'),
+                    child: Text(T.tr('common.retry')),
                   ),
                 ]),
               ),
@@ -232,8 +233,8 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                           const SizedBox(height: 12),
                           Text(
                             _activeOnly
-                                ? 'No active symptoms'
-                                : 'No resolved symptoms',
+                                ? T.tr('symptoms.no_active')
+                                : T.tr('symptoms.no_resolved'),
                             style: tt.bodyLarge
                                 ?.copyWith(color: cs.onSurfaceVariant),
                           ),
