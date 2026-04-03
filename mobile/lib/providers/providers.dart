@@ -18,3 +18,5 @@ final selectedProfileProvider = StateProvider<Profile?>((ref) => null);
 
 final languageProvider = StateProvider<String>((ref) => 'de');
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+// 1 = Monday, 7 = Sunday (ISO weekday convention)
+final firstDayOfWeekProvider = StateProvider<int>((ref) => 1);

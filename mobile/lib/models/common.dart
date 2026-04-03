@@ -97,33 +97,39 @@ class Vaccination {
 class Appointment {
   final String id;
   final String title;
-  final String? scheduledAt;
+  final String scheduledAt;
+  final String? appointmentType;
+  final int? durationMinutes;
+  final String? doctorId;
   final String? location;
-  final String? notes;
+  final String? preparationNotes;
   final String? status;
-  final String? doctorName;
-  final String? contactId;
+  final String? recurrence;
 
   Appointment({
     required this.id,
     required this.title,
-    this.scheduledAt,
+    required this.scheduledAt,
+    this.appointmentType,
+    this.durationMinutes,
+    this.doctorId,
     this.location,
-    this.notes,
+    this.preparationNotes,
     this.status,
-    this.doctorName,
-    this.contactId,
+    this.recurrence,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) => Appointment(
         id: json['id'],
         title: json['title'],
-        scheduledAt: json['scheduled_at'],
+        scheduledAt: json['scheduled_at'] as String,
+        appointmentType: json['appointment_type'],
+        durationMinutes: json['duration_minutes'],
+        doctorId: json['doctor_id'],
         location: json['location'],
-        notes: json['notes'],
+        preparationNotes: json['preparation_notes'],
         status: json['status'],
-        doctorName: json['doctor_name'],
-        contactId: json['contact_id'],
+        recurrence: json['recurrence'],
       );
 }
 

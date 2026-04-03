@@ -70,7 +70,6 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     final titleCtrl = TextEditingController();
     final dateCtrl = TextEditingController();
     final locationCtrl = TextEditingController();
-    final doctorCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
     DateTime? selectedDateTime;
@@ -100,16 +99,17 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: titleCtrl,
-                  decoration: const InputDecoration(labelText: 'Title *'),
+                  decoration: InputDecoration(
+                      labelText: T.tr('appointments.field_title')),
                   validator: (v) =>
                       (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: dateCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Date & Time',
-                    suffixIcon: Icon(Icons.calendar_today),
+                  decoration: InputDecoration(
+                    labelText: T.tr('appointments.field_date'),
+                    suffixIcon: const Icon(Icons.calendar_today),
                   ),
                   readOnly: true,
                   onTap: () async {
@@ -133,42 +133,50 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                       time.hour,
                       time.minute,
                     );
-                    dateCtrl.text = DateFormat('MMM d, yyyy \u2013 HH:mm')
+                    dateCtrl.text = DateFormat(
+                            T.lang == 'de'
+                                ? 'dd.MM.yyyy \u2013 HH:mm'
+                                : 'MMM d, yyyy \u2013 HH:mm')
                         .format(selectedDateTime!);
                   },
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: locationCtrl,
-                  decoration: const InputDecoration(labelText: 'Location'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: doctorCtrl,
-                  decoration: const InputDecoration(labelText: 'Doctor'),
+                  decoration: InputDecoration(
+                      labelText: T.tr('appointments.field_location')),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: notesCtrl,
-                  decoration: const InputDecoration(labelText: 'Notes'),
+                  decoration: InputDecoration(
+                      labelText: T.tr('appointments.field_notes')),
                   maxLines: 2,
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: () async {
                     if (!formKey.currentState!.validate()) return;
+                    if (selectedDateTime == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text(T.tr('appointments.date_required'))),
+                      );
+                      return;
+                    }
                     Navigator.pop(ctx);
                     final body = <String, dynamic>{
                       'title': titleCtrl.text.trim(),
-                      if (selectedDateTime != null)
-                        'scheduled_at':
-                            selectedDateTime!.toUtc().toIso8601String(),
+                      'scheduled_at':
+                          selectedDateTime!.toUtc().toIso8601String(),
+                      'appointment_type': 'general',
+                      'status': 'scheduled',
+                      'recurrence': 'none',
                       if (locationCtrl.text.trim().isNotEmpty)
                         'location': locationCtrl.text.trim(),
-                      if (doctorCtrl.text.trim().isNotEmpty)
-                        'doctor_name': doctorCtrl.text.trim(),
                       if (notesCtrl.text.trim().isNotEmpty)
-                        'notes': notesCtrl.text.trim(),
+                        'preparation_notes': notesCtrl.text.trim(),
                     };
                     try {
                       await ref.read(apiClientProvider).post<void>(
@@ -195,7 +203,6 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     titleCtrl.dispose();
     dateCtrl.dispose();
     locationCtrl.dispose();
-    doctorCtrl.dispose();
     notesCtrl.dispose();
   }
 
@@ -254,18 +261,16 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
               data: (items) {
                 final now = DateTime.now();
                 final list = items.where((a) {
-                  final dt = DateTime.tryParse(a.scheduledAt ?? '');
+                  final dt = DateTime.tryParse(a.scheduledAt);
                   if (dt == null) return !_upcomingOnly;
                   return _upcomingOnly
                       ? dt.isAfter(now)
                       : dt.isBefore(now);
                 }).toList()
                   ..sort((a, b) {
-                    final da = a.scheduledAt ?? '';
-                    final db = b.scheduledAt ?? '';
                     return _upcomingOnly
-                        ? da.compareTo(db)
-                        : db.compareTo(da);
+                        ? a.scheduledAt.compareTo(b.scheduledAt)
+                        : b.scheduledAt.compareTo(a.scheduledAt);
                   });
 
                 if (list.isEmpty) {
@@ -320,13 +325,15 @@ class _AppointmentCard extends StatelessWidget {
         appointment.status?.toLowerCase() == 'completed';
 
     String? dateStr;
-    if (appointment.scheduledAt != null) {
-      try {
-        final d = DateTime.parse(appointment.scheduledAt!);
-        dateStr = DateFormat('MMM d, yyyy \u2013 HH:mm').format(d.toLocal());
-      } catch (_) {
-        dateStr = appointment.scheduledAt;
-      }
+    try {
+      final d = DateTime.parse(appointment.scheduledAt);
+      dateStr = DateFormat(
+              T.lang == 'de'
+                  ? 'dd.MM.yyyy \u2013 HH:mm'
+                  : 'MMM d, yyyy \u2013 HH:mm')
+          .format(d.toLocal());
+    } catch (_) {
+      dateStr = appointment.scheduledAt;
     }
 
     return Card(
@@ -388,23 +395,17 @@ class _AppointmentCard extends StatelessWidget {
                             ?.copyWith(color: cs.onSurfaceVariant),
                       ),
                     ],
-                    if (appointment.location != null ||
-                        appointment.doctorName != null) ...[
+                    if (appointment.location != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        [
-                          if (appointment.location != null)
-                            appointment.location!,
-                          if (appointment.doctorName != null)
-                            appointment.doctorName!,
-                        ].join(' \u00b7 '),
+                        appointment.location!,
                         style: tt.bodySmall?.copyWith(color: cs.outline),
                       ),
                     ],
-                    if (appointment.notes != null) ...[
+                    if (appointment.preparationNotes != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        appointment.notes!,
+                        appointment.preparationNotes!,
                         style: tt.bodySmall?.copyWith(color: cs.outline),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

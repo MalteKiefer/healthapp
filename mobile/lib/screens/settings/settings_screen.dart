@@ -13,6 +13,7 @@ class SettingsScreen extends ConsumerWidget {
     final tt = Theme.of(context).textTheme;
     final lang = ref.watch(languageProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final firstDay = ref.watch(firstDayOfWeekProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -78,6 +79,34 @@ class SettingsScreen extends ConsumerWidget {
                 ref.read(themeModeProvider.notifier).state = mode;
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setString('themeMode', mode.name);
+              },
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // First day of week
+          Text(T.tr('settings.first_day'),
+              style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<int>(
+              segments: [
+                ButtonSegment(
+                  value: 1,
+                  label: Text(T.tr('settings.monday')),
+                ),
+                ButtonSegment(
+                  value: 7,
+                  label: Text(T.tr('settings.sunday')),
+                ),
+              ],
+              selected: {firstDay},
+              onSelectionChanged: (s) async {
+                final day = s.first;
+                ref.read(firstDayOfWeekProvider.notifier).state = day;
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setInt('first_day_of_week', day);
               },
             ),
           ),
