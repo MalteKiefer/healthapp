@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/auth/auth_service.dart';
 import '../../core/i18n/translations.dart';
 import '../../providers/providers.dart';
 
@@ -130,9 +131,10 @@ class MoreScreen extends ConsumerWidget {
                             child: Text(T.tr('common.cancel')),
                           ),
                           FilledButton(
-                            onPressed: () {
+                            onPressed: () async {
                               Navigator.pop(ctx);
-                              context.go('/login');
+                              await AuthService.clearCredentials();
+                              if (context.mounted) context.go('/login');
                             },
                             child: Text(T.tr('more.sign_out')),
                           ),

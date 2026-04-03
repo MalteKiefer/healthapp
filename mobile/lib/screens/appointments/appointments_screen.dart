@@ -158,15 +158,11 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                     ),
                     readOnly: true,
                     onTap: () async {
-                      final locale = T.lang == 'de'
-                          ? const Locale('de')
-                          : const Locale('en');
                       final date = await showDatePicker(
                         context: ctx,
                         initialDate: selectedDateTime ?? DateTime.now(),
                         firstDate: DateTime(2000),
                         lastDate: DateTime(2100),
-                        locale: locale,
                       );
                       if (date == null) return;
                       if (!ctx.mounted) return;
@@ -335,51 +331,54 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                     onPressed: () async {
                       if (!formKey.currentState!.validate()) return;
                       if (selectedDateTime == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(ctx).showSnackBar(
                           SnackBar(
                               content: Text(
                                   T.tr('appointments.date_required'))),
                         );
                         return;
                       }
-                      Navigator.pop(ctx);
+                      final title = titleCtrl.text.trim();
+                      final location = locationCtrl.text.trim();
+                      final notes = notesCtrl.text.trim();
+                      final duration = int.tryParse(durationCtrl.text.trim());
                       final body = <String, dynamic>{
-                        'title': titleCtrl.text.trim(),
+                        'title': title,
                         'scheduled_at':
                             selectedDateTime!.toUtc().toIso8601String(),
                         if (appointmentType != null)
                           'appointment_type': appointmentType,
-                        if (int.tryParse(durationCtrl.text.trim()) != null)
-                          'duration_minutes':
-                              int.tryParse(durationCtrl.text.trim()),
+                        if (duration != null)
+                          'duration_minutes': duration,
                         if (status != null) 'status': status,
                         if (recurrence != null) 'recurrence': recurrence,
-                        if (locationCtrl.text.trim().isNotEmpty)
-                          'location': locationCtrl.text.trim(),
+                        if (location.isNotEmpty)
+                          'location': location,
                         if (selectedDoctorId != null)
                           'doctor_id': selectedDoctorId,
-                        if (notesCtrl.text.trim().isNotEmpty)
-                          'preparation_notes': notesCtrl.text.trim(),
+                        if (notes.isNotEmpty)
+                          'preparation_notes': notes,
                         if (reminderDays.isNotEmpty)
                           'reminder_days_before': reminderDays,
                       };
                       try {
                         if (isEdit) {
-                          await api.patch<void>(
+                          await api.patch<dynamic>(
                             '/api/v1/profiles/${widget.profileId}/appointments/${existing.id}',
                             body: body,
                           );
                         } else {
-                          await api.post<void>(
+                          await api.post<dynamic>(
                             '/api/v1/profiles/${widget.profileId}/appointments',
                             body: body,
                           );
                         }
+                        if (ctx.mounted) Navigator.of(ctx).pop();
                         ref.invalidate(
                             _appointmentsProvider(widget.profileId));
                       } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context)
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx)
                               .showSnackBar(SnackBar(content: Text('$e')));
                         }
                       }
@@ -393,12 +392,6 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         ),
       ),
     );
-    titleCtrl.dispose();
-    dateCtrl.dispose();
-    locationCtrl.dispose();
-    doctorCtrl.dispose();
-    notesCtrl.dispose();
-    durationCtrl.dispose();
   }
 
   Future<Map<String, String?>?> _showContactPicker(BuildContext ctx) async {

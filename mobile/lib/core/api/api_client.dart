@@ -15,7 +15,7 @@ class ApiException implements Exception {
 class ApiClient {
   late final Dio _dio;
   final CookieJar _cookieJar = CookieJar();
-  String _baseUrl = 'https://health.p37.nexus';
+  String _baseUrl = '';
 
   String get baseUrl => _baseUrl;
 

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/auth/auth_service.dart';
 import '../../core/crypto/auth_crypto.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/auth.dart';
@@ -26,10 +27,26 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  final _serverCtrl = TextEditingController(text: 'https://health.p37.nexus');
+  final _serverCtrl = TextEditingController();
   bool _obscurePassword = true;
   bool _loading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedServer();
+  }
+
+  Future<void> _loadSavedServer() async {
+    final creds = await AuthService.loadCredentials();
+    if (creds != null && mounted) {
+      setState(() {
+        _serverCtrl.text = creds.serverUrl;
+        _emailCtrl.text = creds.email;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -59,6 +76,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         '/api/v1/auth/login',
         body:
             LoginRequest(email: _emailCtrl.text, authHash: authHash).toJson(),
+      );
+
+      await AuthService.saveCredentials(
+        email: _emailCtrl.text,
+        authHash: authHash,
+        serverUrl: api.baseUrl,
       );
 
       if (mounted) context.go('/home');

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../screens/login/login_screen.dart';
 import '../../screens/shell/app_shell.dart';
@@ -19,8 +20,14 @@ import '../../screens/about/about_screen.dart';
 import '../../screens/settings/settings_screen.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/login',
+  initialLocation: '/splash',
   routes: [
+    GoRoute(
+      path: '/splash',
+      builder: (_, __) => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+    ),
     GoRoute(
       path: '/login',
       builder: (_, __) => const LoginScreen(),
