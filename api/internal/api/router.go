@@ -203,11 +203,11 @@ func (s *Server) setupRoutes() {
 			})).Post("/register/complete", s.AuthHandler.HandleRegisterComplete)
 
 			r.With(rl.Limit(middleware.RateLimitConfig{
-				Requests: 5, Window: 15 * time.Minute, BlockDuration: 30 * time.Minute,
+				Requests: 10, Window: 5 * time.Minute, BlockDuration: 10 * time.Minute,
 			})).Post("/login", s.AuthHandler.HandleLogin)
 
 			r.With(rl.Limit(middleware.RateLimitConfig{
-				Requests: 5, Window: 15 * time.Minute, BlockDuration: 30 * time.Minute,
+				Requests: 10, Window: 5 * time.Minute, BlockDuration: 10 * time.Minute,
 			})).Post("/login/2fa", s.AuthHandler.HandleLogin2FA)
 
 			r.With(rl.Limit(middleware.RateLimitConfig{
