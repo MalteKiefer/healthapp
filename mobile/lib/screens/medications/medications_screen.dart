@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/medication.dart';
 import '../../providers/providers.dart';
 
-// ---------------------------------------------------------------------------
-// Provider
-// ---------------------------------------------------------------------------
+// -- Provider -----------------------------------------------------------------
 
 final medicationsProvider =
     FutureProvider.family<List<Medication>, String>((ref, profileId) async {
@@ -17,9 +15,7 @@ final medicationsProvider =
       .toList();
 });
 
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
+// -- Screen -------------------------------------------------------------------
 
 class MedicationsScreen extends ConsumerStatefulWidget {
   final String profileId;
@@ -33,73 +29,136 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
   bool _activeOnly = true;
 
   Future<void> _delete(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Medication'),
+        content: const Text('This medication will be permanently removed.'),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     try {
-      await ref.read(apiClientProvider).delete(
-          '/api/v1/profiles/${widget.profileId}/medications/$id');
+      await ref
+          .read(apiClientProvider)
+          .delete('/api/v1/profiles/${widget.profileId}/medications/$id');
       ref.invalidate(medicationsProvider(widget.profileId));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
     }
   }
 
-  Future<void> _showAddDialog() async {
+  Future<void> _showAddSheet() async {
     final nameCtrl = TextEditingController();
     final dosageCtrl = TextEditingController();
     final freqCtrl = TextEditingController();
     final startCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    final ok = await showDialog<bool>(
+    await showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Medication'),
-        content: SingleChildScrollView(
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.65,
+        minChildSize: 0.45,
+        maxChildSize: 0.9,
+        builder: (ctx, scrollCtrl) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
           child: Form(
             key: formKey,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextFormField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name *'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(controller: dosageCtrl, decoration: const InputDecoration(labelText: 'Dosage')),
-              const SizedBox(height: 12),
-              TextFormField(controller: freqCtrl, decoration: const InputDecoration(labelText: 'Frequency')),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: startCtrl,
-                decoration: const InputDecoration(labelText: 'Start date (YYYY-MM-DD)'),
-                keyboardType: TextInputType.datetime,
-              ),
-            ]),
+            child: ListView(
+              controller: scrollCtrl,
+              children: [
+                const SizedBox(height: 8),
+                Text('Add Medication',
+                    style: Theme.of(ctx).textTheme.titleLarge),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Name *'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: dosageCtrl,
+                  decoration: const InputDecoration(labelText: 'Dosage'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: freqCtrl,
+                  decoration: const InputDecoration(labelText: 'Frequency'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: startCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Start date',
+                    hintText: 'YYYY-MM-DD',
+                  ),
+                  keyboardType: TextInputType.datetime,
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    Navigator.pop(ctx);
+                    final body = <String, dynamic>{
+                      'name': nameCtrl.text.trim(),
+                      if (dosageCtrl.text.trim().isNotEmpty)
+                        'dosage': dosageCtrl.text.trim(),
+                      if (freqCtrl.text.trim().isNotEmpty)
+                        'frequency': freqCtrl.text.trim(),
+                      if (startCtrl.text.trim().isNotEmpty)
+                        'started_at':
+                            '${startCtrl.text.trim()}T00:00:00.000Z',
+                    };
+                    try {
+                      await ref.read(apiClientProvider).post<void>(
+                            '/api/v1/profiles/${widget.profileId}/medications',
+                            body: body,
+                          );
+                      ref.invalidate(
+                          medicationsProvider(widget.profileId));
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text('$e')));
+                      }
+                    }
+                  },
+                  child: const Text('Add Medication'),
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(ctx, true); },
-            child: const Text('Add'),
-          ),
-        ],
       ),
     );
-
-    if (ok != true) return;
-    final body = <String, dynamic>{
-      'name': nameCtrl.text.trim(),
-      if (dosageCtrl.text.trim().isNotEmpty) 'dosage': dosageCtrl.text.trim(),
-      if (freqCtrl.text.trim().isNotEmpty) 'frequency': freqCtrl.text.trim(),
-      if (startCtrl.text.trim().isNotEmpty)
-        'started_at': '${startCtrl.text.trim()}T00:00:00.000Z',
-    };
-    try {
-      await ref.read(apiClientProvider)
-          .post<void>('/api/v1/profiles/${widget.profileId}/medications', body: body);
-      ref.invalidate(medicationsProvider(widget.profileId));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-    }
+    nameCtrl.dispose();
+    dosageCtrl.dispose();
+    freqCtrl.dispose();
+    startCtrl.dispose();
   }
 
   @override
@@ -109,152 +168,168 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
     final async = ref.watch(medicationsProvider(widget.profileId));
 
     return Scaffold(
-      appBar: AppBar(leading: const BackButton(), title: const Text('Medications')),
+      appBar: AppBar(
+        title: const Text('Medications'),
+        automaticallyImplyLeading: false,
+      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddDialog,
+        onPressed: _showAddSheet,
         tooltip: 'Add medication',
         child: const Icon(Icons.add),
       ),
-      body: Column(children: [
-        // Filter chips
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Row(children: [
-            FilterChip(
-              label: const Text('Active'),
-              selected: _activeOnly,
-              onSelected: (_) => setState(() => _activeOnly = true),
-            ),
-            const SizedBox(width: 8),
-            FilterChip(
-              label: const Text('All'),
-              selected: !_activeOnly,
-              onSelected: (_) => setState(() => _activeOnly = false),
-            ),
-          ]),
-        ),
-        // List
-        Expanded(child: async.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('Failed to load', style: tt.bodyLarge),
-            const SizedBox(height: 8),
-            FilledButton.tonal(
-              onPressed: () => ref.invalidate(medicationsProvider(widget.profileId)),
-              child: const Text('Retry'),
-            ),
-          ])),
-          data: (items) {
-            final list = _activeOnly ? items.where((m) => m.isActive).toList() : items;
-            if (list.isEmpty) {
-              return Center(
-                child: Text(
-                  _activeOnly ? 'No active medications' : 'No medications recorded',
-                  style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+      body: Column(
+        children: [
+          // Filter
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                ChoiceChip(
+                  label: const Text('Active'),
+                  selected: _activeOnly,
+                  onSelected: (_) => setState(() => _activeOnly = true),
                 ),
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _MedCard(
-                key: ValueKey(list[i].id),
-                med: list[i],
-                onDelete: () => _delete(list[i].id),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('All'),
+                  selected: !_activeOnly,
+                  onSelected: (_) => setState(() => _activeOnly = false),
+                ),
+              ],
+            ),
+          ),
+          // List
+          Expanded(
+            child: async.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.error_outline, size: 48, color: cs.error),
+                  const SizedBox(height: 12),
+                  Text('Failed to load', style: tt.bodyLarge),
+                  const SizedBox(height: 12),
+                  FilledButton.tonal(
+                    onPressed: () => ref
+                        .invalidate(medicationsProvider(widget.profileId)),
+                    child: const Text('Retry'),
+                  ),
+                ]),
               ),
-            );
-          },
-        )),
-      ]),
+              data: (items) {
+                final list = _activeOnly
+                    ? items.where((m) => m.isActive).toList()
+                    : items;
+                if (list.isEmpty) {
+                  return Center(
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.medication_outlined,
+                              size: 48, color: cs.outline),
+                          const SizedBox(height: 12),
+                          Text(
+                            _activeOnly
+                                ? 'No active medications'
+                                : 'No medications recorded',
+                            style: tt.bodyLarge
+                                ?.copyWith(color: cs.onSurfaceVariant),
+                          ),
+                        ]),
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                  itemCount: list.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) => _MedCard(
+                    med: list[i],
+                    onDelete: () => _delete(list[i].id),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Card
-// ---------------------------------------------------------------------------
+// -- Medication Card ----------------------------------------------------------
 
 class _MedCard extends StatelessWidget {
   final Medication med;
   final VoidCallback onDelete;
-  const _MedCard({super.key, required this.med, required this.onDelete});
+  const _MedCard({required this.med, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
-    return Dismissible(
-      key: ValueKey(med.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async { onDelete(); return false; },
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: cs.errorContainer,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Icon(Icons.delete_outline, color: cs.onErrorContainer),
-      ),
-      child: Card(
-        margin: EdgeInsets.zero,
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onLongPress: onDelete,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(med.name, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-              if (med.dosage != null || med.frequency != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  [if (med.dosage != null) med.dosage!, if (med.frequency != null) med.frequency!].join(' · '),
-                  style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: cs.primaryContainer,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ],
-            ])),
-            const SizedBox(width: 8),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              _StatusBadge(isActive: med.isActive),
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                iconSize: 20,
-                visualDensity: VisualDensity.compact,
-                color: cs.error,
-                onPressed: onDelete,
-                tooltip: 'Delete',
+                child: Icon(Icons.medication,
+                    size: 20, color: cs.onPrimaryContainer),
               ),
-            ]),
-          ]),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            med.name,
+                            style: tt.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        // Active dot
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: med.isActive
+                                ? Colors.green
+                                : cs.outlineVariant,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (med.dosage != null || med.frequency != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        [
+                          if (med.dosage != null) med.dosage!,
+                          if (med.frequency != null) med.frequency!,
+                        ].join(' \u00b7 '),
+                        style: tt.bodySmall
+                            ?.copyWith(color: cs.onSurfaceVariant),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Status badge
-// ---------------------------------------------------------------------------
-
-class _StatusBadge extends StatelessWidget {
-  final bool isActive;
-  const _StatusBadge({required this.isActive});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final label = isActive ? 'Active' : 'Inactive';
-
-    final bg = isActive
-        ? Color.alphaBlend(cs.primary.withOpacity(0.12), cs.surface)
-        : cs.surfaceContainerHighest;
-    final fg = isActive ? cs.primary : cs.onSurfaceVariant;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(label, style: tt.labelSmall?.copyWith(color: fg)),
     );
   }
 }
