@@ -12,8 +12,6 @@ import { api } from '../api/client';
 import { ContactPicker } from '../components/ContactPicker';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
-interface MedIntake { id: string; medication_id: string; scheduled_at: string; taken_at?: string; skipped_reason?: string; notes?: string; created_at: string }
-
 const ROUTES = ['oral', 'injection', 'topical', 'inhalation', 'sublingual', 'rectal', 'other'];
 
 function toLocalDatetime(d: Date = new Date()): string {

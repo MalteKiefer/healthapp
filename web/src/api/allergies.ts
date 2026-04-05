@@ -3,15 +3,15 @@ import { decryptOrPassthrough, encryptForWrite, type EntityBase } from './encryp
 
 export interface Allergy extends EntityBase {
   name: string;
-  category?: string | null;
-  reaction_type?: string | null;
-  severity?: string | null;
-  onset_date?: string | null;
-  diagnosed_by?: string | null;
-  notes?: string | null;
-  status?: string | null;
+  category?: string;
+  reaction_type?: string;
+  severity?: string;
+  onset_date?: string;
+  diagnosed_by?: string;
+  notes?: string;
+  status?: string;
   version?: number;
-  previous_id?: string | null;
+  previous_id?: string;
   is_current?: boolean;
   created_at: string;
   updated_at?: string;

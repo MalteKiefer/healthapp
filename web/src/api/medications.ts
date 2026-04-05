@@ -3,18 +3,18 @@ import { decryptOrPassthrough, encryptForWrite, type EntityBase } from './encryp
 
 export interface Medication extends EntityBase {
   name: string;
-  dosage?: string | null;
-  unit?: string | null;
-  frequency?: string | null;
-  route?: string | null;
-  started_at?: string | null;
-  ended_at?: string | null;
-  prescribed_by?: string | null;
-  reason?: string | null;
-  notes?: string | null;
-  related_diagnosis_id?: string | null;
+  dosage?: string;
+  unit?: string;
+  frequency?: string;
+  route?: string;
+  started_at?: string;
+  ended_at?: string;
+  prescribed_by?: string;
+  reason?: string;
+  notes?: string;
+  related_diagnosis_id?: string;
   version?: number;
-  previous_id?: string | null;
+  previous_id?: string;
   is_current?: boolean;
   created_at: string;
   updated_at?: string;
@@ -27,11 +27,11 @@ export interface MedicationListResponse {
 
 export interface MedicationIntake extends EntityBase {
   medication_id: string;
-  scheduled_at?: string | null;
-  taken_at?: string | null;
-  dose_taken?: string | null;
-  skipped_reason?: string | null;
-  notes?: string | null;
+  scheduled_at?: string;
+  taken_at?: string;
+  dose_taken?: string;
+  skipped_reason?: string;
+  notes?: string;
   created_at: string;
 }
 

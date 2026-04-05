@@ -5,11 +5,11 @@ export interface DiaryEvent extends EntityBase {
   title: string;
   event_type: string;
   started_at: string;
-  ended_at?: string | null;
-  description?: string | null;
-  severity?: number | null;
-  location?: string | null;
-  outcome?: string | null;
+  ended_at?: string;
+  description?: string;
+  severity?: number;
+  location?: string;
+  outcome?: string;
   created_at: string;
   updated_at?: string;
 }

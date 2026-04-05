@@ -3,13 +3,13 @@ import { decryptOrPassthrough, encryptForWrite, type EntityBase } from './encryp
 
 export interface Task extends EntityBase {
   title: string;
-  due_date?: string | null;
+  due_date?: string;
   priority: string;
   status: string;
-  done_at?: string | null;
-  related_diary_event_id?: string | null;
-  related_appointment_id?: string | null;
-  notes?: string | null;
+  done_at?: string;
+  related_diary_event_id?: string;
+  related_appointment_id?: string;
+  notes?: string;
   created_by_user_id: string;
   created_at: string;
   updated_at?: string;

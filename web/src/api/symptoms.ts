@@ -9,22 +9,22 @@ import {
 import { enqueueMigration } from '../utils/migrationQueue';
 
 export interface SymptomEntry {
-  id: string;
-  symptom_record_id: string;
+  id?: string;
+  symptom_record_id?: string;
   symptom_type: string;
-  custom_label?: string | null;
+  custom_label?: string;
   intensity: number;
-  body_region?: string | null;
-  duration_minutes?: number | null;
-  content_enc?: string | null;
+  body_region?: string;
+  duration_minutes?: number;
+  content_enc?: string;
 }
 
 export interface SymptomRecord extends EntityBase {
   recorded_at: string;
   entries: SymptomEntry[];
-  trigger_factors?: string[] | null;
-  notes?: string | null;
-  linked_vital_id?: string | null;
+  trigger_factors?: string[];
+  notes?: string;
+  linked_vital_id?: string;
   created_at: string;
   updated_at?: string;
 }

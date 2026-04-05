@@ -9,24 +9,24 @@ import {
 import { enqueueMigration } from '../utils/migrationQueue';
 
 export interface LabValue {
-  id: string;
-  lab_result_id: string;
+  id?: string;
+  lab_result_id?: string;
   marker: string;
-  value?: number | null;
-  value_text?: string | null;
-  unit?: string | null;
-  reference_low?: number | null;
-  reference_high?: number | null;
-  flag?: string | null;
-  content_enc?: string | null;
+  value?: number;
+  value_text?: string;
+  unit?: string;
+  reference_low?: number;
+  reference_high?: number;
+  flag?: string;
+  content_enc?: string;
 }
 
 export interface LabResult extends EntityBase {
-  lab_name?: string | null;
-  ordered_by?: string | null;
+  lab_name?: string;
+  ordered_by?: string;
   sample_date: string;
-  result_date?: string | null;
-  notes?: string | null;
+  result_date?: string;
+  notes?: string;
   values: LabValue[];
   version?: number;
   created_at: string;
@@ -41,14 +41,14 @@ export interface LabListResponse {
 export interface TrendDataPoint {
   date: string;
   value: number;
-  flag?: string | null;
+  flag?: string;
 }
 
 export interface MarkerTrend {
   marker: string;
-  unit?: string | null;
-  reference_low?: number | null;
-  reference_high?: number | null;
+  unit?: string;
+  reference_low?: number;
+  reference_high?: number;
   data_points: TrendDataPoint[];
 }
 

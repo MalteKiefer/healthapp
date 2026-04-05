@@ -10,14 +10,14 @@ export type DiagnosisStatus =
 
 export interface Diagnosis extends EntityBase {
   name: string;
-  icd10_code?: string | null;
+  icd10_code?: string;
   status: DiagnosisStatus;
-  diagnosed_at?: string | null;
-  diagnosed_by?: string | null;
-  resolved_at?: string | null;
-  notes?: string | null;
+  diagnosed_at?: string;
+  diagnosed_by?: string;
+  resolved_at?: string;
+  notes?: string;
   version?: number;
-  previous_id?: string | null;
+  previous_id?: string;
   is_current?: boolean;
   created_at: string;
   updated_at?: string;

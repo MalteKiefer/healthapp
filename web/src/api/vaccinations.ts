@@ -3,18 +3,18 @@ import { decryptOrPassthrough, encryptForWrite, type EntityBase } from './encryp
 
 export interface Vaccination extends EntityBase {
   vaccine_name: string;
-  trade_name?: string | null;
-  manufacturer?: string | null;
-  lot_number?: string | null;
-  dose_number?: number | null;
+  trade_name?: string;
+  manufacturer?: string;
+  lot_number?: string;
+  dose_number?: number;
   administered_at: string;
-  administered_by?: string | null;
-  next_due_at?: string | null;
-  site?: string | null;
-  notes?: string | null;
-  document_id?: string | null;
+  administered_by?: string;
+  next_due_at?: string;
+  site?: string;
+  notes?: string;
+  document_id?: string;
   version?: number;
-  previous_id?: string | null;
+  previous_id?: string;
   is_current?: boolean;
   created_at: string;
   updated_at?: string;

@@ -11,8 +11,6 @@ import { useProfiles } from '../hooks/useProfiles';
 import { appointmentsApi, type Appointment } from '../api/appointments';
 import { contactsApi } from '../api/contacts';
 
-interface Contact { id: string; name: string; specialty?: string; facility?: string; address?: string; street?: string; postal_code?: string; city?: string; country?: string }
-
 const TYPES = [
   'examination', 'surgery', 'vaccination', 'follow_up', 'lab',
   'specialist', 'general_practice', 'therapy', 'other',
