@@ -61,7 +61,7 @@ async function decryptSymptomEntry(
       const content = await decryptProfileContent<Record<string, unknown>>(
         e.content_enc,
         key,
-        makeAAD(profileId, ENTRY_ENTITY, e.id),
+        makeAAD(profileId, ENTRY_ENTITY, e.id!),
       );
       const cleared = { ...e } as Record<string, unknown>;
       for (const k of ENTRY_CONTENT_FIELDS) cleared[k] = undefined;
@@ -83,9 +83,9 @@ async function decryptSymptomEntry(
     const blob = await encryptProfileContent(
       content,
       freshKey,
-      makeAAD(profileId, ENTRY_ENTITY, e.id),
+      makeAAD(profileId, ENTRY_ENTITY, e.id!),
     );
-    await api.patch(entryMigratePath(profileId, recordId, e.id), { content_enc: blob });
+    await api.patch(entryMigratePath(profileId, recordId, e.id!), { content_enc: blob });
   });
   return e;
 }

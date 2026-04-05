@@ -82,7 +82,7 @@ async function decryptLabValue(
       const content = await decryptProfileContent<Record<string, unknown>>(
         v.content_enc,
         key,
-        makeAAD(profileId, VALUE_ENTITY, v.id),
+        makeAAD(profileId, VALUE_ENTITY, v.id!),
       );
       const cleared = { ...v } as Record<string, unknown>;
       for (const k of VALUE_CONTENT_FIELDS) cleared[k] = undefined;
@@ -105,9 +105,9 @@ async function decryptLabValue(
     const blob = await encryptProfileContent(
       content,
       freshKey,
-      makeAAD(profileId, VALUE_ENTITY, v.id),
+      makeAAD(profileId, VALUE_ENTITY, v.id!),
     );
-    await api.patch(valueMigratePath(profileId, labId, v.id), { content_enc: blob });
+    await api.patch(valueMigratePath(profileId, labId, v.id!), { content_enc: blob });
   });
   return v;
 }

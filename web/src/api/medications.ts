@@ -27,7 +27,7 @@ export interface MedicationListResponse {
 
 export interface MedicationIntake extends EntityBase {
   medication_id: string;
-  scheduled_at?: string;
+  scheduled_at: string;
   taken_at?: string;
   dose_taken?: string;
   skipped_reason?: string;
