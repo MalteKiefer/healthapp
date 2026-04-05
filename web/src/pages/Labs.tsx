@@ -7,29 +7,11 @@ import { ProfileSelector } from '../components/ProfileSelector';
 import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
-import { api } from '../api/client';
+import { labsApi, type LabResult, type LabValue } from '../api/labs';
 import { ContactPicker } from '../components/ContactPicker';
 import { LabTrendsView } from '../components/LabTrendsView';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
-interface LabValue {
-  marker: string;
-  value?: number;
-  unit?: string;
-  reference_low?: number;
-  reference_high?: number;
-  flag?: string;
-}
-
-interface LabResult {
-  id: string;
-  lab_name?: string;
-  ordered_by?: string;
-  sample_date: string;
-  result_date?: string;
-  values: LabValue[];
-  created_at: string;
-}
 
 function flagColor(flag?: string): string {
   if (!flag) return '';
@@ -58,7 +40,7 @@ export function Labs() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['labs', profileId],
-    queryFn: () => api.get<{ items: LabResult[]; total: number }>(`/api/v1/profiles/${profileId}/labs`),
+    queryFn: () => labsApi.list(profileId),
     enabled: !!profileId,
   });
 
@@ -83,7 +65,7 @@ export function Labs() {
   };
 
   const createMutation = useMutation({
-    mutationFn: (lab: Partial<LabResult>) => api.post(`/api/v1/profiles/${profileId}/labs`, cleanLab(lab)),
+    mutationFn: (lab: Partial<LabResult>) => labsApi.create(profileId, cleanLab(lab) as Partial<LabResult>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labs', profileId] });
       queryClient.invalidateQueries({ queryKey: ['lab-trends'] });
@@ -93,7 +75,7 @@ export function Labs() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/labs/${id}`),
+    mutationFn: (id: string) => labsApi.delete(profileId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labs', profileId] });
       queryClient.invalidateQueries({ queryKey: ['lab-trends'] });
@@ -102,7 +84,7 @@ export function Labs() {
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<LabResult> & { id: string }) =>
-      api.patch(`/api/v1/profiles/${profileId}/labs/${data.id}`, cleanLab(data)),
+      labsApi.update(profileId, data.id, cleanLab(data) as Partial<LabResult>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labs', profileId] });
       queryClient.invalidateQueries({ queryKey: ['lab-trends'] });

@@ -6,6 +6,7 @@ import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { useDateFormat } from '../hooks/useDateLocale';
 import { api } from '../api/client';
+import { medicationsApi } from '../api/medications';
 
 interface Share {
   share_id: string;
@@ -69,7 +70,7 @@ async function encryptPayload(data: unknown, key: CryptoKey): Promise<string> {
 /** Fetch health data for a profile and return a summary object */
 async function gatherHealthData(profileId: string): Promise<Record<string, unknown>> {
   const [meds, allergies, diagnoses, vitals, contacts] = await Promise.allSettled([
-    api.get<{ items: unknown[] }>(`/api/v1/profiles/${profileId}/medications/active`),
+    medicationsApi.active(profileId),
     api.get<{ items: unknown[] }>(`/api/v1/profiles/${profileId}/allergies`),
     api.get<{ items: unknown[] }>(`/api/v1/profiles/${profileId}/diagnoses`),
     api.get<{ items: unknown[] }>(`/api/v1/profiles/${profileId}/vitals?limit=10`),

@@ -22,6 +22,11 @@ type LabResult struct {
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
 	DeletedAt  *time.Time `json:"-"`
+	// ContentEnc holds the AES-GCM-encrypted JSON blob of all health fields
+	// (produced client-side with the profile key). During Stage 2 lazy
+	// migration it lives alongside the plaintext columns; Stage 2.4 drops
+	// the plaintext columns and enforces NOT NULL.
+	ContentEnc *string `json:"content_enc,omitempty"`
 }
 
 // LabValue represents a single marker measurement within a lab result.
@@ -35,6 +40,11 @@ type LabValue struct {
 	ReferenceLow  *float64  `json:"reference_low,omitempty"`
 	ReferenceHigh *float64  `json:"reference_high,omitempty"`
 	Flag          *string   `json:"flag,omitempty"`
+	// ContentEnc holds the AES-GCM-encrypted JSON blob of all health fields
+	// (produced client-side with the profile key). During Stage 2 lazy
+	// migration it lives alongside the plaintext columns; Stage 2.4 drops
+	// the plaintext columns and enforces NOT NULL.
+	ContentEnc *string `json:"content_enc,omitempty"`
 }
 
 // TrendDataPoint represents a single measurement of a marker over time.

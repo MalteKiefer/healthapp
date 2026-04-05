@@ -6,19 +6,8 @@ import { ProfileSelector } from '../components/ProfileSelector';
 import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
-import { api } from '../api/client';
+import { diagnosesApi, type Diagnosis } from '../api/diagnoses';
 import { ContactPicker } from '../components/ContactPicker';
-
-interface Diagnosis {
-  id: string;
-  name: string;
-  icd10_code?: string;
-  status: string;
-  diagnosed_at?: string;
-  diagnosed_by?: string;
-  resolved_at?: string;
-  notes?: string;
-}
 
 const STATUSES = ['active', 'resolved', 'chronic', 'in_remission', 'suspected'];
 const STATUS_COLORS: Record<string, string> = {
@@ -42,7 +31,7 @@ export function Diagnoses() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['diagnoses', profileId],
-    queryFn: () => api.get<{ items: Diagnosis[] }>(`/api/v1/profiles/${profileId}/diagnoses`),
+    queryFn: () => diagnosesApi.list(profileId),
     enabled: !!profileId,
   });
 
@@ -61,7 +50,7 @@ export function Diagnoses() {
   };
 
   const createMutation = useMutation({
-    mutationFn: (d: Partial<Diagnosis>) => api.post(`/api/v1/profiles/${profileId}/diagnoses`, fixDates(d as Record<string, unknown>, ['diagnosed_at', 'resolved_at'])),
+    mutationFn: (d: Partial<Diagnosis>) => diagnosesApi.create(profileId, fixDates(d as Record<string, unknown>, ['diagnosed_at', 'resolved_at']) as Partial<Diagnosis>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['diagnoses', profileId] });
       setShowForm(false);
@@ -71,7 +60,7 @@ export function Diagnoses() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: Partial<Diagnosis> & { id: string }) =>
-      api.patch(`/api/v1/profiles/${profileId}/diagnoses/${id}`, fixDates(data as Record<string, unknown>, ['diagnosed_at', 'resolved_at'])),
+      diagnosesApi.update(profileId, id, fixDates(data as Record<string, unknown>, ['diagnosed_at', 'resolved_at']) as Partial<Diagnosis>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['diagnoses', profileId] });
       setEditTarget(null);
@@ -79,7 +68,7 @@ export function Diagnoses() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/diagnoses/${id}`),
+    mutationFn: (id: string) => diagnosesApi.delete(profileId, id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['diagnoses', profileId] }),
   });
 

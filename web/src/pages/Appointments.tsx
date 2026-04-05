@@ -9,7 +9,7 @@ import { ContactPicker } from '../components/ContactPicker';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { appointmentsApi, type Appointment } from '../api/appointments';
-import { api } from '../api/client';
+import { contactsApi } from '../api/contacts';
 
 interface Contact { id: string; name: string; specialty?: string; facility?: string; address?: string; street?: string; postal_code?: string; city?: string; country?: string }
 
@@ -42,7 +42,7 @@ export function Appointments() {
 
   const { data: contactsData } = useQuery({
     queryKey: ['contacts', profileId],
-    queryFn: () => api.get<{ items: Contact[] }>(`/api/v1/profiles/${profileId}/contacts`),
+    queryFn: () => contactsApi.list(profileId),
     enabled: !!profileId,
   });
   const contacts = contactsData?.items || [];

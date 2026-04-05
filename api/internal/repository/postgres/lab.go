@@ -41,12 +41,12 @@ func (r *LabRepo) Create(ctx context.Context, lr *labs.LabResult) error {
 	query := `
 		INSERT INTO lab_results (
 			id, profile_id, lab_name, ordered_by, sample_date, result_date,
-			notes, version, previous_id, is_current, created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+			notes, version, previous_id, is_current, created_at, updated_at, content_enc
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 
 	_, err = tx.Exec(ctx, query,
 		lr.ID, lr.ProfileID, lr.LabName, lr.OrderedBy, lr.SampleDate, lr.ResultDate,
-		lr.Notes, lr.Version, lr.PreviousID, lr.IsCurrent, lr.CreatedAt, lr.UpdatedAt,
+		lr.Notes, lr.Version, lr.PreviousID, lr.IsCurrent, lr.CreatedAt, lr.UpdatedAt, lr.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("insert lab_result: %w", err)
@@ -62,10 +62,10 @@ func (r *LabRepo) Create(ctx context.Context, lr *labs.LabResult) error {
 		_, err = tx.Exec(ctx, `
 			INSERT INTO lab_values (
 				id, lab_result_id, marker, value, value_text, unit,
-				reference_low, reference_high, flag
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+				reference_low, reference_high, flag, content_enc
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
 			v.ID, v.LabResultID, v.Marker, v.Value, v.ValueText, v.Unit,
-			v.ReferenceLow, v.ReferenceHigh, v.Flag,
+			v.ReferenceLow, v.ReferenceHigh, v.Flag, v.ContentEnc,
 		)
 		if err != nil {
 			return fmt.Errorf("insert lab_value: %w", err)
@@ -78,13 +78,13 @@ func (r *LabRepo) Create(ctx context.Context, lr *labs.LabResult) error {
 func (r *LabRepo) GetByID(ctx context.Context, id uuid.UUID) (*labs.LabResult, error) {
 	query := `
 		SELECT id, profile_id, lab_name, ordered_by, sample_date, result_date,
-			notes, version, previous_id, is_current, created_at, updated_at, deleted_at
+			notes, version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
 		FROM lab_results WHERE id = $1 AND deleted_at IS NULL`
 
 	var lr labs.LabResult
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&lr.ID, &lr.ProfileID, &lr.LabName, &lr.OrderedBy, &lr.SampleDate, &lr.ResultDate,
-		&lr.Notes, &lr.Version, &lr.PreviousID, &lr.IsCurrent, &lr.CreatedAt, &lr.UpdatedAt, &lr.DeletedAt,
+		&lr.Notes, &lr.Version, &lr.PreviousID, &lr.IsCurrent, &lr.CreatedAt, &lr.UpdatedAt, &lr.DeletedAt, &lr.ContentEnc,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -114,7 +114,7 @@ func (r *LabRepo) List(ctx context.Context, profileID uuid.UUID, limit, offset i
 
 	query := `
 		SELECT id, profile_id, lab_name, ordered_by, sample_date, result_date,
-			notes, version, previous_id, is_current, created_at, updated_at, deleted_at
+			notes, version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
 		FROM lab_results
 		WHERE profile_id = $1 AND is_current = TRUE AND deleted_at IS NULL
 		ORDER BY sample_date DESC
@@ -131,7 +131,7 @@ func (r *LabRepo) List(ctx context.Context, profileID uuid.UUID, limit, offset i
 		var lr labs.LabResult
 		if err := rows.Scan(
 			&lr.ID, &lr.ProfileID, &lr.LabName, &lr.OrderedBy, &lr.SampleDate, &lr.ResultDate,
-			&lr.Notes, &lr.Version, &lr.PreviousID, &lr.IsCurrent, &lr.CreatedAt, &lr.UpdatedAt, &lr.DeletedAt,
+			&lr.Notes, &lr.Version, &lr.PreviousID, &lr.IsCurrent, &lr.CreatedAt, &lr.UpdatedAt, &lr.DeletedAt, &lr.ContentEnc,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan lab_result row: %w", err)
 		}
@@ -180,12 +180,12 @@ func (r *LabRepo) Update(ctx context.Context, lr *labs.LabResult) error {
 	query := `
 		INSERT INTO lab_results (
 			id, profile_id, lab_name, ordered_by, sample_date, result_date,
-			notes, version, previous_id, is_current, created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+			notes, version, previous_id, is_current, created_at, updated_at, content_enc
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 
 	_, err = tx.Exec(ctx, query,
 		lr.ID, lr.ProfileID, lr.LabName, lr.OrderedBy, lr.SampleDate, lr.ResultDate,
-		lr.Notes, lr.Version, lr.PreviousID, lr.IsCurrent, lr.CreatedAt, lr.UpdatedAt,
+		lr.Notes, lr.Version, lr.PreviousID, lr.IsCurrent, lr.CreatedAt, lr.UpdatedAt, lr.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("insert new version: %w", err)
@@ -200,10 +200,10 @@ func (r *LabRepo) Update(ctx context.Context, lr *labs.LabResult) error {
 		_, err = tx.Exec(ctx, `
 			INSERT INTO lab_values (
 				id, lab_result_id, marker, value, value_text, unit,
-				reference_low, reference_high, flag
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+				reference_low, reference_high, flag, content_enc
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
 			v.ID, v.LabResultID, v.Marker, v.Value, v.ValueText, v.Unit,
-			v.ReferenceLow, v.ReferenceHigh, v.Flag,
+			v.ReferenceLow, v.ReferenceHigh, v.Flag, v.ContentEnc,
 		)
 		if err != nil {
 			return fmt.Errorf("insert lab_value: %w", err)
@@ -250,7 +250,7 @@ func (r *LabRepo) CheckDuplicate(ctx context.Context, lr *labs.LabResult) (*uuid
 func (r *LabRepo) getValues(ctx context.Context, labResultID uuid.UUID) ([]labs.LabValue, error) {
 	query := `
 		SELECT id, lab_result_id, marker, value, value_text, unit,
-			reference_low, reference_high, flag
+			reference_low, reference_high, flag, content_enc
 		FROM lab_values WHERE lab_result_id = $1
 		ORDER BY marker ASC`
 
@@ -265,7 +265,7 @@ func (r *LabRepo) getValues(ctx context.Context, labResultID uuid.UUID) ([]labs.
 		var v labs.LabValue
 		if err := rows.Scan(
 			&v.ID, &v.LabResultID, &v.Marker, &v.Value, &v.ValueText, &v.Unit,
-			&v.ReferenceLow, &v.ReferenceHigh, &v.Flag,
+			&v.ReferenceLow, &v.ReferenceHigh, &v.Flag, &v.ContentEnc,
 		); err != nil {
 			return nil, fmt.Errorf("scan lab_value: %w", err)
 		}
@@ -360,4 +360,30 @@ func (r *LabRepo) ListTrends(ctx context.Context, profileID uuid.UUID, from, to 
 	}
 
 	return results, nil
+}
+
+// SetLabResultContentEnc populates content_enc only if currently NULL
+// (idempotent lazy-migration path).
+func (r *LabRepo) SetLabResultContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
+	_, err := r.db.Exec(ctx,
+		"UPDATE lab_results SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL AND deleted_at IS NULL",
+		id, contentEnc,
+	)
+	if err != nil {
+		return fmt.Errorf("set content_enc: %w", err)
+	}
+	return nil
+}
+
+// SetLabValueContentEnc populates content_enc only if currently NULL
+// (idempotent lazy-migration path). lab_values has no deleted_at column.
+func (r *LabRepo) SetLabValueContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
+	_, err := r.db.Exec(ctx,
+		"UPDATE lab_values SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL",
+		id, contentEnc,
+	)
+	if err != nil {
+		return fmt.Errorf("set content_enc: %w", err)
+	}
+	return nil
 }

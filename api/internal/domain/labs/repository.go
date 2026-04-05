@@ -16,4 +16,6 @@ type Repository interface {
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	CheckDuplicate(ctx context.Context, lr *LabResult) (*uuid.UUID, error)
 	ListTrends(ctx context.Context, profileID uuid.UUID, from, to *time.Time) ([]MarkerTrend, error)
+	SetLabResultContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error
+	SetLabValueContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error
 }

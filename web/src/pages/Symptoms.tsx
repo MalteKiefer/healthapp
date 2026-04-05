@@ -12,21 +12,7 @@ import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
-
-interface SymptomEntry {
-  symptom_type: string;
-  intensity: number;
-  body_region?: string;
-  duration_minutes?: number;
-}
-
-interface SymptomRecord {
-  id: string;
-  recorded_at: string;
-  entries: SymptomEntry[];
-  trigger_factors?: string[];
-  notes?: string;
-}
+import { symptomsApi, type SymptomRecord } from '../api/symptoms';
 
 interface ChartDataPoint {
   date: string;
@@ -78,7 +64,7 @@ export function Symptoms() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['symptoms', profileId],
-    queryFn: () => api.get<{ items: SymptomRecord[]; total: number }>(`/api/v1/profiles/${profileId}/symptoms`),
+    queryFn: () => symptomsApi.list(profileId),
     enabled: !!profileId,
   });
 
@@ -106,7 +92,7 @@ export function Symptoms() {
   })();
 
   const createMutation = useMutation({
-    mutationFn: (s: Partial<SymptomRecord>) => api.post(`/api/v1/profiles/${profileId}/symptoms`, s),
+    mutationFn: (s: Partial<SymptomRecord>) => symptomsApi.create(profileId, s as Parameters<typeof symptomsApi.create>[1]),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['symptoms', profileId] });
       queryClient.invalidateQueries({ queryKey: ['symptoms-chart', profileId] });
@@ -117,7 +103,7 @@ export function Symptoms() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: Partial<SymptomRecord> & { id: string }) =>
-      api.patch(`/api/v1/profiles/${profileId}/symptoms/${id}`, data),
+      symptomsApi.update(profileId, id, data as Parameters<typeof symptomsApi.update>[2]),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['symptoms', profileId] });
       queryClient.invalidateQueries({ queryKey: ['symptoms-chart', profileId] });
@@ -126,7 +112,7 @@ export function Symptoms() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/symptoms/${id}`),
+    mutationFn: (id: string) => symptomsApi.delete(profileId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['symptoms', profileId] });
       queryClient.invalidateQueries({ queryKey: ['symptoms-chart', profileId] });

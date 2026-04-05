@@ -36,14 +36,14 @@ func (r *DiagnosisRepo) Create(ctx context.Context, d *diagnoses.Diagnosis) erro
 			id, profile_id, name, icd10_code, status,
 			diagnosed_at, diagnosed_by, resolved_at, notes,
 			version, previous_id, is_current,
-			created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`
+			created_at, updated_at, content_enc
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
 
 	_, err := r.db.Exec(ctx, query,
 		d.ID, d.ProfileID, d.Name, d.ICD10Code, d.Status,
 		d.DiagnosedAt, d.DiagnosedBy, d.ResolvedAt, d.Notes,
 		d.Version, d.PreviousID, d.IsCurrent,
-		d.CreatedAt, d.UpdatedAt,
+		d.CreatedAt, d.UpdatedAt, d.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("insert diagnosis: %w", err)
@@ -56,7 +56,7 @@ func (r *DiagnosisRepo) GetByID(ctx context.Context, id uuid.UUID) (*diagnoses.D
 		SELECT id, profile_id, name, icd10_code, status,
 			diagnosed_at, diagnosed_by, resolved_at, notes,
 			version, previous_id, is_current,
-			created_at, updated_at, deleted_at
+			created_at, updated_at, deleted_at, content_enc
 		FROM diagnoses WHERE id = $1 AND deleted_at IS NULL AND is_current = TRUE`
 
 	return r.scanDiagnosis(r.db.QueryRow(ctx, query, id))
@@ -81,7 +81,7 @@ func (r *DiagnosisRepo) List(ctx context.Context, filter diagnoses.ListFilter) (
 		SELECT id, profile_id, name, icd10_code, status,
 			diagnosed_at, diagnosed_by, resolved_at, notes,
 			version, previous_id, is_current,
-			created_at, updated_at, deleted_at
+			created_at, updated_at, deleted_at, content_enc
 		FROM diagnoses WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE`
 
 	listArgs := []interface{}{filter.ProfileID}
@@ -158,14 +158,14 @@ func (r *DiagnosisRepo) Update(ctx context.Context, d *diagnoses.Diagnosis) erro
 			id, profile_id, name, icd10_code, status,
 			diagnosed_at, diagnosed_by, resolved_at, notes,
 			version, previous_id, is_current,
-			created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`
+			created_at, updated_at, content_enc
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
 
 	_, err = tx.Exec(ctx, query,
 		d.ID, d.ProfileID, d.Name, d.ICD10Code, d.Status,
 		d.DiagnosedAt, d.DiagnosedBy, d.ResolvedAt, d.Notes,
 		d.Version, d.PreviousID, d.IsCurrent,
-		d.CreatedAt, d.UpdatedAt,
+		d.CreatedAt, d.UpdatedAt, d.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("insert new version: %w", err)
@@ -191,7 +191,7 @@ func (r *DiagnosisRepo) scanDiagnosis(row pgx.Row) (*diagnoses.Diagnosis, error)
 		&d.ID, &d.ProfileID, &d.Name, &d.ICD10Code, &d.Status,
 		&d.DiagnosedAt, &d.DiagnosedBy, &d.ResolvedAt, &d.Notes,
 		&d.Version, &d.PreviousID, &d.IsCurrent,
-		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,
+		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt, &d.ContentEnc,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -202,13 +202,27 @@ func (r *DiagnosisRepo) scanDiagnosis(row pgx.Row) (*diagnoses.Diagnosis, error)
 	return &d, nil
 }
 
+// SetContentEnc populates content_enc only if currently NULL (idempotent
+// lazy-migration path — safe to call concurrently from multiple clients).
+// Versioned table: no deleted_at filter so historical rows can also migrate.
+func (r *DiagnosisRepo) SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
+	_, err := r.db.Exec(ctx,
+		"UPDATE diagnoses SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL",
+		id, contentEnc,
+	)
+	if err != nil {
+		return fmt.Errorf("set content_enc: %w", err)
+	}
+	return nil
+}
+
 func (r *DiagnosisRepo) scanDiagnosisRow(rows pgx.Rows) (*diagnoses.Diagnosis, error) {
 	var d diagnoses.Diagnosis
 	err := rows.Scan(
 		&d.ID, &d.ProfileID, &d.Name, &d.ICD10Code, &d.Status,
 		&d.DiagnosedAt, &d.DiagnosedBy, &d.ResolvedAt, &d.Notes,
 		&d.Version, &d.PreviousID, &d.IsCurrent,
-		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,
+		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt, &d.ContentEnc,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan diagnosis row: %w", err)

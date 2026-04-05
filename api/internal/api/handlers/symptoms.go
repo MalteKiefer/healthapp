@@ -217,6 +217,143 @@ func (h *SymptomHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, existing)
 }
 
+// HandleSymptomRecordMigrateContent lazily backfills content_enc for a
+// symptom_records row. Idempotent.
+// PATCH /profiles/{profileID}/symptoms/{symptomID}/migrate-content
+func (h *SymptomHandler) HandleSymptomRecordMigrateContent(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
+		return
+	}
+	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
+	if err != nil || !hasAccess {
+		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
+		return
+	}
+
+	symptomID, err := uuid.Parse(chi.URLParam(r, "symptomID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_symptom_id"))
+		return
+	}
+
+	existing, err := h.symptomRepo.GetByID(r.Context(), symptomID)
+	if err != nil {
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get symptom for migrate", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if existing.ProfileID != profileID {
+		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		return
+	}
+
+	var body struct {
+		ContentEnc string `json:"content_enc"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ContentEnc == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("content_enc_required"))
+		return
+	}
+
+	if err := h.symptomRepo.SetSymptomRecordContentEnc(r.Context(), symptomID, body.ContentEnc); err != nil {
+		h.logger.Error("set content_enc", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleSymptomEntryMigrateContent lazily backfills content_enc for a
+// symptom_entries row. Verifies the entry belongs to a symptom_record
+// owned by the profile.
+// PATCH /profiles/{profileID}/symptoms/{symptomID}/entries/{entryID}/migrate-content
+func (h *SymptomHandler) HandleSymptomEntryMigrateContent(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
+		return
+	}
+	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
+	if err != nil || !hasAccess {
+		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
+		return
+	}
+
+	symptomID, err := uuid.Parse(chi.URLParam(r, "symptomID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_symptom_id"))
+		return
+	}
+
+	entryID, err := uuid.Parse(chi.URLParam(r, "entryID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_entry_id"))
+		return
+	}
+
+	parent, err := h.symptomRepo.GetByID(r.Context(), symptomID)
+	if err != nil {
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get symptom for migrate", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if parent.ProfileID != profileID {
+		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		return
+	}
+
+	found := false
+	for _, e := range parent.Entries {
+		if e.ID == entryID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		return
+	}
+
+	var body struct {
+		ContentEnc string `json:"content_enc"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ContentEnc == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("content_enc_required"))
+		return
+	}
+
+	if err := h.symptomRepo.SetSymptomEntryContentEnc(r.Context(), entryID, body.ContentEnc); err != nil {
+		h.logger.Error("set content_enc", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // HandleChart returns 501 as symptom charting is not yet implemented.
 func (h *SymptomHandler) HandleChart(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusNotImplemented, map[string]string{

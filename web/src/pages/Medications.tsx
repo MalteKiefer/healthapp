@@ -137,7 +137,7 @@ export function Medications() {
   });
   const { data: intakeData } = useQuery({
     queryKey: ['med-intake', profileId, ui.selectedMed?.id],
-    queryFn: () => api.get<{ items: MedIntake[]; total: number }>(`/api/v1/profiles/${profileId}/medications/${ui.selectedMed!.id}/intake?limit=200`),
+    queryFn: () => medicationsApi.listIntake(profileId, ui.selectedMed!.id),
     enabled: !!profileId && !!ui.selectedMed,
   });
   const intakes = intakeData?.items || [];
@@ -164,7 +164,7 @@ export function Medications() {
       const medId = ui.selectedMed?.id || ui.intakeMed?.id;
       if (!medId) throw new Error('no med');
       const iso = new Date(datetime).toISOString();
-      return api.post(`/api/v1/profiles/${profileId}/medications/${medId}/intake`, { scheduled_at: iso, taken_at: iso });
+      return medicationsApi.createIntake(profileId, medId, { scheduled_at: iso, taken_at: iso });
     },
     onSuccess: () => {
       const medId = ui.selectedMed?.id || ui.intakeMed?.id;
@@ -192,7 +192,7 @@ export function Medications() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['medications', profileId] }); dispatch({ type: 'SET_EDIT_TARGET', med: null }); editReset(); },
   });
   const deleteIntakeMutation = useMutation({
-    mutationFn: (intakeId: string) => api.delete(`/api/v1/profiles/${profileId}/medications/${ui.selectedMed!.id}/intake/${intakeId}`),
+    mutationFn: (intakeId: string) => medicationsApi.deleteIntake(profileId, ui.selectedMed!.id, intakeId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['med-intake'] }),
   });
 

@@ -35,13 +35,13 @@ func (r *DiaryRepo) Create(ctx context.Context, e *diary.DiaryEvent) error {
 		INSERT INTO diary_events (
 			id, profile_id, title, event_type, started_at, ended_at,
 			description, severity, location, outcome,
-			version, previous_id, is_current, created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
+			version, previous_id, is_current, created_at, updated_at, content_enc
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
 
 	_, err := r.db.Exec(ctx, query,
 		e.ID, e.ProfileID, e.Title, e.EventType, e.StartedAt, e.EndedAt,
 		e.Description, e.Severity, e.Location, e.Outcome,
-		e.Version, e.PreviousID, e.IsCurrent, e.CreatedAt, e.UpdatedAt,
+		e.Version, e.PreviousID, e.IsCurrent, e.CreatedAt, e.UpdatedAt, e.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("insert diary event: %w", err)
@@ -53,7 +53,7 @@ func (r *DiaryRepo) GetByID(ctx context.Context, id uuid.UUID) (*diary.DiaryEven
 	query := `
 		SELECT id, profile_id, title, event_type, started_at, ended_at,
 			description, severity, location, outcome,
-			version, previous_id, is_current, created_at, updated_at, deleted_at
+			version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
 		FROM diary_events WHERE id = $1 AND deleted_at IS NULL`
 
 	return r.scanEvent(r.db.QueryRow(ctx, query, id))
@@ -87,7 +87,7 @@ func (r *DiaryRepo) List(ctx context.Context, filter diary.ListFilter) ([]diary.
 	query := `
 		SELECT id, profile_id, title, event_type, started_at, ended_at,
 			description, severity, location, outcome,
-			version, previous_id, is_current, created_at, updated_at, deleted_at
+			version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
 		FROM diary_events WHERE profile_id = $1 AND is_current = TRUE AND deleted_at IS NULL`
 
 	listArgs := []interface{}{filter.ProfileID}
@@ -174,13 +174,13 @@ func (r *DiaryRepo) Update(ctx context.Context, e *diary.DiaryEvent) error {
 		INSERT INTO diary_events (
 			id, profile_id, title, event_type, started_at, ended_at,
 			description, severity, location, outcome,
-			version, previous_id, is_current, created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
+			version, previous_id, is_current, created_at, updated_at, content_enc
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
 
 	_, err = tx.Exec(ctx, query,
 		e.ID, e.ProfileID, e.Title, e.EventType, e.StartedAt, e.EndedAt,
 		e.Description, e.Severity, e.Location, e.Outcome,
-		e.Version, e.PreviousID, e.IsCurrent, e.CreatedAt, e.UpdatedAt,
+		e.Version, e.PreviousID, e.IsCurrent, e.CreatedAt, e.UpdatedAt, e.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("insert new version: %w", err)
@@ -205,7 +205,7 @@ func (r *DiaryRepo) scanEvent(row pgx.Row) (*diary.DiaryEvent, error) {
 	err := row.Scan(
 		&e.ID, &e.ProfileID, &e.Title, &e.EventType, &e.StartedAt, &e.EndedAt,
 		&e.Description, &e.Severity, &e.Location, &e.Outcome,
-		&e.Version, &e.PreviousID, &e.IsCurrent, &e.CreatedAt, &e.UpdatedAt, &e.DeletedAt,
+		&e.Version, &e.PreviousID, &e.IsCurrent, &e.CreatedAt, &e.UpdatedAt, &e.DeletedAt, &e.ContentEnc,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -216,12 +216,26 @@ func (r *DiaryRepo) scanEvent(row pgx.Row) (*diary.DiaryEvent, error) {
 	return &e, nil
 }
 
+// SetContentEnc populates content_enc only if currently NULL (idempotent
+// lazy-migration path — safe to call concurrently from multiple clients).
+// Versioned table: no deleted_at filter so historical rows can also migrate.
+func (r *DiaryRepo) SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
+	_, err := r.db.Exec(ctx,
+		"UPDATE diary_events SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL",
+		id, contentEnc,
+	)
+	if err != nil {
+		return fmt.Errorf("set content_enc: %w", err)
+	}
+	return nil
+}
+
 func (r *DiaryRepo) scanEventRow(rows pgx.Rows) (*diary.DiaryEvent, error) {
 	var e diary.DiaryEvent
 	err := rows.Scan(
 		&e.ID, &e.ProfileID, &e.Title, &e.EventType, &e.StartedAt, &e.EndedAt,
 		&e.Description, &e.Severity, &e.Location, &e.Outcome,
-		&e.Version, &e.PreviousID, &e.IsCurrent, &e.CreatedAt, &e.UpdatedAt, &e.DeletedAt,
+		&e.Version, &e.PreviousID, &e.IsCurrent, &e.CreatedAt, &e.UpdatedAt, &e.DeletedAt, &e.ContentEnc,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan diary event row: %w", err)

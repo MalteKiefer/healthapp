@@ -5,19 +5,8 @@ import { useForm } from 'react-hook-form';
 import { ProfileSelector } from '../components/ProfileSelector';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
-import { api } from '../api/client';
+import { allergiesApi, type Allergy } from '../api/allergies';
 import { ContactPicker } from '../components/ContactPicker';
-
-interface Allergy {
-  id: string;
-  name: string;
-  category: string;
-  reaction_type?: string;
-  severity?: string;
-  onset_date?: string;
-  diagnosed_by?: string;
-  status: string;
-}
 
 const CATEGORIES = ['medication', 'food', 'environmental', 'contact', 'other'];
 const SEVERITIES = ['mild', 'moderate', 'severe', 'life_threatening'];
@@ -41,12 +30,12 @@ export function Allergies() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['allergies', profileId],
-    queryFn: () => api.get<{ items: Allergy[] }>(`/api/v1/profiles/${profileId}/allergies`),
+    queryFn: () => allergiesApi.list(profileId),
     enabled: !!profileId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (a: Partial<Allergy>) => api.post(`/api/v1/profiles/${profileId}/allergies`, a),
+    mutationFn: (a: Partial<Allergy>) => allergiesApi.create(profileId, a),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allergies', profileId] });
       setShowForm(false);
@@ -55,13 +44,13 @@ export function Allergies() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/allergies/${id}`),
+    mutationFn: (id: string) => allergiesApi.delete(profileId, id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['allergies', profileId] }),
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Allergy> & { id: string }) =>
-      api.patch(`/api/v1/profiles/${profileId}/allergies/${data.id}`, data),
+      allergiesApi.update(profileId, data.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allergies', profileId] });
       setEditTarget(null);

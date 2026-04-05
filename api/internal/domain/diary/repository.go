@@ -13,4 +13,5 @@ type Repository interface {
 	List(ctx context.Context, filter ListFilter) ([]DiaryEvent, int, error)
 	Update(ctx context.Context, e *DiaryEvent) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
+	SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error
 }

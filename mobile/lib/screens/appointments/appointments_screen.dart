@@ -87,16 +87,18 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     List<int> reminderDays = existing?.reminderDaysBefore ?? [];
 
     const types = [
-      'general',
-      'followup',
-      'specialist',
-      'emergency',
-      'screening',
+      'examination',
+      'surgery',
+      'vaccination',
+      'follow_up',
       'lab',
-      'imaging'
+      'specialist',
+      'general_practice',
+      'therapy',
+      'other',
     ];
-    const statuses = ['scheduled', 'completed', 'cancelled', 'no_show'];
-    const recurrences = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
+    const statuses = ['scheduled', 'completed', 'cancelled', 'missed'];
+    const recurrences = ['none', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom'];
     const reminderOptions = [1, 3, 7];
 
     if (isEdit) {
@@ -373,9 +375,13 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                             body: body,
                           );
                         }
-                        if (ctx.mounted) Navigator.of(ctx).pop();
-                        ref.invalidate(
-                            _appointmentsProvider(widget.profileId));
+                        if (!ctx.mounted) return;
+                        Navigator.of(ctx).pop();
+                        await Future.delayed(const Duration(milliseconds: 300));
+                        if (mounted) {
+                          ref.invalidate(
+                              _appointmentsProvider(widget.profileId));
+                        }
                       } catch (e) {
                         if (ctx.mounted) {
                           ScaffoldMessenger.of(ctx)

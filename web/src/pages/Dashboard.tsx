@@ -10,6 +10,8 @@ import { useProfiles } from '../hooks/useProfiles';
 import { useVitals } from '../hooks/useVitals';
 import { api } from '../api/client';
 import { diaryApi } from '../api/diary';
+import { appointmentsApi } from '../api/appointments';
+import { medicationsApi } from '../api/medications';
 
 interface Task {
   id: string;
@@ -17,21 +19,6 @@ interface Task {
   due_date?: string;
   priority: string;
   status: string;
-}
-
-interface Appointment {
-  id: string;
-  title: string;
-  scheduled_at: string;
-  appointment_type: string;
-  status: string;
-}
-
-interface Medication {
-  id: string;
-  name: string;
-  dosage?: string;
-  frequency?: string;
 }
 
 function formatVitalLabel(v: {
@@ -79,12 +66,12 @@ export function Dashboard() {
   });
   const { data: apptsData, isLoading: apptsLoading, isError: apptsError } = useQuery({
     queryKey: ['appointments-upcoming', profileId],
-    queryFn: () => api.get<{ items: Appointment[] }>(`/api/v1/profiles/${profileId}/appointments/upcoming`),
+    queryFn: () => appointmentsApi.upcoming(profileId),
     enabled: !!profileId,
   });
   const { data: medsData, isLoading: medsLoading, isError: medsError } = useQuery({
     queryKey: ['medications-active', profileId],
-    queryFn: () => api.get<{ items: Medication[] }>(`/api/v1/profiles/${profileId}/medications/active`),
+    queryFn: () => medicationsApi.active(profileId),
     enabled: !!profileId,
   });
   const { data: diaryData, isLoading: diaryLoading, isError: diaryError } = useQuery({

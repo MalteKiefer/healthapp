@@ -284,3 +284,63 @@ func (h *DiaryHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// HandleMigrateContent lazily backfills the content_enc column for a diary
+// event row. Idempotent: the repo writes only if the column is currently NULL,
+// so concurrent clients (e.g. web + mobile) cannot overwrite each other.
+// PATCH /profiles/{profileID}/diary/{diaryID}/migrate-content
+func (h *DiaryHandler) HandleMigrateContent(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
+		return
+	}
+	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
+	if err != nil || !hasAccess {
+		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
+		return
+	}
+
+	diaryID, err := uuid.Parse(chi.URLParam(r, "eventID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_diary_id"))
+		return
+	}
+
+	existing, err := h.diaryRepo.GetByID(r.Context(), diaryID)
+	if err != nil {
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get diary event for migrate", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if existing.ProfileID != profileID {
+		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		return
+	}
+
+	var body struct {
+		ContentEnc string `json:"content_enc"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ContentEnc == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("content_enc_required"))
+		return
+	}
+
+	if err := h.diaryRepo.SetContentEnc(r.Context(), diaryID, body.ContentEnc); err != nil {
+		h.logger.Error("set content_enc", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

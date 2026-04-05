@@ -9,16 +9,7 @@ import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
-
-interface Task {
-  id: string;
-  title: string;
-  due_date?: string;
-  priority: string;
-  status: string;
-  done_at?: string;
-  notes?: string;
-}
+import { tasksApi, type Task } from '../api/tasks';
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent'];
 const PRIORITY_COLORS: Record<string, string> = {
@@ -41,9 +32,9 @@ export function Tasks() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['tasks', profileId, showOpen],
-    queryFn: () => api.get<{ items: Task[] }>(
-      `/api/v1/profiles/${profileId}/tasks${showOpen ? '/open' : ''}`
-    ),
+    queryFn: () => showOpen
+      ? api.get<{ items: Task[] }>(`/api/v1/profiles/${profileId}/tasks/open`)
+      : tasksApi.list(profileId),
     enabled: !!profileId,
   });
 
@@ -62,7 +53,7 @@ export function Tasks() {
   };
 
   const createMutation = useMutation({
-    mutationFn: (task: Partial<Task>) => api.post(`/api/v1/profiles/${profileId}/tasks`, fixDates(task as Record<string, unknown>, ['due_date'])),
+    mutationFn: (task: Partial<Task>) => tasksApi.create(profileId, fixDates(task as Record<string, unknown>, ['due_date']) as Partial<Task>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', profileId] });
       setShowForm(false);
@@ -72,12 +63,12 @@ export function Tasks() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: string } & Partial<Task>) =>
-      api.patch(`/api/v1/profiles/${profileId}/tasks/${id}`, fixDates(data as Record<string, unknown>, ['due_date'])),
+      tasksApi.update(profileId, id, fixDates(data as Record<string, unknown>, ['due_date']) as Partial<Task>),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks', profileId] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/tasks/${id}`),
+    mutationFn: (id: string) => tasksApi.delete(profileId, id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks', profileId] }),
   });
 

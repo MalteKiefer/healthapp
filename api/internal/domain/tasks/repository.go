@@ -13,4 +13,5 @@ type Repository interface {
 	GetOpen(ctx context.Context, profileID uuid.UUID) ([]Task, error)
 	Update(ctx context.Context, t *Task) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error
 }

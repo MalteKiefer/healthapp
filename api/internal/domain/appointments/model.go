@@ -22,4 +22,9 @@ type Appointment struct {
 	Recurrence          string     `json:"recurrence"`
 	CreatedAt           time.Time  `json:"created_at"`
 	UpdatedAt           time.Time  `json:"updated_at"`
+	// ContentEnc holds the AES-GCM-encrypted JSON blob of all sensitive fields
+	// (produced client-side with the profile key). During Stage 2 lazy
+	// migration it lives alongside the plaintext columns; Stage 2.4 drops
+	// the plaintext columns and enforces NOT NULL.
+	ContentEnc          *string    `json:"content_enc,omitempty"`
 }

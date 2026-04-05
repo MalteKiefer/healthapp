@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { ProfileSelector } from '../components/ProfileSelector';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
-import { api } from '../api/client';
+import { contactsApi, type Contact } from '../api/contacts';
 
 interface OSMResult {
   place_id: number;
@@ -32,24 +32,6 @@ interface OSMResult {
   category?: string;
 }
 
-interface Contact {
-  id: string;
-  contact_type: string;
-  name: string;
-  specialty?: string;
-  facility?: string;
-  phone?: string;
-  email?: string;
-  street?: string;
-  postal_code?: string;
-  city?: string;
-  country?: string;
-  latitude?: number;
-  longitude?: number;
-  address?: string;
-  notes?: string;
-  is_emergency_contact: boolean;
-}
 
 const formatAddress = (c: Contact) => {
   const parts = [c.street, [c.postal_code, c.city].filter(Boolean).join(' '), c.country].filter(Boolean);
@@ -97,7 +79,7 @@ export function Contacts() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['contacts', profileId],
-    queryFn: () => api.get<{ items: Contact[] }>(`/api/v1/profiles/${profileId}/contacts`),
+    queryFn: () => contactsApi.list(profileId),
     enabled: !!profileId,
   });
 
@@ -105,7 +87,7 @@ export function Contacts() {
   const { register: editRegister, handleSubmit: editHandleSubmit, reset: editReset, setValue: editSetValue } = useForm<Partial<Contact>>();
 
   const createMutation = useMutation({
-    mutationFn: (c: Partial<Contact>) => api.post(`/api/v1/profiles/${profileId}/contacts`, cleanContact(c)),
+    mutationFn: (c: Partial<Contact>) => contactsApi.create(profileId, cleanContact(c)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts', profileId] });
       setShowForm(false);
@@ -115,7 +97,7 @@ export function Contacts() {
 
   const updateMutation = useMutation({
     mutationFn: (c: Partial<Contact> & { id: string }) =>
-      api.patch(`/api/v1/profiles/${profileId}/contacts/${c.id}`, cleanContact(c)),
+      contactsApi.update(profileId, c.id, cleanContact(c)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts', profileId] });
       setEditTarget(null);
@@ -124,7 +106,7 @@ export function Contacts() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/contacts/${id}`),
+    mutationFn: (id: string) => contactsApi.delete(profileId, id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts', profileId] }),
   });
 

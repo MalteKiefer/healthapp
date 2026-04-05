@@ -27,6 +27,11 @@ type Medication struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 	DeletedAt          *time.Time `json:"-"`
+	// ContentEnc holds the AES-GCM-encrypted JSON blob of all health fields
+	// (produced client-side with the profile key). During Stage 2 lazy
+	// migration it lives alongside the plaintext columns; Stage 2.4 drops
+	// the plaintext columns and enforces NOT NULL.
+	ContentEnc *string `json:"content_enc,omitempty"`
 }
 
 // MedicationIntake records when a medication dose was taken or skipped.
@@ -40,6 +45,11 @@ type MedicationIntake struct {
 	SkippedReason *string    `json:"skipped_reason,omitempty"`
 	Notes         *string    `json:"notes,omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`
+	// ContentEnc holds the AES-GCM-encrypted JSON blob of all health fields
+	// (produced client-side with the profile key). During Stage 2 lazy
+	// migration it lives alongside the plaintext columns; Stage 2.4 drops
+	// the plaintext columns and enforces NOT NULL.
+	ContentEnc *string `json:"content_enc,omitempty"`
 }
 
 // ListFilter defines query parameters for listing medications.

@@ -19,7 +19,7 @@ func NewContactRepo(db *pgxpool.Pool) *ContactRepo { return &ContactRepo{db: db}
 
 const contactColumns = `id, profile_id, contact_type, name, specialty, facility, phone, email,
 	street, postal_code, city, country, latitude, longitude, address,
-	notes, is_emergency_contact, created_at, updated_at, deleted_at`
+	notes, is_emergency_contact, created_at, updated_at, deleted_at, content_enc`
 
 func scanContact(row pgx.Row) (*contacts.Contact, error) {
 	var c contacts.Contact
@@ -27,7 +27,7 @@ func scanContact(row pgx.Row) (*contacts.Contact, error) {
 		&c.ID, &c.ProfileID, &c.ContactType, &c.Name, &c.Specialty, &c.Facility,
 		&c.Phone, &c.Email, &c.Street, &c.PostalCode, &c.City, &c.Country,
 		&c.Latitude, &c.Longitude, &c.Address, &c.Notes, &c.IsEmergencyContact,
-		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
+		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.ContentEnc,
 	)
 	return &c, err
 }
@@ -40,7 +40,7 @@ func scanContacts(rows pgx.Rows) ([]contacts.Contact, error) {
 			&c.ID, &c.ProfileID, &c.ContactType, &c.Name, &c.Specialty, &c.Facility,
 			&c.Phone, &c.Email, &c.Street, &c.PostalCode, &c.City, &c.Country,
 			&c.Latitude, &c.Longitude, &c.Address, &c.Notes, &c.IsEmergencyContact,
-			&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
+			&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.ContentEnc,
 		); err != nil {
 			return nil, fmt.Errorf("scan contact row: %w", err)
 		}
@@ -66,12 +66,12 @@ func (r *ContactRepo) Create(ctx context.Context, c *contacts.Contact) error {
 	_, err := r.db.Exec(ctx, `
 		INSERT INTO medical_contacts (id, profile_id, contact_type, name, specialty, facility,
 			phone, email, street, postal_code, city, country, latitude, longitude, address,
-			notes, is_emergency_contact, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+			notes, is_emergency_contact, created_at, updated_at, content_enc)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
 		c.ID, c.ProfileID, c.ContactType, c.Name, c.Specialty, c.Facility,
 		c.Phone, c.Email, c.Street, c.PostalCode, c.City, c.Country,
 		c.Latitude, c.Longitude, c.Address, c.Notes, c.IsEmergencyContact,
-		c.CreatedAt, c.UpdatedAt)
+		c.CreatedAt, c.UpdatedAt, c.ContentEnc)
 	if err != nil {
 		return fmt.Errorf("create contact: %w", err)
 	}
@@ -105,13 +105,26 @@ func (r *ContactRepo) Update(ctx context.Context, c *contacts.Contact) error {
 	_, err := r.db.Exec(ctx, `
 		UPDATE medical_contacts SET contact_type=$2, name=$3, specialty=$4, facility=$5,
 			phone=$6, email=$7, street=$8, postal_code=$9, city=$10, country=$11,
-			latitude=$12, longitude=$13, address=$14, notes=$15, is_emergency_contact=$16, updated_at=$17
+			latitude=$12, longitude=$13, address=$14, notes=$15, is_emergency_contact=$16, updated_at=$17, content_enc=$18
 		WHERE id=$1 AND deleted_at IS NULL`,
 		c.ID, c.ContactType, c.Name, c.Specialty, c.Facility,
 		c.Phone, c.Email, c.Street, c.PostalCode, c.City, c.Country,
-		c.Latitude, c.Longitude, c.Address, c.Notes, c.IsEmergencyContact, c.UpdatedAt)
+		c.Latitude, c.Longitude, c.Address, c.Notes, c.IsEmergencyContact, c.UpdatedAt, c.ContentEnc)
 	if err != nil {
 		return fmt.Errorf("update contact: %w", err)
+	}
+	return nil
+}
+
+// SetContentEnc populates content_enc only if currently NULL (idempotent
+// lazy-migration path — safe to call concurrently from multiple clients).
+func (r *ContactRepo) SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
+	_, err := r.db.Exec(ctx,
+		"UPDATE medical_contacts SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL AND deleted_at IS NULL",
+		id, contentEnc,
+	)
+	if err != nil {
+		return fmt.Errorf("set content_enc: %w", err)
 	}
 	return nil
 }

@@ -37,15 +37,15 @@ func (r *VaccinationRepo) Create(ctx context.Context, v *vaccinations.Vaccinatio
 			lot_number, dose_number, administered_at, administered_by,
 			next_due_at, site, notes, document_id,
 			version, previous_id, is_current,
-			created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`
+			created_at, updated_at, content_enc
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`
 
 	_, err := r.db.Exec(ctx, query,
 		v.ID, v.ProfileID, v.VaccineName, v.TradeName, v.Manufacturer,
 		v.LotNumber, v.DoseNumber, v.AdministeredAt, v.AdministeredBy,
 		v.NextDueAt, v.Site, v.Notes, v.DocumentID,
 		v.Version, v.PreviousID, v.IsCurrent,
-		v.CreatedAt, v.UpdatedAt,
+		v.CreatedAt, v.UpdatedAt, v.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("insert vaccination: %w", err)
@@ -59,7 +59,7 @@ func (r *VaccinationRepo) GetByID(ctx context.Context, id uuid.UUID) (*vaccinati
 			lot_number, dose_number, administered_at, administered_by,
 			next_due_at, site, notes, document_id,
 			version, previous_id, is_current,
-			created_at, updated_at, deleted_at
+			created_at, updated_at, deleted_at, content_enc
 		FROM vaccinations WHERE id = $1 AND deleted_at IS NULL AND is_current = TRUE`
 
 	return r.scanVaccination(r.db.QueryRow(ctx, query, id))
@@ -79,7 +79,7 @@ func (r *VaccinationRepo) List(ctx context.Context, filter vaccinations.ListFilt
 			lot_number, dose_number, administered_at, administered_by,
 			next_due_at, site, notes, document_id,
 			version, previous_id, is_current,
-			created_at, updated_at, deleted_at
+			created_at, updated_at, deleted_at, content_enc
 		FROM vaccinations WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE`
 
 	listArgs := []interface{}{filter.ProfileID}
@@ -151,15 +151,15 @@ func (r *VaccinationRepo) Update(ctx context.Context, v *vaccinations.Vaccinatio
 			lot_number, dose_number, administered_at, administered_by,
 			next_due_at, site, notes, document_id,
 			version, previous_id, is_current,
-			created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`
+			created_at, updated_at, content_enc
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`
 
 	_, err = tx.Exec(ctx, query,
 		v.ID, v.ProfileID, v.VaccineName, v.TradeName, v.Manufacturer,
 		v.LotNumber, v.DoseNumber, v.AdministeredAt, v.AdministeredBy,
 		v.NextDueAt, v.Site, v.Notes, v.DocumentID,
 		v.Version, v.PreviousID, v.IsCurrent,
-		v.CreatedAt, v.UpdatedAt,
+		v.CreatedAt, v.UpdatedAt, v.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("insert new version: %w", err)
@@ -186,7 +186,7 @@ func (r *VaccinationRepo) GetDue(ctx context.Context, profileID uuid.UUID) ([]va
 			lot_number, dose_number, administered_at, administered_by,
 			next_due_at, site, notes, document_id,
 			version, previous_id, is_current,
-			created_at, updated_at, deleted_at
+			created_at, updated_at, deleted_at, content_enc
 		FROM vaccinations
 		WHERE profile_id = $1
 		  AND deleted_at IS NULL
@@ -223,7 +223,7 @@ func (r *VaccinationRepo) scanVaccination(row pgx.Row) (*vaccinations.Vaccinatio
 		&v.LotNumber, &v.DoseNumber, &v.AdministeredAt, &v.AdministeredBy,
 		&v.NextDueAt, &v.Site, &v.Notes, &v.DocumentID,
 		&v.Version, &v.PreviousID, &v.IsCurrent,
-		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt,
+		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -234,6 +234,19 @@ func (r *VaccinationRepo) scanVaccination(row pgx.Row) (*vaccinations.Vaccinatio
 	return &v, nil
 }
 
+// SetContentEnc populates content_enc only if currently NULL (idempotent
+// lazy-migration path — safe to call concurrently from multiple clients).
+func (r *VaccinationRepo) SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
+	_, err := r.db.Exec(ctx,
+		"UPDATE vaccinations SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL AND deleted_at IS NULL",
+		id, contentEnc,
+	)
+	if err != nil {
+		return fmt.Errorf("set content_enc: %w", err)
+	}
+	return nil
+}
+
 func (r *VaccinationRepo) scanVaccinationRow(rows pgx.Rows) (*vaccinations.Vaccination, error) {
 	var v vaccinations.Vaccination
 	err := rows.Scan(
@@ -241,7 +254,7 @@ func (r *VaccinationRepo) scanVaccinationRow(rows pgx.Rows) (*vaccinations.Vacci
 		&v.LotNumber, &v.DoseNumber, &v.AdministeredAt, &v.AdministeredBy,
 		&v.NextDueAt, &v.Site, &v.Notes, &v.DocumentID,
 		&v.Version, &v.PreviousID, &v.IsCurrent,
-		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt,
+		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan vaccination row: %w", err)

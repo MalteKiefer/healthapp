@@ -8,21 +8,8 @@ import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
+import { vaccinationsApi, type Vaccination } from '../api/vaccinations';
 import { ContactPicker } from '../components/ContactPicker';
-
-interface Vaccination {
-  id: string;
-  vaccine_name: string;
-  trade_name?: string;
-  manufacturer?: string;
-  lot_number?: string;
-  dose_number?: number;
-  administered_at: string;
-  administered_by?: string;
-  next_due_at?: string;
-  site?: string;
-  notes?: string;
-}
 
 export function Vaccinations() {
   const { t } = useTranslation();
@@ -41,7 +28,7 @@ export function Vaccinations() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['vaccinations', profileId],
-    queryFn: () => api.get<{ items: Vaccination[] }>(`/api/v1/profiles/${profileId}/vaccinations`),
+    queryFn: () => vaccinationsApi.list(profileId),
     enabled: !!profileId,
   });
 
@@ -66,7 +53,7 @@ export function Vaccinations() {
   };
 
   const createMutation = useMutation({
-    mutationFn: (v: Partial<Vaccination>) => api.post(`/api/v1/profiles/${profileId}/vaccinations`, fixDates(v as Record<string, unknown>, ['administered_at', 'next_due_at'])),
+    mutationFn: (v: Partial<Vaccination>) => vaccinationsApi.create(profileId, fixDates(v as Record<string, unknown>, ['administered_at', 'next_due_at']) as Partial<Vaccination>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
       queryClient.invalidateQueries({ queryKey: ['vaccinations-due', profileId] });
@@ -77,7 +64,7 @@ export function Vaccinations() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: Partial<Vaccination> & { id: string }) =>
-      api.patch(`/api/v1/profiles/${profileId}/vaccinations/${id}`, fixDates(data as Record<string, unknown>, ['administered_at', 'next_due_at'])),
+      vaccinationsApi.update(profileId, id, fixDates(data as Record<string, unknown>, ['administered_at', 'next_due_at']) as Partial<Vaccination>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
       queryClient.invalidateQueries({ queryKey: ['vaccinations-due', profileId] });
@@ -86,7 +73,7 @@ export function Vaccinations() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/api/v1/profiles/${profileId}/vaccinations/${id}`),
+    mutationFn: (id: string) => vaccinationsApi.delete(profileId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
       queryClient.invalidateQueries({ queryKey: ['vaccinations-due', profileId] });

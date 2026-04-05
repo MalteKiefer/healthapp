@@ -1,0 +1,13 @@
+ALTER TABLE appointments       DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE tasks              DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE medical_contacts   DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE symptom_entries    DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE symptom_records    DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE diary_events       DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE diagnoses          DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE vaccinations       DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE allergies          DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE medication_intake  DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE medications        DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE lab_values         DROP COLUMN IF EXISTS content_enc;
+ALTER TABLE lab_results        DROP COLUMN IF EXISTS content_enc;

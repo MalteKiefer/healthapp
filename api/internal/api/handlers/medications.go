@@ -589,6 +589,145 @@ func (h *MedicationHandler) HandleDeleteIntake(w http.ResponseWriter, r *http.Re
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// HandleMedicationMigrateContent lazily backfills the content_enc column
+// for a medication row. Idempotent.
+// PATCH /profiles/{profileID}/medications/{medicationID}/migrate-content
+func (h *MedicationHandler) HandleMedicationMigrateContent(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
+		return
+	}
+	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
+	if err != nil || !hasAccess {
+		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
+		return
+	}
+
+	medID, err := uuid.Parse(chi.URLParam(r, "medicationID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_medication_id"))
+		return
+	}
+
+	existing, err := h.medRepo.GetByID(r.Context(), medID)
+	if err != nil {
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get medication for migrate", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if existing.ProfileID != profileID {
+		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		return
+	}
+
+	var body struct {
+		ContentEnc string `json:"content_enc"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ContentEnc == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("content_enc_required"))
+		return
+	}
+
+	if err := h.medRepo.SetMedicationContentEnc(r.Context(), medID, body.ContentEnc); err != nil {
+		h.logger.Error("set content_enc", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleMedicationIntakeMigrateContent lazily backfills the content_enc
+// column for a medication_intake row. Idempotent.
+// PATCH /profiles/{profileID}/medications/{medicationID}/intake/{intakeID}/migrate-content
+func (h *MedicationHandler) HandleMedicationIntakeMigrateContent(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
+		return
+	}
+	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
+	if err != nil || !hasAccess {
+		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
+		return
+	}
+
+	medID, err := uuid.Parse(chi.URLParam(r, "medicationID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_medication_id"))
+		return
+	}
+
+	intakeID, err := uuid.Parse(chi.URLParam(r, "intakeID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_intake_id"))
+		return
+	}
+
+	med, err := h.medRepo.GetByID(r.Context(), medID)
+	if err != nil {
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("medication_not_found"))
+			return
+		}
+		h.logger.Error("get medication for migrate", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if med.ProfileID != profileID {
+		writeJSON(w, http.StatusNotFound, errorResponse("medication_not_found"))
+		return
+	}
+
+	intake, err := h.medRepo.GetIntakeByID(r.Context(), intakeID)
+	if err != nil {
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("intake_not_found"))
+			return
+		}
+		h.logger.Error("get medication intake for migrate", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if intake.MedicationID != medID || intake.ProfileID != profileID {
+		writeJSON(w, http.StatusNotFound, errorResponse("intake_not_found"))
+		return
+	}
+
+	var body struct {
+		ContentEnc string `json:"content_enc"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ContentEnc == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("content_enc_required"))
+		return
+	}
+
+	if err := h.medRepo.SetMedicationIntakeContentEnc(r.Context(), intakeID, body.ContentEnc); err != nil {
+		h.logger.Error("set content_enc", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // HandleAdherence returns adherence statistics for a medication.
 func (h *MedicationHandler) HandleAdherence(w http.ResponseWriter, r *http.Request) {
 	claims, ok := ClaimsFromContext(r.Context())
