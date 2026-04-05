@@ -273,10 +273,11 @@ func (s *Server) setupRoutes() {
 					r.Route("/vitals", func(r chi.Router) {
 						r.Get("/", s.VitalHandler.HandleList)
 						r.Post("/", s.VitalHandler.HandleCreate)
-						r.Get("/chart", s.VitalHandler.HandleChart)
+						r.Get("/chart", s.VitalHandler.HandleChart) // 410 Gone — client-side under Stage 2
 						r.Get("/{vitalID}", s.VitalHandler.HandleGet)
 						r.Patch("/{vitalID}", s.VitalHandler.HandleUpdate)
 						r.Delete("/{vitalID}", s.VitalHandler.HandleDelete)
+						r.Patch("/{vitalID}/migrate-content", s.VitalHandler.HandleMigrateContent)
 					})
 
 					// Labs

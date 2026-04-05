@@ -45,3 +45,9 @@ export {
 } from './sharing';
 
 export { ensureProfileKey } from './profileKey';
+
+export {
+  encryptProfileContent,
+  decryptProfileContent,
+  makeAAD,
+} from './content';

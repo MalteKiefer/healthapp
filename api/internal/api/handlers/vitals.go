@@ -295,8 +295,21 @@ func (h *VitalHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleChart returns aggregated data for chart visualization.
+// HandleChart is deprecated under Stage 2 — vitals content is encrypted, so
+// the server can no longer aggregate numeric values. Clients compute chart
+// series locally from the decrypted vitals list.
 func (h *VitalHandler) HandleChart(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusGone, map[string]string{
+		"error":   "endpoint_removed",
+		"message": "vitals/chart is now computed client-side from decrypted content",
+	})
+}
+
+// HandleMigrateContent lazily backfills the content_enc column for a vital
+// row. Idempotent: the repo writes only if the column is currently NULL, so
+// concurrent clients (e.g. web + mobile) cannot overwrite each other.
+// PATCH /profiles/{profileID}/vitals/{vitalID}/migrate-content
+func (h *VitalHandler) HandleMigrateContent(w http.ResponseWriter, r *http.Request) {
 	claims, ok := ClaimsFromContext(r.Context())
 	if !ok {
 		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
@@ -308,45 +321,46 @@ func (h *VitalHandler) HandleChart(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
 		return
 	}
-
 	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
 	if err != nil || !hasAccess {
 		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
 		return
 	}
 
-	// Validate metric parameter against allowed column names
-	metric := r.URL.Query().Get("metric")
-	allowedMetrics := map[string]bool{
-		"blood_pressure_systolic": true, "blood_pressure_diastolic": true,
-		"pulse": true, "oxygen_saturation": true, "weight": true,
-		"height": true, "body_temperature": true, "blood_glucose": true,
-		"respiratory_rate": true, "bmi": true, "body_fat_percentage": true,
-		"sleep_duration_minutes": true, "sleep_quality": true,
-		"waist_circumference": true, "hip_circumference": true,
-	}
-	if !allowedMetrics[metric] {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_metric"))
+	vitalID, err := uuid.Parse(chi.URLParam(r, "vitalID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_vital_id"))
 		return
 	}
 
-	var from, to *string
-	if v := r.URL.Query().Get("from"); v != "" {
-		from = &v
+	existing, err := h.vitalRepo.GetByID(r.Context(), vitalID)
+	if err != nil {
+		if errors.Is(err, postgres.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+			return
+		}
+		h.logger.Error("get vital for migrate", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
 	}
-	if v := r.URL.Query().Get("to"); v != "" {
-		to = &v
+	if existing.ProfileID != profileID {
+		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
+		return
 	}
 
-	points, err := h.vitalRepo.GetChartData(r.Context(), profileID, metric, from, to)
-	if err != nil {
-		h.logger.Error("chart data", zap.Error(err))
+	var body struct {
+		ContentEnc string `json:"content_enc"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ContentEnc == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("content_enc_required"))
+		return
+	}
+
+	if err := h.vitalRepo.SetContentEnc(r.Context(), vitalID, body.ContentEnc); err != nil {
+		h.logger.Error("set content_enc", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"metric": metric,
-		"points": points,
-	})
+	w.WriteHeader(http.StatusNoContent)
 }

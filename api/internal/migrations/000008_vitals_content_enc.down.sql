@@ -1,0 +1,1 @@
+ALTER TABLE vitals DROP COLUMN IF EXISTS content_enc;

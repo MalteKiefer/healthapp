@@ -31,6 +31,11 @@ type Vital struct {
 	CreatedAt              time.Time  `json:"created_at"`
 	UpdatedAt              time.Time  `json:"updated_at"`
 	DeletedAt              *time.Time `json:"-"`
+	// ContentEnc holds the AES-GCM-encrypted JSON blob of all health fields
+	// (produced client-side with the profile key). During Stage 2 lazy
+	// migration it lives alongside the plaintext columns; Stage 2.4 drops
+	// the plaintext columns and enforces NOT NULL.
+	ContentEnc *string `json:"content_enc,omitempty"`
 }
 
 // CalculateBMI computes BMI from weight (kg) and height (cm) if both are present.
