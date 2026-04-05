@@ -13,13 +13,39 @@
 
 import { encrypt, decryptToBytes } from './encrypt';
 
-// Key store — in-memory only, never persisted to disk
+// Key store — held in sessionStorage (dies on tab close) so page refresh
+// via refresh-token flow doesn't drop the crypto state. Keys are stashed as
+// JWK, not in base64url raw form, to keep WebCrypto's usages metadata.
+//
+// Security trade-off: sessionStorage is readable by XSS, so a malicious
+// script loaded in this tab could exfiltrate the profile keys. That is a
+// known limitation of SPA E2E apps; a Service-Worker-scoped key store
+// would be stricter but adds significant complexity.
+
+const SS_PEK = 'hv_pek_jwk';
+const SS_ID_PRIV = 'hv_id_priv_jwk';
+const SS_PROFILE_KEYS = 'hv_profile_keys_jwk'; // { [profileId]: JsonWebKey }
+
 let pek: CryptoKey | null = null;
 let identityPrivKey: CryptoKey | null = null;
 const profileKeys: Map<string, CryptoKey> = new Map();
 
+function safeSessionSet(k: string, v: string) {
+  try { sessionStorage.setItem(k, v); } catch { /* quota or disabled */ }
+}
+function safeSessionGet(k: string): string | null {
+  try { return sessionStorage.getItem(k); } catch { return null; }
+}
+function safeSessionRemove(k: string) {
+  try { sessionStorage.removeItem(k); } catch { /* ignore */ }
+}
+
 export function setPEK(key: CryptoKey) {
   pek = key;
+  // key is extractable (see derivePEK) → stash as JWK so reloads can rehydrate.
+  crypto.subtle.exportKey('jwk', key)
+    .then((jwk) => safeSessionSet(SS_PEK, JSON.stringify(jwk)))
+    .catch(() => { /* non-extractable, skip */ });
 }
 
 export function getPEK(): CryptoKey | null {
@@ -28,6 +54,9 @@ export function getPEK(): CryptoKey | null {
 
 export function setIdentityPrivateKey(key: CryptoKey) {
   identityPrivKey = key;
+  crypto.subtle.exportKey('jwk', key)
+    .then((jwk) => safeSessionSet(SS_ID_PRIV, JSON.stringify(jwk)))
+    .catch(() => { /* non-extractable, skip */ });
 }
 
 export function getIdentityPrivateKey(): CryptoKey | null {
@@ -36,6 +65,16 @@ export function getIdentityPrivateKey(): CryptoKey | null {
 
 export function setProfileKey(profileId: string, key: CryptoKey) {
   profileKeys.set(profileId, key);
+  // Persist the whole map — sessionStorage lookups are cheap.
+  (async () => {
+    const map: Record<string, JsonWebKey> = {};
+    for (const [id, k] of profileKeys.entries()) {
+      try {
+        map[id] = await crypto.subtle.exportKey('jwk', k);
+      } catch { /* skip non-extractable */ }
+    }
+    safeSessionSet(SS_PROFILE_KEYS, JSON.stringify(map));
+  })();
 }
 
 export function getProfileKey(profileId: string): CryptoKey | null {
@@ -46,6 +85,52 @@ export function clearAllKeys() {
   pek = null;
   identityPrivKey = null;
   profileKeys.clear();
+  safeSessionRemove(SS_PEK);
+  safeSessionRemove(SS_ID_PRIV);
+  safeSessionRemove(SS_PROFILE_KEYS);
+}
+
+/**
+ * Rehydrate keys from sessionStorage on module load. Safe to call repeatedly.
+ * Used by the app entry point so a page refresh (refresh-token session)
+ * doesn't drop the profile-key material.
+ */
+export async function rehydrateKeysFromSession(): Promise<void> {
+  if (typeof sessionStorage === 'undefined') return;
+
+  const pekJwk = safeSessionGet(SS_PEK);
+  if (pekJwk && !pek) {
+    try {
+      const jwk = JSON.parse(pekJwk) as JsonWebKey;
+      pek = await crypto.subtle.importKey(
+        'jwk', jwk, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt'],
+      );
+    } catch { safeSessionRemove(SS_PEK); }
+  }
+
+  const idPrivJwk = safeSessionGet(SS_ID_PRIV);
+  if (idPrivJwk && !identityPrivKey) {
+    try {
+      const jwk = JSON.parse(idPrivJwk) as JsonWebKey;
+      identityPrivKey = await crypto.subtle.importKey(
+        'jwk', jwk, { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey', 'deriveBits'],
+      );
+    } catch { safeSessionRemove(SS_ID_PRIV); }
+  }
+
+  const profileKeysJwk = safeSessionGet(SS_PROFILE_KEYS);
+  if (profileKeysJwk) {
+    try {
+      const map = JSON.parse(profileKeysJwk) as Record<string, JsonWebKey>;
+      for (const [id, jwk] of Object.entries(map)) {
+        if (profileKeys.has(id)) continue;
+        const key = await crypto.subtle.importKey(
+          'jwk', jwk, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt'],
+        );
+        profileKeys.set(id, key);
+      }
+    } catch { safeSessionRemove(SS_PROFILE_KEYS); }
+  }
 }
 
 /**
@@ -66,7 +151,9 @@ export async function derivePEK(passphrase: string, salt: string): Promise<Crypt
     ['deriveBits', 'deriveKey'],
   );
 
-  // Derive AES-256-GCM key
+  // Derive AES-256-GCM key. Marked extractable=true so setPEK() can stash the
+  // JWK in sessionStorage and rehydrate across page refreshes. This is a
+  // deliberate security/UX trade-off for Stage 2.
   const key = await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
@@ -76,7 +163,7 @@ export async function derivePEK(passphrase: string, salt: string): Promise<Crypt
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
-    false, // non-extractable
+    true,
     ['encrypt', 'decrypt'],
   );
 

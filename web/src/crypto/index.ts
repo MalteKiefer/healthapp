@@ -14,6 +14,7 @@ export {
   setProfileKey,
   getProfileKey,
   clearAllKeys,
+  rehydrateKeysFromSession,
   derivePEK,
   deriveAuthHash,
   generateProfileKey,
