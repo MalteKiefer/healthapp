@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/healthvault/healthvault/internal/crypto"
 	"github.com/healthvault/healthvault/internal/domain/user"
+	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
 
 // UserHandler handles user/me endpoints.
@@ -277,15 +279,34 @@ func (h *UserHandler) HandleUpdatePreferences(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var prefs user.Preferences
-	if err := json.NewDecoder(r.Body).Decode(&prefs); err != nil {
+	// This endpoint is documented as PATCH — fetch existing first so fields the
+	// client omits keep their stored values. Decoding into a fresh struct would
+	// blank them to "" and violate the CHECK constraints on height_unit etc.
+	prefs, err := h.userRepo.GetPreferences(r.Context(), claims.UserID)
+	if err != nil {
+		if errors.Is(err, postgres.ErrNotFound) {
+			// Row missing (shouldn't happen — registration seeds it — but be defensive).
+			prefs = &user.Preferences{
+				Language: "en", DateFormat: "DMY",
+				WeightUnit: "kg", HeightUnit: "cm",
+				TemperatureUnit: "celsius", BloodGlucoseUnit: "mmol_l",
+				WeekStart: "monday", Timezone: "UTC",
+			}
+		} else {
+			h.logger.Error("get preferences for update", zap.Error(err))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(prefs); err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
 		return
 	}
 
 	prefs.UserID = claims.UserID
 
-	if err := h.userRepo.UpsertPreferences(r.Context(), &prefs); err != nil {
+	if err := h.userRepo.UpsertPreferences(r.Context(), prefs); err != nil {
 		h.logger.Error("update preferences", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
