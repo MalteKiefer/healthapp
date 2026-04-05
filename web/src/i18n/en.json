@@ -573,7 +573,18 @@
     "grantee_user_id": "User ID to grant access",
     "grant_success": "Access granted",
     "revoke_success": "Access revoked",
-    "no_profile_selected": "Select a profile to manage"
+    "no_profile_selected": "Select a profile to manage",
+    "new_profile": "New Profile",
+    "new_profile_name": "Name",
+    "new_profile_name_placeholder": "e.g. Jane Doe",
+    "new_profile_dob": "Date of birth (optional)",
+    "new_profile_sex": "Biological sex",
+    "sex_unspecified": "Prefer not to say",
+    "sex_female": "Female",
+    "sex_male": "Male",
+    "sex_other": "Other",
+    "create_profile_btn": "Create profile",
+    "profile_created": "Profile created"
   },
   "confirm_delete": {
     "title": "Delete entry?",

@@ -118,8 +118,28 @@ export function Settings() {
   const [revokeUserId, setRevokeUserId] = useState('');
   const [profileMsg, setProfileMsg] = useState('');
 
+  // New profile form state
+  const [showCreateProfile, setShowCreateProfile] = useState(false);
+  const [newProfileName, setNewProfileName] = useState('');
+  const [newProfileDOB, setNewProfileDOB] = useState('');
+  const [newProfileSex, setNewProfileSex] = useState('unspecified');
+
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId);
   const isProfileOwner = selectedProfile?.owner_user_id === userId;
+
+  const createProfileMutation = useMutation({
+    mutationFn: (body: { display_name: string; date_of_birth?: string; biological_sex: string }) =>
+      api.post<Profile>('/api/v1/profiles', body),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      setSelectedProfileId(created.id);
+      setShowCreateProfile(false);
+      setNewProfileName('');
+      setNewProfileDOB('');
+      setNewProfileSex('unspecified');
+      setProfileMsg(t('settings.profile_created'));
+    },
+  });
 
   const archiveMutation = useMutation({
     mutationFn: (profileId: string) => api.post(`/api/v1/profiles/${profileId}/archive`),
@@ -631,8 +651,9 @@ export function Settings() {
       <div className="card settings-section">
         <h3>{t('settings.profile_management')}</h3>
 
-        <div className="form-group">
+        <div className="form-group" style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
           <select
+            style={{ flex: 1 }}
             value={selectedProfileId}
             onChange={(e) => { setSelectedProfileId(e.target.value); setProfileMsg(''); }}
           >
@@ -643,7 +664,68 @@ export function Settings() {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            className="btn btn-add"
+            onClick={() => { setShowCreateProfile((v) => !v); setProfileMsg(''); }}
+          >
+            {showCreateProfile ? t('common.cancel') : t('settings.new_profile')}
+          </button>
         </div>
+
+        {showCreateProfile && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!newProfileName.trim()) return;
+              createProfileMutation.mutate({
+                display_name: newProfileName.trim(),
+                date_of_birth: newProfileDOB || undefined,
+                biological_sex: newProfileSex,
+              });
+            }}
+            style={{ padding: 12, border: '1px solid var(--color-border)', borderRadius: 8, marginBottom: 12 }}
+          >
+            <div className="form-group">
+              <label>{t('settings.new_profile_name')}</label>
+              <input
+                type="text"
+                value={newProfileName}
+                onChange={(e) => setNewProfileName(e.target.value)}
+                placeholder={t('settings.new_profile_name_placeholder')}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="form-group">
+              <label>{t('settings.new_profile_dob')}</label>
+              <input
+                type="date"
+                value={newProfileDOB}
+                onChange={(e) => setNewProfileDOB(e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label>{t('settings.new_profile_sex')}</label>
+              <select
+                value={newProfileSex}
+                onChange={(e) => setNewProfileSex(e.target.value)}
+              >
+                <option value="unspecified">{t('settings.sex_unspecified')}</option>
+                <option value="female">{t('settings.sex_female')}</option>
+                <option value="male">{t('settings.sex_male')}</option>
+                <option value="other">{t('settings.sex_other')}</option>
+              </select>
+            </div>
+            <button
+              type="submit"
+              className="btn btn-add"
+              disabled={!newProfileName.trim() || createProfileMutation.isPending}
+            >
+              {createProfileMutation.isPending ? t('common.loading') : t('settings.create_profile_btn')}
+            </button>
+          </form>
+        )}
 
         {profileMsg && (
           <div className="alert alert-success" style={{ marginBottom: 12 }}>{profileMsg}</div>

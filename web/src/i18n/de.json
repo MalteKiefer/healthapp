@@ -573,7 +573,18 @@
     "grantee_user_id": "Benutzer-ID für Zugriff",
     "grant_success": "Zugriff gewährt",
     "revoke_success": "Zugriff widerrufen",
-    "no_profile_selected": "Profil zur Verwaltung auswählen"
+    "no_profile_selected": "Profil zur Verwaltung auswählen",
+    "new_profile": "Neues Profil",
+    "new_profile_name": "Name",
+    "new_profile_name_placeholder": "z. B. Max Mustermann",
+    "new_profile_dob": "Geburtsdatum (optional)",
+    "new_profile_sex": "Biologisches Geschlecht",
+    "sex_unspecified": "Keine Angabe",
+    "sex_female": "Weiblich",
+    "sex_male": "Männlich",
+    "sex_other": "Andere",
+    "create_profile_btn": "Profil anlegen",
+    "profile_created": "Profil angelegt"
   },
   "confirm_delete": {
     "title": "Eintrag löschen?",
