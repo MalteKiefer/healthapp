@@ -187,9 +187,12 @@ export function Documents() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => documentsApi.delete(profileId, id),
-    onSuccess: () => {
+    // Use the mutation's variables (the deleted id) rather than deleteTarget,
+    // which is cleared synchronously in the confirm handler and is already null
+    // by the time onSuccess runs — the detail view would otherwise stay open.
+    onSuccess: (_data, deletedId) => {
       queryClient.invalidateQueries({ queryKey: ['documents', profileId] });
-      if (selectedDoc && deleteTarget === selectedDoc.id) {
+      if (selectedDoc && deletedId === selectedDoc.id) {
         setSelectedDoc(null);
       }
     },
