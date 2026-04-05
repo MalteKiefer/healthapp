@@ -46,19 +46,19 @@ type ContentField = typeof CONTENT_FIELDS[number];
 type VitalContent = Partial<Pick<Vital, ContentField>>;
 
 function extractContent(v: Partial<Vital>): VitalContent {
-  const out: VitalContent = {};
+  const out = {} as Record<string, unknown>;
   for (const k of CONTENT_FIELDS) {
-    if (v[k] !== undefined) (out as Record<string, unknown>)[k] = v[k];
+    if (v[k] !== undefined) out[k] = v[k];
   }
-  return out;
+  return out as VitalContent;
 }
 
 function mergeContent(base: Vital, content: VitalContent): Vital {
   // Clear any plaintext that came off the wire — decrypted blob is
   // authoritative. Missing keys in content = field is null.
-  const cleared: Vital = { ...base };
-  for (const k of CONTENT_FIELDS) (cleared as Record<string, unknown>)[k] = undefined;
-  return { ...cleared, ...content };
+  const cleared = { ...base } as unknown as Record<string, unknown>;
+  for (const k of CONTENT_FIELDS) cleared[k] = undefined;
+  return { ...(cleared as unknown as Vital), ...content };
 }
 
 async function decryptOrPassthrough(profileId: string, raw: Vital): Promise<Vital> {
