@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
@@ -337,6 +337,16 @@ export function Admin() {
 
   // Sync registration mode from server when data arrives
   const currentRegMode = system?.registration_mode ?? 'open';
+
+  // The useState initializer runs before `system` is loaded (undefined → 'open'),
+  // so without this effect the toggles would show "open" even when the DB says
+  // "invite_only"/"closed" — admins would think nothing needs changing, save
+  // would skip registration_mode, and registration would keep demanding a token.
+  useEffect(() => {
+    if (system?.registration_mode) {
+      setSettingsRegMode(system.registration_mode);
+    }
+  }, [system?.registration_mode]);
 
   const saveSettings = useMutation({
     mutationFn: (settings: Record<string, string>) =>

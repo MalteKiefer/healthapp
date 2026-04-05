@@ -137,15 +137,20 @@ export function Vitals() {
   const onEditSubmit = async (data: VitalFormData) => {
     if (!editTarget) return;
     data.measured_at = new Date(data.measured_at).toISOString();
-    const cleaned = Object.fromEntries(
-      Object.entries(data).filter(([, v]) => {
-        if (v === '' || v === undefined || v === null) return false;
-        if (typeof v === 'number' && isNaN(v)) return false;
-        return true;
-      })
-    );
+    // Send cleared fields as explicit null so the backend clears them.
+    // (The backend patches into the existing record — omitted keys would preserve the old value.)
+    const payload: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (v === '' || v === undefined || (typeof v === 'number' && isNaN(v))) {
+        payload[k] = null;
+      } else {
+        payload[k] = v;
+      }
+    }
+    // measured_at must never be null
+    payload.measured_at = data.measured_at;
     try {
-      await updateVital.mutateAsync({ ...cleaned, id: editTarget.id } as Partial<Vital> & { id: string });
+      await updateVital.mutateAsync({ ...payload, id: editTarget.id } as Partial<Vital> & { id: string });
       setEditTarget(null);
       editReset();
     } catch (err) {
