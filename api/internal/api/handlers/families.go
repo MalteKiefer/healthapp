@@ -385,6 +385,22 @@ func (h *FamilyHandler) HandleRemoveMember(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Auto-revoke any profile grants that were created via this family where
+	// the departing member is either granter or grantee. Grants not linked to
+	// this family (via_family_id IS NULL or differs) are untouched.
+	tag, err := h.db.Exec(r.Context(), `
+		UPDATE profile_key_grants SET revoked_at = NOW()
+		WHERE via_family_id = $1 AND revoked_at IS NULL
+		  AND (grantee_user_id = $2 OR granted_by_user_id = $2)`, familyID, memberID)
+	if err != nil {
+		h.logger.Error("auto-revoke grants on family leave", zap.Error(err))
+	} else if n := tag.RowsAffected(); n > 0 {
+		h.logger.Info("auto-revoked grants on family leave",
+			zap.String("family_id", familyID.String()),
+			zap.String("member_user_id", memberID.String()),
+			zap.Int64("revoked", n))
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -411,6 +427,19 @@ func (h *FamilyHandler) HandleDissolve(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("dissolve family", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
+	}
+
+	// Revoke every grant that was created because of this family — nobody is
+	// in the family anymore, so all family-scoped access terminates here.
+	tag, err := h.db.Exec(r.Context(), `
+		UPDATE profile_key_grants SET revoked_at = NOW()
+		WHERE via_family_id = $1 AND revoked_at IS NULL`, familyID)
+	if err != nil {
+		h.logger.Error("auto-revoke grants on family dissolve", zap.Error(err))
+	} else if n := tag.RowsAffected(); n > 0 {
+		h.logger.Info("auto-revoked grants on family dissolve",
+			zap.String("family_id", familyID.String()),
+			zap.Int64("revoked", n))
 	}
 
 	w.WriteHeader(http.StatusNoContent)

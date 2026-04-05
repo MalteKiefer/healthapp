@@ -184,8 +184,8 @@ func (r *ProfileRepo) CreateKeyGrant(ctx context.Context, g *profiles.KeyGrant) 
 	query := `
 		INSERT INTO profile_key_grants (
 			id, profile_id, grantee_user_id, encrypted_key,
-			grant_signature, granted_by_user_id, granted_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7)`
+			grant_signature, granted_by_user_id, granted_at, via_family_id
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
 
 	if g.ID == uuid.Nil {
 		g.ID = uuid.New()
@@ -196,7 +196,7 @@ func (r *ProfileRepo) CreateKeyGrant(ctx context.Context, g *profiles.KeyGrant) 
 
 	_, err := r.db.Exec(ctx, query,
 		g.ID, g.ProfileID, g.GranteeUserID, g.EncryptedKey,
-		g.GrantSignature, g.GrantedByUserID, g.GrantedAt,
+		g.GrantSignature, g.GrantedByUserID, g.GrantedAt, g.ViaFamilyID,
 	)
 	if err != nil {
 		return fmt.Errorf("insert key grant: %w", err)
@@ -219,7 +219,7 @@ func (r *ProfileRepo) RevokeKeyGrant(ctx context.Context, profileID, granteeUser
 func (r *ProfileRepo) GetKeyGrantsForProfile(ctx context.Context, profileID uuid.UUID) ([]profiles.KeyGrant, error) {
 	query := `
 		SELECT id, profile_id, grantee_user_id, encrypted_key,
-		       grant_signature, granted_by_user_id, granted_at, revoked_at
+		       grant_signature, granted_by_user_id, granted_at, revoked_at, via_family_id
 		FROM profile_key_grants
 		WHERE profile_id = $1 AND revoked_at IS NULL
 		ORDER BY granted_at ASC`
@@ -235,7 +235,7 @@ func (r *ProfileRepo) GetKeyGrantsForProfile(ctx context.Context, profileID uuid
 		var g profiles.KeyGrant
 		if err := rows.Scan(
 			&g.ID, &g.ProfileID, &g.GranteeUserID, &g.EncryptedKey,
-			&g.GrantSignature, &g.GrantedByUserID, &g.GrantedAt, &g.RevokedAt,
+			&g.GrantSignature, &g.GrantedByUserID, &g.GrantedAt, &g.RevokedAt, &g.ViaFamilyID,
 		); err != nil {
 			return nil, fmt.Errorf("scan key grant: %w", err)
 		}

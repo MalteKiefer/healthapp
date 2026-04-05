@@ -15,6 +15,7 @@ import { encrypt, decryptToBytes } from './encrypt';
 
 // Key store — in-memory only, never persisted to disk
 let pek: CryptoKey | null = null;
+let identityPrivKey: CryptoKey | null = null;
 const profileKeys: Map<string, CryptoKey> = new Map();
 
 export function setPEK(key: CryptoKey) {
@@ -23,6 +24,14 @@ export function setPEK(key: CryptoKey) {
 
 export function getPEK(): CryptoKey | null {
   return pek;
+}
+
+export function setIdentityPrivateKey(key: CryptoKey) {
+  identityPrivKey = key;
+}
+
+export function getIdentityPrivateKey(): CryptoKey | null {
+  return identityPrivKey;
 }
 
 export function setProfileKey(profileId: string, key: CryptoKey) {
@@ -35,6 +44,7 @@ export function getProfileKey(profileId: string): CryptoKey | null {
 
 export function clearAllKeys() {
   pek = null;
+  identityPrivKey = null;
   profileKeys.clear();
 }
 

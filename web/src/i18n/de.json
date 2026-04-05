@@ -584,7 +584,16 @@
     "sex_male": "Männlich",
     "sex_other": "Andere",
     "create_profile_btn": "Profil anlegen",
-    "profile_created": "Profil angelegt"
+    "profile_created": "Profil angelegt",
+    "share_with_family": "Mit Familienmitglied teilen",
+    "pick_family_member": "Familienmitglied auswählen …",
+    "share_action": "Teilen",
+    "current_access": "Aktueller Zugriff",
+    "no_grants_yet": "Noch niemand hat Zugriff auf dieses Profil.",
+    "shared_via_family": "Über Familie geteilt",
+    "no_families": "Keine Familien vorhanden. Lege zuerst eine Familie an und lade Mitglieder ein.",
+    "no_shareable_members": "Alle Mitglieder haben bereits Zugriff.",
+    "grant_failed": "Teilen fehlgeschlagen"
   },
   "confirm_delete": {
     "title": "Eintrag löschen?",

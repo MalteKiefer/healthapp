@@ -27,9 +27,10 @@ func NewGrantHandler(db *pgxpool.Pool, pr profiles.Repository, logger *zap.Logge
 // ── Request Types ───────────────────────────────────────────────────
 
 type createGrantRequest struct {
-	EncryptedKey   string `json:"encrypted_key"`
-	GrantSignature string `json:"grant_signature"`
-	GranteeUserID  string `json:"grantee_user_id"`
+	EncryptedKey   string  `json:"encrypted_key"`
+	GrantSignature string  `json:"grant_signature"`
+	GranteeUserID  string  `json:"grantee_user_id"`
+	ViaFamilyID    *string `json:"via_family_id,omitempty"`
 }
 
 type transferRequest struct {
@@ -81,6 +82,31 @@ func (h *GrantHandler) HandleCreateGrant(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	var viaFamilyID *uuid.UUID
+	if req.ViaFamilyID != nil && *req.ViaFamilyID != "" {
+		fid, err := uuid.Parse(*req.ViaFamilyID)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, errorResponse("invalid_via_family_id"))
+			return
+		}
+		// Both caller (owner) and grantee must be active members of that family.
+		var count int
+		err = h.db.QueryRow(r.Context(), `
+			SELECT COUNT(*) FROM family_memberships
+			WHERE family_id = $1 AND user_id = ANY($2) AND left_at IS NULL`,
+			fid, []uuid.UUID{claims.UserID, granteeID}).Scan(&count)
+		if err != nil {
+			h.logger.Error("check family membership", zap.Error(err))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+		if count < 2 {
+			writeJSON(w, http.StatusForbidden, errorResponse("not_in_family"))
+			return
+		}
+		viaFamilyID = &fid
+	}
+
 	grant := &profiles.KeyGrant{
 		ProfileID:       profileID,
 		GranteeUserID:   granteeID,
@@ -88,6 +114,7 @@ func (h *GrantHandler) HandleCreateGrant(w http.ResponseWriter, r *http.Request)
 		GrantSignature:  req.GrantSignature,
 		GrantedByUserID: claims.UserID,
 		GrantedAt:       time.Now().UTC(),
+		ViaFamilyID:     viaFamilyID,
 	}
 
 	if err := h.profileRepo.CreateKeyGrant(r.Context(), grant); err != nil {
@@ -138,6 +165,120 @@ func (h *GrantHandler) HandleRevokeGrant(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleListGrants lists active key grants for a profile. Owner only.
+// GET /profiles/{profileID}/grants
+func (h *GrantHandler) HandleListGrants(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
+		return
+	}
+
+	p, err := h.profileRepo.GetByID(r.Context(), profileID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, errorResponse("profile_not_found"))
+		return
+	}
+	if p.OwnerUserID != claims.UserID {
+		writeJSON(w, http.StatusForbidden, errorResponse("owner_required"))
+		return
+	}
+
+	// Join grants with users to get display_name/email/identity_pubkey so the
+	// client can both show who has access and unwrap the grantee's perspective.
+	rows, err := h.db.Query(r.Context(), `
+		SELECT g.id, g.grantee_user_id, g.granted_by_user_id, g.granted_at,
+		       g.encrypted_key, g.via_family_id,
+		       u.email, COALESCE(u.display_name, ''), u.identity_pubkey
+		FROM profile_key_grants g
+		JOIN users u ON u.id = g.grantee_user_id
+		WHERE g.profile_id = $1 AND g.revoked_at IS NULL
+		ORDER BY g.granted_at ASC`, profileID)
+	if err != nil {
+		h.logger.Error("list grants", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	defer rows.Close()
+
+	type grantRow struct {
+		ID              uuid.UUID  `json:"id"`
+		GranteeUserID   uuid.UUID  `json:"grantee_user_id"`
+		GrantedByUserID uuid.UUID  `json:"granted_by_user_id"`
+		GrantedAt       time.Time  `json:"granted_at"`
+		EncryptedKey    string     `json:"encrypted_key"`
+		ViaFamilyID     *uuid.UUID `json:"via_family_id,omitempty"`
+		Email           string     `json:"email"`
+		DisplayName     string     `json:"display_name"`
+		IdentityPubkey  string     `json:"identity_pubkey"`
+	}
+	items := make([]grantRow, 0)
+	for rows.Next() {
+		var g grantRow
+		if err := rows.Scan(&g.ID, &g.GranteeUserID, &g.GrantedByUserID, &g.GrantedAt,
+			&g.EncryptedKey, &g.ViaFamilyID, &g.Email, &g.DisplayName, &g.IdentityPubkey); err != nil {
+			h.logger.Error("scan grant row", zap.Error(err))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+		items = append(items, g)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"items": items, "total": len(items)})
+}
+
+// HandleGetMyGrant returns the caller's active grant for a profile, with the
+// granter's identity_pubkey so the client can unwrap the encrypted_key.
+// GET /profiles/{profileID}/my-grant
+func (h *GrantHandler) HandleGetMyGrant(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
+		return
+	}
+
+	// The grant acts as the access gate; no additional HasAccess check needed.
+	type myGrantResp struct {
+		ProfileID              uuid.UUID  `json:"profile_id"`
+		EncryptedKey           string     `json:"encrypted_key"`
+		GrantedByUserID        uuid.UUID  `json:"granted_by_user_id"`
+		GranterIdentityPubkey  string     `json:"granter_identity_pubkey"`
+		ViaFamilyID            *uuid.UUID `json:"via_family_id,omitempty"`
+		GrantedAt              time.Time  `json:"granted_at"`
+	}
+	var resp myGrantResp
+	resp.ProfileID = profileID
+	err = h.db.QueryRow(r.Context(), `
+		SELECT g.encrypted_key, g.granted_by_user_id, u.identity_pubkey,
+		       g.via_family_id, g.granted_at
+		FROM profile_key_grants g
+		JOIN users u ON u.id = g.granted_by_user_id
+		WHERE g.profile_id = $1 AND g.grantee_user_id = $2 AND g.revoked_at IS NULL
+		LIMIT 1`, profileID, claims.UserID).Scan(
+		&resp.EncryptedKey, &resp.GrantedByUserID, &resp.GranterIdentityPubkey,
+		&resp.ViaFamilyID, &resp.GrantedAt,
+	)
+	if err != nil {
+		// no row → caller has no active grant for this profile
+		writeJSON(w, http.StatusNotFound, errorResponse("no_grant"))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // HandleKeyRotation returns 501 as key rotation requires client-side re-encryption.

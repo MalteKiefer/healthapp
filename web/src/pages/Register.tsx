@@ -7,6 +7,7 @@ import {
   deriveAuthHash,
   derivePEK,
   setPEK,
+  setIdentityPrivateKey,
   generateIdentityKeyPair,
   exportPublicKey,
   exportPrivateKeyEncrypted,
@@ -128,6 +129,9 @@ export function Register() {
       setRegisteredEmail(email);
       setRegisteredAuthHash(authHash);
       setPEK(pekKey);
+      // Keep the just-generated ECDH private key in memory so profile key
+      // wrap/unwrap flows work immediately without another decrypt round-trip.
+      setIdentityPrivateKey(identityKeyPair.privateKey);
       setStep('recovery');
     } catch (err) {
       if (err instanceof ApiError) {

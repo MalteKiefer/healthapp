@@ -9,6 +9,8 @@ export {
   // Key management
   setPEK,
   getPEK,
+  setIdentityPrivateKey,
+  getIdentityPrivateKey,
   setProfileKey,
   getProfileKey,
   clearAllKeys,
@@ -41,3 +43,5 @@ export {
   receiveKeyGrant,
   generateRecoveryCodes,
 } from './sharing';
+
+export { ensureProfileKey } from './profileKey';

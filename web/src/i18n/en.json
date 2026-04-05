@@ -584,7 +584,16 @@
     "sex_male": "Male",
     "sex_other": "Other",
     "create_profile_btn": "Create profile",
-    "profile_created": "Profile created"
+    "profile_created": "Profile created",
+    "share_with_family": "Share with family member",
+    "pick_family_member": "Pick a family member…",
+    "share_action": "Share",
+    "current_access": "Current access",
+    "no_grants_yet": "Nobody has access to this profile yet.",
+    "shared_via_family": "Shared via family",
+    "no_families": "No families yet. Create a family and invite members first.",
+    "no_shareable_members": "All members already have access.",
+    "grant_failed": "Sharing failed"
   },
   "confirm_delete": {
     "title": "Delete entry?",

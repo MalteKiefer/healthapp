@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/auth';
 import { api, ApiError } from '../api/client';
-import { deriveAuthHash, derivePEK, setPEK } from '../crypto';
+import { deriveAuthHash, derivePEK, setPEK, importPrivateKeyEncrypted, setIdentityPrivateKey } from '../crypto';
 
 interface LoginResponse {
   expires_at?: number;
@@ -59,6 +59,16 @@ export function Login() {
       if (res.pek_salt) {
         const pekKey = await derivePEK(passphrase, res.pek_salt);
         setPEK(pekKey);
+        // Unwrap the identity ECDH private key so profile key wrap/unwrap
+        // flows can run later without re-prompting for the passphrase.
+        if (res.identity_privkey_enc) {
+          try {
+            const idPriv = await importPrivateKeyEncrypted(res.identity_privkey_enc, pekKey);
+            setIdentityPrivateKey(idPriv);
+          } catch (e) {
+            console.warn('Failed to unwrap identity private key:', e);
+          }
+        }
       }
       login(res.user_id, res.role || 'user', email);
       navigate('/');
@@ -90,6 +100,14 @@ export function Login() {
       if (pekSalt && passphrase) {
         const pekKey = await derivePEK(passphrase, pekSalt);
         setPEK(pekKey);
+        if (res.identity_privkey_enc) {
+          try {
+            const idPriv = await importPrivateKeyEncrypted(res.identity_privkey_enc, pekKey);
+            setIdentityPrivateKey(idPriv);
+          } catch (e) {
+            console.warn('Failed to unwrap identity private key:', e);
+          }
+        }
       }
       localStorage.removeItem('_pek_salt_tmp');
       login(res.user_id, res.role || 'user', email);

@@ -11,7 +11,16 @@ import { useAuthStore } from '../store/auth';
 import { useProfiles } from '../hooks/useProfiles';
 import type { Profile } from '../api/profiles';
 import { useDateFormat } from '../hooks/useDateLocale';
-import { deriveAuthHash, clearAllKeys } from '../crypto';
+import {
+  deriveAuthHash,
+  clearAllKeys,
+  generateProfileKey,
+  getIdentityPrivateKey,
+  setProfileKey,
+  getProfileKey,
+  createKeyGrant,
+  ensureProfileKey,
+} from '../crypto';
 import { formatNumber } from '../utils/format';
 
 // ── Types ──
@@ -67,6 +76,7 @@ interface UserInfo {
   display_name: string;
   role: string;
   totp_enabled: boolean;
+  identity_pubkey: string;
 }
 
 interface CropArea { x: number; y: number; width: number; height: number }
@@ -114,8 +124,7 @@ export function Settings() {
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
   const [transferUserId, setTransferUserId] = useState('');
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [grantUserId, setGrantUserId] = useState('');
-  const [revokeUserId, setRevokeUserId] = useState('');
+  const [pickedFamilyMember, setPickedFamilyMember] = useState(''); // "familyId:userId"
   const [profileMsg, setProfileMsg] = useState('');
 
   // New profile form state
@@ -128,8 +137,25 @@ export function Settings() {
   const isProfileOwner = selectedProfile?.owner_user_id === userId;
 
   const createProfileMutation = useMutation({
-    mutationFn: (body: { display_name: string; date_of_birth?: string; biological_sex: string }) =>
-      api.post<Profile>('/api/v1/profiles', body),
+    mutationFn: async (body: { display_name: string; date_of_birth?: string; biological_sex: string }) => {
+      // E2E profile key: generated client-side, self-grant wraps it for the
+      // owner via ECDH. Server never sees the plaintext profile key.
+      const idPriv = getIdentityPrivateKey();
+      const myPubkey = userInfo?.identity_pubkey;
+      if (!idPriv || !myPubkey || !userId) {
+        // Missing crypto material — fall back to plain create so the feature
+        // still works for users without keys unwrapped (legacy sessions).
+        return api.post<Profile>('/api/v1/profiles', body);
+      }
+      const profileKey = await generateProfileKey();
+      const wrapped = await createKeyGrant(profileKey, idPriv, myPubkey, `selfgrant:${userId}`);
+      const created = await api.post<Profile>('/api/v1/profiles', {
+        ...body,
+        self_grant: { encrypted_key: wrapped },
+      });
+      setProfileKey(created.id, profileKey);
+      return created;
+    },
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       setSelectedProfileId(created.id);
@@ -169,15 +195,35 @@ export function Settings() {
   });
 
   const grantMutation = useMutation({
-    mutationFn: ({ profileId, granteeUserId }: { profileId: string; granteeUserId: string }) =>
-      api.post(`/api/v1/profiles/${profileId}/grants`, {
-        grantee_user_id: granteeUserId,
-        encrypted_key: 'placeholder',
-        grant_signature: 'placeholder',
-      }),
+    mutationFn: async (args: {
+      profileId: string;
+      granteeUserId: string;
+      granteeIdentityPubkey: string;
+      familyId: string;
+    }) => {
+      const idPriv = getIdentityPrivateKey();
+      const cachedKey = getProfileKey(args.profileId);
+      if (!idPriv) throw new Error('identity_key_unavailable');
+      if (!cachedKey) throw new Error('profile_key_unavailable');
+      if (!userId) throw new Error('no_user_id');
+      const ctx = `${args.profileId}:${userId}:${args.granteeUserId}`;
+      const wrapped = await createKeyGrant(cachedKey, idPriv, args.granteeIdentityPubkey, ctx);
+      return api.post(`/api/v1/profiles/${args.profileId}/grants`, {
+        grantee_user_id: args.granteeUserId,
+        encrypted_key: wrapped,
+        grant_signature: '',
+        via_family_id: args.familyId,
+      });
+    },
     onSuccess: () => {
-      setGrantUserId('');
+      setPickedFamilyMember('');
       setProfileMsg(t('settings.grant_success'));
+      if (selectedProfileId) {
+        queryClient.invalidateQueries({ queryKey: ['profile-grants', selectedProfileId] });
+      }
+    },
+    onError: (e) => {
+      setProfileMsg((e as Error).message || t('settings.grant_failed'));
     },
   });
 
@@ -186,6 +232,9 @@ export function Settings() {
       api.delete(`/api/v1/profiles/${profileId}/grants/${granteeUserId}`),
     onSuccess: () => {
       setProfileMsg(t('settings.revoke_success'));
+      if (selectedProfileId) {
+        queryClient.invalidateQueries({ queryKey: ['profile-grants', selectedProfileId] });
+      }
     },
   });
 
@@ -221,6 +270,65 @@ export function Settings() {
     queryKey: ['notification-preferences'],
     queryFn: () => api.get<NotificationPreferences>('/api/v1/notifications/preferences'),
   });
+
+  // ── Family sharing data ──
+  interface FamilySummary { id: string; name: string }
+  interface FamilyMember { user_id: string; display_name: string; email: string; family_id: string; family_name?: string }
+  interface GrantRow {
+    id: string;
+    grantee_user_id: string;
+    granted_at: string;
+    via_family_id?: string;
+    email: string;
+    display_name: string;
+  }
+
+  const { data: familiesData } = useQuery({
+    queryKey: ['families'],
+    queryFn: () => api.get<{ items: FamilySummary[] }>('/api/v1/families'),
+  });
+  const families = familiesData?.items || [];
+
+  const memberQueries = useQuery({
+    queryKey: ['family-members-all', families.map((f) => f.id).join(',')],
+    enabled: families.length > 0,
+    queryFn: async () => {
+      const all: FamilyMember[] = [];
+      for (const f of families) {
+        const res = await api.get<{ items: Array<{ user_id: string; display_name: string; email: string }> }>(
+          `/api/v1/families/${f.id}/members`,
+        );
+        for (const m of res.items) {
+          all.push({ ...m, family_id: f.id, family_name: f.name });
+        }
+      }
+      return all;
+    },
+  });
+  const allFamilyMembers = memberQueries.data || [];
+
+  const { data: grantsData } = useQuery({
+    queryKey: ['profile-grants', selectedProfileId],
+    enabled: !!selectedProfileId,
+    queryFn: () => api.get<{ items: GrantRow[] }>(`/api/v1/profiles/${selectedProfileId}/grants`),
+  });
+  const currentGrants = grantsData?.items || [];
+  const grantedUserIds = new Set(currentGrants.map((g) => g.grantee_user_id));
+
+  // Family members minus self, minus those who already have a grant for the
+  // selected profile. Deduped across families by user_id.
+  const shareablePeople = (() => {
+    const seen = new Set<string>();
+    const out: FamilyMember[] = [];
+    for (const m of allFamilyMembers) {
+      if (m.user_id === userId) continue;
+      if (grantedUserIds.has(m.user_id)) continue;
+      if (seen.has(m.user_id)) continue;
+      seen.add(m.user_id);
+      out.push(m);
+    }
+    return out;
+  })();
 
   // Mutations
   const updateNotifPrefs = useMutation({
@@ -766,51 +874,85 @@ export function Settings() {
               </div>
             )}
 
-            {/* Grant / Revoke Access (owner only) */}
+            {/* Share with family member (owner only) */}
             {isProfileOwner && (
               <div>
-                <h4 style={{ marginBottom: 8 }}>{t('settings.grant_access')}</h4>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12 }}>
-                  <div className="form-group" style={{ flex: 1, margin: 0 }}>
-                    <label>{t('settings.grantee_user_id')}</label>
-                    <input
-                      type="text"
-                      value={grantUserId}
-                      onChange={(e) => setGrantUserId(e.target.value)}
-                      placeholder="user-uuid"
-                      style={{ fontFamily: 'monospace', fontSize: 13 }}
-                    />
+                <h4 style={{ marginBottom: 8 }}>{t('settings.share_with_family')}</h4>
+                {families.length === 0 ? (
+                  <p className="text-muted" style={{ fontSize: 13 }}>{t('settings.no_families')}</p>
+                ) : shareablePeople.length === 0 ? (
+                  <p className="text-muted" style={{ fontSize: 13 }}>{t('settings.no_shareable_members')}</p>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 16 }}>
+                    <div className="form-group" style={{ flex: 1, margin: 0 }}>
+                      <label>{t('settings.pick_family_member')}</label>
+                      <select
+                        value={pickedFamilyMember}
+                        onChange={(e) => setPickedFamilyMember(e.target.value)}
+                      >
+                        <option value="">{t('settings.pick_family_member')}</option>
+                        {shareablePeople.map((m) => (
+                          <option key={`${m.family_id}:${m.user_id}`} value={`${m.family_id}:${m.user_id}`}>
+                            {m.display_name || m.email} ({m.family_name})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      className="btn btn-add"
+                      disabled={!pickedFamilyMember || grantMutation.isPending}
+                      onClick={async () => {
+                        const [familyId, granteeUserId] = pickedFamilyMember.split(':');
+                        try {
+                          // Make sure the profile key is unwrapped (may not
+                          // have been if background fetch hasn't run yet).
+                          if (userId) {
+                            await ensureProfileKey(selectedProfile.id, userId, selectedProfile.owner_user_id);
+                          }
+                          const pk = await api.get<{ identity_pubkey: string }>(`/api/v1/users/${granteeUserId}/public-key`);
+                          grantMutation.mutate({
+                            profileId: selectedProfile.id,
+                            granteeUserId,
+                            granteeIdentityPubkey: pk.identity_pubkey,
+                            familyId,
+                          });
+                        } catch {
+                          setProfileMsg(t('settings.grant_failed'));
+                        }
+                      }}
+                    >
+                      {grantMutation.isPending ? t('common.loading') : t('settings.share_action')}
+                    </button>
                   </div>
-                  <button
-                    className="btn btn-add"
-                    onClick={() => grantMutation.mutate({ profileId: selectedProfile.id, granteeUserId: grantUserId })}
-                    disabled={!grantUserId.trim() || grantMutation.isPending}
-                  >
-                    {grantMutation.isPending ? t('common.loading') : t('settings.grant_access')}
-                  </button>
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                  <div className="form-group" style={{ flex: 1, margin: 0 }}>
-                    <label>{t('settings.revoke_access')}</label>
-                    <input
-                      type="text"
-                      value={revokeUserId}
-                      onChange={(e) => setRevokeUserId(e.target.value)}
-                      placeholder="user-uuid"
-                      style={{ fontFamily: 'monospace', fontSize: 13 }}
-                    />
-                  </div>
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => {
-                      revokeGrantMutation.mutate({ profileId: selectedProfile.id, granteeUserId: revokeUserId });
-                      setRevokeUserId('');
-                    }}
-                    disabled={!revokeUserId.trim() || revokeGrantMutation.isPending}
-                  >
-                    {revokeGrantMutation.isPending ? t('common.loading') : t('settings.revoke_access')}
-                  </button>
-                </div>
+                )}
+
+                <h4 style={{ marginTop: 16, marginBottom: 8 }}>{t('settings.current_access')}</h4>
+                {currentGrants.length === 0 ? (
+                  <p className="text-muted" style={{ fontSize: 13 }}>{t('settings.no_grants_yet')}</p>
+                ) : (
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {currentGrants
+                      .filter((g) => g.grantee_user_id !== userId) /* hide own self-grant */
+                      .map((g) => (
+                        <li key={g.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--color-border)' }}>
+                          <div style={{ flex: 1 }}>
+                            <div>{g.display_name || g.email}</div>
+                            <div className="text-muted" style={{ fontSize: 12 }}>
+                              {fmt(g.granted_at, 'PPP')}
+                              {g.via_family_id ? ` — ${t('settings.shared_via_family')}` : ''}
+                            </div>
+                          </div>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => revokeGrantMutation.mutate({ profileId: selectedProfile.id, granteeUserId: g.grantee_user_id })}
+                            disabled={revokeGrantMutation.isPending}
+                          >
+                            {t('settings.revoke_access')}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                )}
               </div>
             )}
           </>
