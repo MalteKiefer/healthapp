@@ -33,15 +33,15 @@ func (r *MedicationRepo) Create(ctx context.Context, m *medications.Medication) 
 
 	query := `
 		INSERT INTO medications (
-			id, profile_id, name, dosage, unit, frequency, route,
-			started_at, ended_at, prescribed_by, reason, notes,
+			id, profile_id,
+			started_at, ended_at,
 			related_diagnosis_id, version, previous_id, is_current,
 			created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
 
 	_, err := r.db.Exec(ctx, query,
-		m.ID, m.ProfileID, m.Name, m.Dosage, m.Unit, m.Frequency, m.Route,
-		m.StartedAt, m.EndedAt, m.PrescribedBy, m.Reason, m.Notes,
+		m.ID, m.ProfileID,
+		m.StartedAt, m.EndedAt,
 		m.RelatedDiagnosisID, m.Version, m.PreviousID, m.IsCurrent,
 		m.CreatedAt, m.UpdatedAt, m.ContentEnc,
 	)
@@ -53,8 +53,8 @@ func (r *MedicationRepo) Create(ctx context.Context, m *medications.Medication) 
 
 func (r *MedicationRepo) GetByID(ctx context.Context, id uuid.UUID) (*medications.Medication, error) {
 	query := `
-		SELECT id, profile_id, name, dosage, unit, frequency, route,
-			started_at, ended_at, prescribed_by, reason, notes,
+		SELECT id, profile_id,
+			started_at, ended_at,
 			related_diagnosis_id, version, previous_id, is_current,
 			created_at, updated_at, deleted_at, content_enc
 		FROM medications WHERE id = $1 AND deleted_at IS NULL`
@@ -76,8 +76,8 @@ func (r *MedicationRepo) List(ctx context.Context, filter medications.ListFilter
 	}
 
 	query := `
-		SELECT id, profile_id, name, dosage, unit, frequency, route,
-			started_at, ended_at, prescribed_by, reason, notes,
+		SELECT id, profile_id,
+			started_at, ended_at,
 			related_diagnosis_id, version, previous_id, is_current,
 			created_at, updated_at, deleted_at, content_enc
 		FROM medications WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE`
@@ -151,15 +151,15 @@ func (r *MedicationRepo) Update(ctx context.Context, m *medications.Medication) 
 
 	query := `
 		INSERT INTO medications (
-			id, profile_id, name, dosage, unit, frequency, route,
-			started_at, ended_at, prescribed_by, reason, notes,
+			id, profile_id,
+			started_at, ended_at,
 			related_diagnosis_id, version, previous_id, is_current,
 			created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
 
 	_, err = tx.Exec(ctx, query,
-		m.ID, m.ProfileID, m.Name, m.Dosage, m.Unit, m.Frequency, m.Route,
-		m.StartedAt, m.EndedAt, m.PrescribedBy, m.Reason, m.Notes,
+		m.ID, m.ProfileID,
+		m.StartedAt, m.EndedAt,
 		m.RelatedDiagnosisID, m.Version, m.PreviousID, m.IsCurrent,
 		m.CreatedAt, m.UpdatedAt, m.ContentEnc,
 	)
@@ -183,8 +183,8 @@ func (r *MedicationRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 
 func (r *MedicationRepo) GetActive(ctx context.Context, profileID uuid.UUID) ([]medications.Medication, error) {
 	query := `
-		SELECT id, profile_id, name, dosage, unit, frequency, route,
-			started_at, ended_at, prescribed_by, reason, notes,
+		SELECT id, profile_id,
+			started_at, ended_at,
 			related_diagnosis_id, version, previous_id, is_current,
 			created_at, updated_at, deleted_at, content_enc
 		FROM medications
@@ -221,13 +221,12 @@ func (r *MedicationRepo) CreateIntake(ctx context.Context, intake *medications.M
 	query := `
 		INSERT INTO medication_intake (
 			id, medication_id, profile_id, scheduled_at, taken_at,
-			dose_taken, skipped_reason, notes, created_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+			created_at, content_enc
+		) VALUES ($1,$2,$3,$4,$5,$6,$7)`
 
 	_, err := r.db.Exec(ctx, query,
 		intake.ID, intake.MedicationID, intake.ProfileID, intake.ScheduledAt,
-		intake.TakenAt, intake.DoseTaken, intake.SkippedReason, intake.Notes,
-		intake.CreatedAt, intake.ContentEnc,
+		intake.TakenAt, intake.CreatedAt, intake.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("insert medication intake: %w", err)
@@ -238,14 +237,14 @@ func (r *MedicationRepo) CreateIntake(ctx context.Context, intake *medications.M
 func (r *MedicationRepo) GetIntakeByID(ctx context.Context, id uuid.UUID) (*medications.MedicationIntake, error) {
 	query := `
 		SELECT id, medication_id, profile_id, scheduled_at, taken_at,
-			dose_taken, skipped_reason, notes, created_at, content_enc
+			created_at, content_enc
 		FROM medication_intake WHERE id = $1`
 
 	var intake medications.MedicationIntake
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&intake.ID, &intake.MedicationID, &intake.ProfileID,
-		&intake.ScheduledAt, &intake.TakenAt, &intake.DoseTaken,
-		&intake.SkippedReason, &intake.Notes, &intake.CreatedAt, &intake.ContentEnc,
+		&intake.ScheduledAt, &intake.TakenAt,
+		&intake.CreatedAt, &intake.ContentEnc,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -259,13 +258,11 @@ func (r *MedicationRepo) GetIntakeByID(ctx context.Context, id uuid.UUID) (*medi
 func (r *MedicationRepo) UpdateIntake(ctx context.Context, intake *medications.MedicationIntake) error {
 	query := `
 		UPDATE medication_intake SET
-			scheduled_at = $2, taken_at = $3, dose_taken = $4,
-			skipped_reason = $5, notes = $6, content_enc = $7
+			scheduled_at = $2, taken_at = $3, content_enc = $4
 		WHERE id = $1`
 
 	tag, err := r.db.Exec(ctx, query,
-		intake.ID, intake.ScheduledAt, intake.TakenAt,
-		intake.DoseTaken, intake.SkippedReason, intake.Notes, intake.ContentEnc,
+		intake.ID, intake.ScheduledAt, intake.TakenAt, intake.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("update intake: %w", err)
@@ -298,7 +295,7 @@ func (r *MedicationRepo) ListIntake(ctx context.Context, medicationID uuid.UUID,
 
 	query := `
 		SELECT id, medication_id, profile_id, scheduled_at, taken_at,
-			dose_taken, skipped_reason, notes, created_at, content_enc
+			created_at, content_enc
 		FROM medication_intake WHERE medication_id = $1
 		ORDER BY created_at DESC`
 
@@ -326,8 +323,8 @@ func (r *MedicationRepo) ListIntake(ctx context.Context, medicationID uuid.UUID,
 		var intake medications.MedicationIntake
 		if err := rows.Scan(
 			&intake.ID, &intake.MedicationID, &intake.ProfileID,
-			&intake.ScheduledAt, &intake.TakenAt, &intake.DoseTaken,
-			&intake.SkippedReason, &intake.Notes, &intake.CreatedAt, &intake.ContentEnc,
+			&intake.ScheduledAt, &intake.TakenAt,
+			&intake.CreatedAt, &intake.ContentEnc,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan intake row: %w", err)
 		}
@@ -345,7 +342,7 @@ func (r *MedicationRepo) GetAdherence(ctx context.Context, medicationID uuid.UUI
 		SELECT
 			COUNT(*) AS total_scheduled,
 			COUNT(*) FILTER (WHERE taken_at IS NOT NULL) AS total_taken,
-			COUNT(*) FILTER (WHERE taken_at IS NULL AND skipped_reason IS NOT NULL) AS total_skipped
+			COUNT(*) FILTER (WHERE taken_at IS NULL) AS total_skipped
 		FROM medication_intake
 		WHERE medication_id = $1`
 
@@ -381,8 +378,8 @@ func (r *MedicationRepo) GetAdherence(ctx context.Context, medicationID uuid.UUI
 func (r *MedicationRepo) scanMedication(row pgx.Row) (*medications.Medication, error) {
 	var m medications.Medication
 	err := row.Scan(
-		&m.ID, &m.ProfileID, &m.Name, &m.Dosage, &m.Unit, &m.Frequency, &m.Route,
-		&m.StartedAt, &m.EndedAt, &m.PrescribedBy, &m.Reason, &m.Notes,
+		&m.ID, &m.ProfileID,
+		&m.StartedAt, &m.EndedAt,
 		&m.RelatedDiagnosisID, &m.Version, &m.PreviousID, &m.IsCurrent,
 		&m.CreatedAt, &m.UpdatedAt, &m.DeletedAt, &m.ContentEnc,
 	)
@@ -424,8 +421,8 @@ func (r *MedicationRepo) SetMedicationIntakeContentEnc(ctx context.Context, id u
 func (r *MedicationRepo) scanMedicationRow(rows pgx.Rows) (*medications.Medication, error) {
 	var m medications.Medication
 	err := rows.Scan(
-		&m.ID, &m.ProfileID, &m.Name, &m.Dosage, &m.Unit, &m.Frequency, &m.Route,
-		&m.StartedAt, &m.EndedAt, &m.PrescribedBy, &m.Reason, &m.Notes,
+		&m.ID, &m.ProfileID,
+		&m.StartedAt, &m.EndedAt,
 		&m.RelatedDiagnosisID, &m.Version, &m.PreviousID, &m.IsCurrent,
 		&m.CreatedAt, &m.UpdatedAt, &m.DeletedAt, &m.ContentEnc,
 	)

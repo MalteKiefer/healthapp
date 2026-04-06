@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -273,35 +272,12 @@ func (h *MedicationHandler) HandleDelete(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleActive returns all active medications (ended_at IS NULL) for a profile.
+// HandleActive is deprecated — filtering is now done client-side after
+// decrypting the full list.
 func (h *MedicationHandler) HandleActive(w http.ResponseWriter, r *http.Request) {
-	claims, ok := ClaimsFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
-		return
-	}
-
-	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
-		return
-	}
-
-	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
-	if err != nil || !hasAccess {
-		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
-		return
-	}
-
-	items, err := h.medRepo.GetActive(r.Context(), profileID)
-	if err != nil {
-		h.logger.Error("get active medications", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"items": items,
+	writeJSON(w, http.StatusGone, map[string]string{
+		"error":   "endpoint_removed",
+		"message": "This endpoint has been removed. Use the list endpoint with client-side filtering instead.",
 	})
 }
 
@@ -728,66 +704,10 @@ func (h *MedicationHandler) HandleMedicationIntakeMigrateContent(w http.Response
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleAdherence returns adherence statistics for a medication.
+// HandleAdherence is deprecated — adherence is now computed client-side.
 func (h *MedicationHandler) HandleAdherence(w http.ResponseWriter, r *http.Request) {
-	claims, ok := ClaimsFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
-		return
-	}
-
-	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
-		return
-	}
-
-	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
-	if err != nil || !hasAccess {
-		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
-		return
-	}
-
-	medID, err := uuid.Parse(chi.URLParam(r, "medicationID"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_medication_id"))
-		return
-	}
-
-	// Verify medication exists and belongs to profile
-	med, err := h.medRepo.GetByID(r.Context(), medID)
-	if err != nil {
-		if errors.Is(err, postgres.ErrNotFound) {
-			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
-			return
-		}
-		h.logger.Error("get medication", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
-	if med.ProfileID != profileID {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
-		return
-	}
-
-	var from, to *time.Time
-	if v := r.URL.Query().Get("from"); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			from = &t
-		}
-	}
-	if v := r.URL.Query().Get("to"); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			to = &t
-		}
-	}
-
-	summary, err := h.medRepo.GetAdherence(r.Context(), medID, from, to)
-	if err != nil {
-		h.logger.Error("get adherence", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
-
-	writeJSON(w, http.StatusOK, summary)
+	writeJSON(w, http.StatusGone, map[string]string{
+		"error":   "endpoint_removed",
+		"message": "This endpoint has been removed. Use client-side rendering instead.",
+	})
 }

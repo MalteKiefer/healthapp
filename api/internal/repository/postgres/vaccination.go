@@ -33,17 +33,15 @@ func (r *VaccinationRepo) Create(ctx context.Context, v *vaccinations.Vaccinatio
 
 	query := `
 		INSERT INTO vaccinations (
-			id, profile_id, vaccine_name, trade_name, manufacturer,
-			lot_number, dose_number, administered_at, administered_by,
-			next_due_at, site, notes, document_id,
+			id, profile_id,
+			administered_at, next_due_at, document_id,
 			version, previous_id, is_current,
 			created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
 
 	_, err := r.db.Exec(ctx, query,
-		v.ID, v.ProfileID, v.VaccineName, v.TradeName, v.Manufacturer,
-		v.LotNumber, v.DoseNumber, v.AdministeredAt, v.AdministeredBy,
-		v.NextDueAt, v.Site, v.Notes, v.DocumentID,
+		v.ID, v.ProfileID,
+		v.AdministeredAt, v.NextDueAt, v.DocumentID,
 		v.Version, v.PreviousID, v.IsCurrent,
 		v.CreatedAt, v.UpdatedAt, v.ContentEnc,
 	)
@@ -55,9 +53,8 @@ func (r *VaccinationRepo) Create(ctx context.Context, v *vaccinations.Vaccinatio
 
 func (r *VaccinationRepo) GetByID(ctx context.Context, id uuid.UUID) (*vaccinations.Vaccination, error) {
 	query := `
-		SELECT id, profile_id, vaccine_name, trade_name, manufacturer,
-			lot_number, dose_number, administered_at, administered_by,
-			next_due_at, site, notes, document_id,
+		SELECT id, profile_id,
+			administered_at, next_due_at, document_id,
 			version, previous_id, is_current,
 			created_at, updated_at, deleted_at, content_enc
 		FROM vaccinations WHERE id = $1 AND deleted_at IS NULL AND is_current = TRUE`
@@ -75,9 +72,8 @@ func (r *VaccinationRepo) List(ctx context.Context, filter vaccinations.ListFilt
 	}
 
 	query := `
-		SELECT id, profile_id, vaccine_name, trade_name, manufacturer,
-			lot_number, dose_number, administered_at, administered_by,
-			next_due_at, site, notes, document_id,
+		SELECT id, profile_id,
+			administered_at, next_due_at, document_id,
 			version, previous_id, is_current,
 			created_at, updated_at, deleted_at, content_enc
 		FROM vaccinations WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE`
@@ -147,17 +143,15 @@ func (r *VaccinationRepo) Update(ctx context.Context, v *vaccinations.Vaccinatio
 
 	query := `
 		INSERT INTO vaccinations (
-			id, profile_id, vaccine_name, trade_name, manufacturer,
-			lot_number, dose_number, administered_at, administered_by,
-			next_due_at, site, notes, document_id,
+			id, profile_id,
+			administered_at, next_due_at, document_id,
 			version, previous_id, is_current,
 			created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
 
 	_, err = tx.Exec(ctx, query,
-		v.ID, v.ProfileID, v.VaccineName, v.TradeName, v.Manufacturer,
-		v.LotNumber, v.DoseNumber, v.AdministeredAt, v.AdministeredBy,
-		v.NextDueAt, v.Site, v.Notes, v.DocumentID,
+		v.ID, v.ProfileID,
+		v.AdministeredAt, v.NextDueAt, v.DocumentID,
 		v.Version, v.PreviousID, v.IsCurrent,
 		v.CreatedAt, v.UpdatedAt, v.ContentEnc,
 	)
@@ -182,9 +176,8 @@ func (r *VaccinationRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 // GetDue returns vaccinations where next_due_at is in the future or within the past 30 days.
 func (r *VaccinationRepo) GetDue(ctx context.Context, profileID uuid.UUID) ([]vaccinations.Vaccination, error) {
 	query := `
-		SELECT id, profile_id, vaccine_name, trade_name, manufacturer,
-			lot_number, dose_number, administered_at, administered_by,
-			next_due_at, site, notes, document_id,
+		SELECT id, profile_id,
+			administered_at, next_due_at, document_id,
 			version, previous_id, is_current,
 			created_at, updated_at, deleted_at, content_enc
 		FROM vaccinations
@@ -219,9 +212,8 @@ func (r *VaccinationRepo) GetDue(ctx context.Context, profileID uuid.UUID) ([]va
 func (r *VaccinationRepo) scanVaccination(row pgx.Row) (*vaccinations.Vaccination, error) {
 	var v vaccinations.Vaccination
 	err := row.Scan(
-		&v.ID, &v.ProfileID, &v.VaccineName, &v.TradeName, &v.Manufacturer,
-		&v.LotNumber, &v.DoseNumber, &v.AdministeredAt, &v.AdministeredBy,
-		&v.NextDueAt, &v.Site, &v.Notes, &v.DocumentID,
+		&v.ID, &v.ProfileID,
+		&v.AdministeredAt, &v.NextDueAt, &v.DocumentID,
 		&v.Version, &v.PreviousID, &v.IsCurrent,
 		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
 	)
@@ -250,9 +242,8 @@ func (r *VaccinationRepo) SetContentEnc(ctx context.Context, id uuid.UUID, conte
 func (r *VaccinationRepo) scanVaccinationRow(rows pgx.Rows) (*vaccinations.Vaccination, error) {
 	var v vaccinations.Vaccination
 	err := rows.Scan(
-		&v.ID, &v.ProfileID, &v.VaccineName, &v.TradeName, &v.Manufacturer,
-		&v.LotNumber, &v.DoseNumber, &v.AdministeredAt, &v.AdministeredBy,
-		&v.NextDueAt, &v.Site, &v.Notes, &v.DocumentID,
+		&v.ID, &v.ProfileID,
+		&v.AdministeredAt, &v.NextDueAt, &v.DocumentID,
 		&v.Version, &v.PreviousID, &v.IsCurrent,
 		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
 	)

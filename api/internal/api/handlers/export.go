@@ -2,12 +2,10 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
@@ -23,108 +21,12 @@ func NewExportHandler(db *pgxpool.Pool, logger *zap.Logger) *ExportHandler {
 	return &ExportHandler{db: db, logger: logger}
 }
 
-// HandleExportFHIR exports profile data as a FHIR R4 Bundle.
-// GET /profiles/{profileID}/export/fhir
+// HandleExportFHIR is deprecated — FHIR export is now generated client-side.
 func (h *ExportHandler) HandleExportFHIR(w http.ResponseWriter, r *http.Request) {
-	claims, ok := ClaimsFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
-		return
-	}
-
-	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
-		return
-	}
-
-	// Check access via direct DB query (no profile repo dependency)
-	var hasAccess bool
-	err = h.db.QueryRow(r.Context(),
-		`SELECT EXISTS(
-			SELECT 1 FROM profiles WHERE id = $1 AND owner_user_id = $2
-			UNION ALL
-			SELECT 1 FROM profile_key_grants WHERE profile_id = $1 AND grantee_user_id = $2 AND revoked_at IS NULL
-		)`, profileID, claims.UserID).Scan(&hasAccess)
-	if err != nil || !hasAccess {
-		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
-		return
-	}
-
-	// Load profile metadata
-	var displayName string
-	var dateOfBirth *time.Time
-	var biologicalSex string
-	err = h.db.QueryRow(r.Context(),
-		`SELECT display_name, date_of_birth, biological_sex FROM profiles WHERE id = $1 AND deleted_at IS NULL`,
-		profileID).Scan(&displayName, &dateOfBirth, &biologicalSex)
-	if err != nil {
-		h.logger.Error("load profile for fhir export", zap.Error(err))
-		writeJSON(w, http.StatusNotFound, errorResponse("profile_not_found"))
-		return
-	}
-
-	// Build FHIR Bundle
-	bundle := map[string]interface{}{
-		"resourceType": "Bundle",
-		"type":         "collection",
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-		"entry":        []interface{}{},
-	}
-
-	entries := []interface{}{}
-
-	// Patient resource
-	patient := map[string]interface{}{
-		"resourceType": "Patient",
-		"id":           profileID.String(),
-		"name":         []map[string]interface{}{{"text": displayName}},
-		"gender":       fhirGender(biologicalSex),
-	}
-	if dateOfBirth != nil {
-		patient["birthDate"] = dateOfBirth.Format("2006-01-02")
-	}
-	entries = append(entries, map[string]interface{}{
-		"resource": patient,
+	writeJSON(w, http.StatusGone, map[string]string{
+		"error":   "endpoint_removed",
+		"message": "This endpoint has been removed. Use client-side rendering instead.",
 	})
-
-	// Vitals as Observation resources
-	vitalEntries, err := h.buildVitalObservations(r.Context(), profileID)
-	if err != nil {
-		h.logger.Error("build vital observations", zap.Error(err))
-	} else {
-		entries = append(entries, vitalEntries...)
-	}
-
-	// Medications as MedicationStatement resources
-	medEntries, err := h.buildMedicationStatements(r.Context(), profileID)
-	if err != nil {
-		h.logger.Error("build medication statements", zap.Error(err))
-	} else {
-		entries = append(entries, medEntries...)
-	}
-
-	// Allergies as AllergyIntolerance resources
-	allergyEntries, err := h.buildAllergyIntolerances(r.Context(), profileID)
-	if err != nil {
-		h.logger.Error("build allergy intolerances", zap.Error(err))
-	} else {
-		entries = append(entries, allergyEntries...)
-	}
-
-	// Diagnoses as Condition resources
-	conditionEntries, err := h.buildConditions(r.Context(), profileID)
-	if err != nil {
-		h.logger.Error("build conditions", zap.Error(err))
-	} else {
-		entries = append(entries, conditionEntries...)
-	}
-
-	bundle["entry"] = entries
-
-	w.Header().Set("Content-Type", "application/fhir+json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(bundle)
 }
 
 // HandleImportFHIR is a stub for FHIR import.

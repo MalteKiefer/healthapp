@@ -32,9 +32,9 @@ func (r *SymptomRepo) Create(ctx context.Context, s *symptoms.SymptomRecord) err
 	defer tx.Rollback(ctx)
 
 	_, err = tx.Exec(ctx, `
-		INSERT INTO symptom_records (id, profile_id, recorded_at, trigger_factors, notes, linked_vital_id, created_at, updated_at, content_enc)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-		s.ID, s.ProfileID, s.RecordedAt, s.TriggerFactors, s.Notes, s.LinkedVitalID, s.CreatedAt, s.UpdatedAt, s.ContentEnc)
+		INSERT INTO symptom_records (id, profile_id, linked_vital_id, created_at, updated_at, content_enc)
+		VALUES ($1,$2,$3,$4,$5,$6)`,
+		s.ID, s.ProfileID, s.LinkedVitalID, s.CreatedAt, s.UpdatedAt, s.ContentEnc)
 	if err != nil {
 		return fmt.Errorf("insert symptom record: %w", err)
 	}
@@ -46,9 +46,9 @@ func (r *SymptomRepo) Create(ctx context.Context, s *symptoms.SymptomRecord) err
 		}
 		e.SymptomRecordID = s.ID
 		_, err = tx.Exec(ctx, `
-			INSERT INTO symptom_entries (id, symptom_record_id, symptom_type, custom_label, intensity, body_region, duration_minutes, content_enc)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-			e.ID, e.SymptomRecordID, e.SymptomType, e.CustomLabel, e.Intensity, e.BodyRegion, e.DurationMinutes, e.ContentEnc)
+			INSERT INTO symptom_entries (id, symptom_record_id, content_enc)
+			VALUES ($1,$2,$3)`,
+			e.ID, e.SymptomRecordID, e.ContentEnc)
 		if err != nil {
 			return fmt.Errorf("insert symptom entry: %w", err)
 		}
@@ -60,9 +60,9 @@ func (r *SymptomRepo) Create(ctx context.Context, s *symptoms.SymptomRecord) err
 func (r *SymptomRepo) GetByID(ctx context.Context, id uuid.UUID) (*symptoms.SymptomRecord, error) {
 	var s symptoms.SymptomRecord
 	err := r.db.QueryRow(ctx, `
-		SELECT id, profile_id, recorded_at, trigger_factors, notes, linked_vital_id, created_at, updated_at, deleted_at, content_enc
+		SELECT id, profile_id, linked_vital_id, created_at, updated_at, deleted_at, content_enc
 		FROM symptom_records WHERE id = $1 AND deleted_at IS NULL`, id).Scan(
-		&s.ID, &s.ProfileID, &s.RecordedAt, &s.TriggerFactors, &s.Notes, &s.LinkedVitalID, &s.CreatedAt, &s.UpdatedAt, &s.DeletedAt, &s.ContentEnc)
+		&s.ID, &s.ProfileID, &s.LinkedVitalID, &s.CreatedAt, &s.UpdatedAt, &s.DeletedAt, &s.ContentEnc)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -72,7 +72,7 @@ func (r *SymptomRepo) GetByID(ctx context.Context, id uuid.UUID) (*symptoms.Symp
 
 	// Load entries
 	rows, err := r.db.Query(ctx, `
-		SELECT id, symptom_record_id, symptom_type, custom_label, intensity, body_region, duration_minutes, content_enc
+		SELECT id, symptom_record_id, content_enc
 		FROM symptom_entries WHERE symptom_record_id = $1`, id)
 	if err != nil {
 		return nil, fmt.Errorf("query entries: %w", err)
@@ -80,7 +80,7 @@ func (r *SymptomRepo) GetByID(ctx context.Context, id uuid.UUID) (*symptoms.Symp
 	defer rows.Close()
 	for rows.Next() {
 		var e symptoms.SymptomEntry
-		if err := rows.Scan(&e.ID, &e.SymptomRecordID, &e.SymptomType, &e.CustomLabel, &e.Intensity, &e.BodyRegion, &e.DurationMinutes, &e.ContentEnc); err != nil {
+		if err := rows.Scan(&e.ID, &e.SymptomRecordID, &e.ContentEnc); err != nil {
 			return nil, fmt.Errorf("scan symptom entry row: %w", err)
 		}
 		s.Entries = append(s.Entries, e)
@@ -100,9 +100,9 @@ func (r *SymptomRepo) List(ctx context.Context, profileID uuid.UUID, limit, offs
 	}
 
 	rows, err := r.db.Query(ctx, `
-		SELECT id, profile_id, recorded_at, trigger_factors, notes, linked_vital_id, created_at, updated_at, deleted_at, content_enc
+		SELECT id, profile_id, linked_vital_id, created_at, updated_at, deleted_at, content_enc
 		FROM symptom_records WHERE profile_id = $1 AND deleted_at IS NULL
-		ORDER BY recorded_at DESC LIMIT $2 OFFSET $3`, profileID, limit, offset)
+		ORDER BY created_at DESC LIMIT $2 OFFSET $3`, profileID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("query symptom records: %w", err)
 	}
@@ -111,7 +111,7 @@ func (r *SymptomRepo) List(ctx context.Context, profileID uuid.UUID, limit, offs
 	var result []symptoms.SymptomRecord
 	for rows.Next() {
 		var s symptoms.SymptomRecord
-		if err := rows.Scan(&s.ID, &s.ProfileID, &s.RecordedAt, &s.TriggerFactors, &s.Notes, &s.LinkedVitalID, &s.CreatedAt, &s.UpdatedAt, &s.DeletedAt, &s.ContentEnc); err != nil {
+		if err := rows.Scan(&s.ID, &s.ProfileID, &s.LinkedVitalID, &s.CreatedAt, &s.UpdatedAt, &s.DeletedAt, &s.ContentEnc); err != nil {
 			return nil, 0, fmt.Errorf("scan symptom record row: %w", err)
 		}
 		result = append(result, s)
@@ -126,9 +126,9 @@ func (r *SymptomRepo) List(ctx context.Context, profileID uuid.UUID, limit, offs
 func (r *SymptomRepo) Update(ctx context.Context, s *symptoms.SymptomRecord) error {
 	s.UpdatedAt = time.Now().UTC()
 	_, err := r.db.Exec(ctx, `
-		UPDATE symptom_records SET recorded_at=$2, trigger_factors=$3, notes=$4, linked_vital_id=$5, updated_at=$6, content_enc=$7
+		UPDATE symptom_records SET linked_vital_id=$2, updated_at=$3, content_enc=$4
 		WHERE id=$1 AND deleted_at IS NULL`,
-		s.ID, s.RecordedAt, s.TriggerFactors, s.Notes, s.LinkedVitalID, s.UpdatedAt, s.ContentEnc)
+		s.ID, s.LinkedVitalID, s.UpdatedAt, s.ContentEnc)
 	if err != nil {
 		return fmt.Errorf("update symptom record: %w", err)
 	}

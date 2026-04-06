@@ -354,11 +354,11 @@ func (h *SymptomHandler) HandleSymptomEntryMigrateContent(w http.ResponseWriter,
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleChart returns 501 as symptom charting is not yet implemented.
+// HandleChart is deprecated — symptom charting is now computed client-side.
 func (h *SymptomHandler) HandleChart(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusNotImplemented, map[string]string{
-		"error":   "not_implemented",
-		"message": "symptom charting coming soon",
+	writeJSON(w, http.StatusGone, map[string]string{
+		"error":   "endpoint_removed",
+		"message": "This endpoint has been removed. Use client-side rendering instead.",
 	})
 }
 

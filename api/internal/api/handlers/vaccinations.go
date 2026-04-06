@@ -333,34 +333,11 @@ func (h *VaccinationHandler) HandleMigrateContent(w http.ResponseWriter, r *http
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleDue returns upcoming or recently past booster vaccinations.
+// HandleDue is deprecated — filtering is now done client-side after
+// decrypting the full list.
 func (h *VaccinationHandler) HandleDue(w http.ResponseWriter, r *http.Request) {
-	claims, ok := ClaimsFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
-		return
-	}
-
-	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
-		return
-	}
-
-	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
-	if err != nil || !hasAccess {
-		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
-		return
-	}
-
-	items, err := h.vaccinationRepo.GetDue(r.Context(), profileID)
-	if err != nil {
-		h.logger.Error("get due vaccinations", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"items": items,
+	writeJSON(w, http.StatusGone, map[string]string{
+		"error":   "endpoint_removed",
+		"message": "This endpoint has been removed. Use the list endpoint with client-side filtering instead.",
 	})
 }

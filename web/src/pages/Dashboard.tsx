@@ -60,18 +60,18 @@ export function Dashboard() {
   // Fetch dashboard data
   const { data: vitalsData } = useVitals(profileId, { limit: 5 });
   const { data: tasksData, isLoading: tasksLoading, isError: tasksError } = useQuery({
-    queryKey: ['tasks-open', profileId],
-    queryFn: () => api.get<{ items: Task[] }>(`/api/v1/profiles/${profileId}/tasks/open`),
+    queryKey: ['tasks', profileId],
+    queryFn: () => api.get<{ items: Task[] }>(`/api/v1/profiles/${profileId}/tasks`),
     enabled: !!profileId,
   });
   const { data: apptsData, isLoading: apptsLoading, isError: apptsError } = useQuery({
-    queryKey: ['appointments-upcoming', profileId],
-    queryFn: () => appointmentsApi.upcoming(profileId),
+    queryKey: ['appointments', profileId],
+    queryFn: () => appointmentsApi.list(profileId),
     enabled: !!profileId,
   });
   const { data: medsData, isLoading: medsLoading, isError: medsError } = useQuery({
-    queryKey: ['medications-active', profileId],
-    queryFn: () => medicationsApi.active(profileId),
+    queryKey: ['medications', profileId],
+    queryFn: () => medicationsApi.list(profileId),
     enabled: !!profileId,
   });
   const { data: diaryData, isLoading: diaryLoading, isError: diaryError } = useQuery({
@@ -81,9 +81,10 @@ export function Dashboard() {
   });
 
   const recentVitals = vitalsData?.items || [];
-  const openTasks = tasksData?.items || [];
-  const upcomingAppts = apptsData?.items || [];
-  const activeMeds = medsData?.items || [];
+  const openTasks = (tasksData?.items || []).filter((t: Task) => t.status !== 'done');
+  const now = new Date();
+  const upcomingAppts = (apptsData?.items || []).filter((a: { scheduled_at: string }) => new Date(a.scheduled_at) >= now);
+  const activeMeds = (medsData?.items || []).filter((m: { ended_at?: string }) => !m.ended_at);
   const recentDiary = diaryData?.items || [];
 
   // Latest vital for the summary stat

@@ -7,7 +7,6 @@ import { ProfileSelector } from '../components/ProfileSelector';
 import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
-import { api } from '../api/client';
 import { vaccinationsApi, type Vaccination } from '../api/vaccinations';
 import { ContactPicker } from '../components/ContactPicker';
 
@@ -32,11 +31,8 @@ export function Vaccinations() {
     enabled: !!profileId,
   });
 
-  const { data: dueData } = useQuery({
-    queryKey: ['vaccinations-due', profileId],
-    queryFn: () => api.get<{ items: Vaccination[] }>(`/api/v1/profiles/${profileId}/vaccinations/due`),
-    enabled: !!profileId,
-  });
+  // Due vaccinations are now filtered client-side from the full list
+  // (server endpoint returned 410 Gone after encryption migration).
 
   const fixDates = (data: Record<string, unknown>, dateFields: string[]) => {
     const cleaned = { ...data };
@@ -56,7 +52,7 @@ export function Vaccinations() {
     mutationFn: (v: Partial<Vaccination>) => vaccinationsApi.create(profileId, fixDates(v as Record<string, unknown>, ['administered_at', 'next_due_at']) as Partial<Vaccination>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
-      queryClient.invalidateQueries({ queryKey: ['vaccinations-due', profileId] });
+      // Due items are derived from the main list, no separate query to invalidate.
       setShowForm(false);
       reset();
     },
@@ -67,7 +63,7 @@ export function Vaccinations() {
       vaccinationsApi.update(profileId, id, fixDates(data as Record<string, unknown>, ['administered_at', 'next_due_at']) as Partial<Vaccination>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
-      queryClient.invalidateQueries({ queryKey: ['vaccinations-due', profileId] });
+      // Due items are derived from the main list, no separate query to invalidate.
       setEditTarget(null);
     },
   });
@@ -76,7 +72,7 @@ export function Vaccinations() {
     mutationFn: (id: string) => vaccinationsApi.delete(profileId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
-      queryClient.invalidateQueries({ queryKey: ['vaccinations-due', profileId] });
+      // Due items are derived from the main list, no separate query to invalidate.
     },
   });
 
@@ -93,7 +89,7 @@ export function Vaccinations() {
     site: editTarget.site || '',
   } : undefined });
   const items = data?.items || [];
-  const dueItems = dueData?.items || [];
+  const dueItems = items.filter((v) => v.next_due_at && differenceInDays(new Date(v.next_due_at), new Date()) <= 90);
 
   const sortedItems = [...items].sort((a, b) => {
     const aVal = (a as unknown as Record<string,unknown>)[sortCol];

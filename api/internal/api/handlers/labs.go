@@ -75,53 +75,11 @@ func (h *LabHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// HandleTrends returns aggregated marker time series for trend visualization.
+// HandleTrends is deprecated — lab trends are now computed client-side.
 func (h *LabHandler) HandleTrends(w http.ResponseWriter, r *http.Request) {
-	claims, ok := ClaimsFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
-		return
-	}
-
-	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
-		return
-	}
-
-	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
-	if err != nil || !hasAccess {
-		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
-		return
-	}
-
-	var from, to *time.Time
-	if v := r.URL.Query().Get("from"); v != "" {
-		t, err := time.Parse(time.RFC3339, v)
-		if err != nil {
-			writeJSON(w, http.StatusBadRequest, errorResponse("invalid_from_date"))
-			return
-		}
-		from = &t
-	}
-	if v := r.URL.Query().Get("to"); v != "" {
-		t, err := time.Parse(time.RFC3339, v)
-		if err != nil {
-			writeJSON(w, http.StatusBadRequest, errorResponse("invalid_to_date"))
-			return
-		}
-		to = &t
-	}
-
-	markers, err := h.labRepo.ListTrends(r.Context(), profileID, from, to)
-	if err != nil {
-		h.logger.Error("list lab trends", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"markers": markers,
+	writeJSON(w, http.StatusGone, map[string]string{
+		"error":   "endpoint_removed",
+		"message": "This endpoint has been removed. Use client-side rendering instead.",
 	})
 }
 

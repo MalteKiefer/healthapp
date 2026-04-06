@@ -33,15 +33,13 @@ func (r *DiagnosisRepo) Create(ctx context.Context, d *diagnoses.Diagnosis) erro
 
 	query := `
 		INSERT INTO diagnoses (
-			id, profile_id, name, icd10_code, status,
-			diagnosed_at, diagnosed_by, resolved_at, notes,
+			id, profile_id,
 			version, previous_id, is_current,
 			created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
 
 	_, err := r.db.Exec(ctx, query,
-		d.ID, d.ProfileID, d.Name, d.ICD10Code, d.Status,
-		d.DiagnosedAt, d.DiagnosedBy, d.ResolvedAt, d.Notes,
+		d.ID, d.ProfileID,
 		d.Version, d.PreviousID, d.IsCurrent,
 		d.CreatedAt, d.UpdatedAt, d.ContentEnc,
 	)
@@ -53,8 +51,7 @@ func (r *DiagnosisRepo) Create(ctx context.Context, d *diagnoses.Diagnosis) erro
 
 func (r *DiagnosisRepo) GetByID(ctx context.Context, id uuid.UUID) (*diagnoses.Diagnosis, error) {
 	query := `
-		SELECT id, profile_id, name, icd10_code, status,
-			diagnosed_at, diagnosed_by, resolved_at, notes,
+		SELECT id, profile_id,
 			version, previous_id, is_current,
 			created_at, updated_at, deleted_at, content_enc
 		FROM diagnoses WHERE id = $1 AND deleted_at IS NULL AND is_current = TRUE`
@@ -65,12 +62,6 @@ func (r *DiagnosisRepo) GetByID(ctx context.Context, id uuid.UUID) (*diagnoses.D
 func (r *DiagnosisRepo) List(ctx context.Context, filter diagnoses.ListFilter) ([]diagnoses.Diagnosis, int, error) {
 	countQuery := "SELECT COUNT(*) FROM diagnoses WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE"
 	args := []interface{}{filter.ProfileID}
-	argIdx := 2
-
-	if filter.Status != nil {
-		countQuery += fmt.Sprintf(" AND status = $%d", argIdx)
-		args = append(args, *filter.Status)
-	}
 
 	var total int
 	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
@@ -78,20 +69,13 @@ func (r *DiagnosisRepo) List(ctx context.Context, filter diagnoses.ListFilter) (
 	}
 
 	query := `
-		SELECT id, profile_id, name, icd10_code, status,
-			diagnosed_at, diagnosed_by, resolved_at, notes,
+		SELECT id, profile_id,
 			version, previous_id, is_current,
 			created_at, updated_at, deleted_at, content_enc
 		FROM diagnoses WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE`
 
 	listArgs := []interface{}{filter.ProfileID}
 	listIdx := 2
-
-	if filter.Status != nil {
-		query += fmt.Sprintf(" AND status = $%d", listIdx)
-		listArgs = append(listArgs, *filter.Status)
-		listIdx++
-	}
 
 	query += " ORDER BY created_at DESC"
 
@@ -155,15 +139,13 @@ func (r *DiagnosisRepo) Update(ctx context.Context, d *diagnoses.Diagnosis) erro
 
 	query := `
 		INSERT INTO diagnoses (
-			id, profile_id, name, icd10_code, status,
-			diagnosed_at, diagnosed_by, resolved_at, notes,
+			id, profile_id,
 			version, previous_id, is_current,
 			created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
 
 	_, err = tx.Exec(ctx, query,
-		d.ID, d.ProfileID, d.Name, d.ICD10Code, d.Status,
-		d.DiagnosedAt, d.DiagnosedBy, d.ResolvedAt, d.Notes,
+		d.ID, d.ProfileID,
 		d.Version, d.PreviousID, d.IsCurrent,
 		d.CreatedAt, d.UpdatedAt, d.ContentEnc,
 	)
@@ -188,8 +170,7 @@ func (r *DiagnosisRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 func (r *DiagnosisRepo) scanDiagnosis(row pgx.Row) (*diagnoses.Diagnosis, error) {
 	var d diagnoses.Diagnosis
 	err := row.Scan(
-		&d.ID, &d.ProfileID, &d.Name, &d.ICD10Code, &d.Status,
-		&d.DiagnosedAt, &d.DiagnosedBy, &d.ResolvedAt, &d.Notes,
+		&d.ID, &d.ProfileID,
 		&d.Version, &d.PreviousID, &d.IsCurrent,
 		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt, &d.ContentEnc,
 	)
@@ -219,8 +200,7 @@ func (r *DiagnosisRepo) SetContentEnc(ctx context.Context, id uuid.UUID, content
 func (r *DiagnosisRepo) scanDiagnosisRow(rows pgx.Rows) (*diagnoses.Diagnosis, error) {
 	var d diagnoses.Diagnosis
 	err := rows.Scan(
-		&d.ID, &d.ProfileID, &d.Name, &d.ICD10Code, &d.Status,
-		&d.DiagnosedAt, &d.DiagnosedBy, &d.ResolvedAt, &d.Notes,
+		&d.ID, &d.ProfileID,
 		&d.Version, &d.PreviousID, &d.IsCurrent,
 		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt, &d.ContentEnc,
 	)

@@ -33,14 +33,12 @@ func (r *AllergyRepo) Create(ctx context.Context, a *allergies.Allergy) error {
 
 	query := `
 		INSERT INTO allergies (
-			id, profile_id, name, category, reaction_type, severity,
-			onset_date, diagnosed_by, notes, status,
+			id, profile_id,
 			version, previous_id, is_current, created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
 
 	_, err := r.db.Exec(ctx, query,
-		a.ID, a.ProfileID, a.Name, a.Category, a.ReactionType, a.Severity,
-		a.OnsetDate, a.DiagnosedBy, a.Notes, a.Status,
+		a.ID, a.ProfileID,
 		a.Version, a.PreviousID, a.IsCurrent, a.CreatedAt, a.UpdatedAt, a.ContentEnc,
 	)
 	if err != nil {
@@ -51,8 +49,7 @@ func (r *AllergyRepo) Create(ctx context.Context, a *allergies.Allergy) error {
 
 func (r *AllergyRepo) GetByID(ctx context.Context, id uuid.UUID) (*allergies.Allergy, error) {
 	query := `
-		SELECT id, profile_id, name, category, reaction_type, severity,
-			onset_date, diagnosed_by, notes, status,
+		SELECT id, profile_id,
 			version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
 		FROM allergies WHERE id = $1 AND deleted_at IS NULL`
 
@@ -69,8 +66,7 @@ func (r *AllergyRepo) List(ctx context.Context, filter allergies.ListFilter) ([]
 	}
 
 	query := `
-		SELECT id, profile_id, name, category, reaction_type, severity,
-			onset_date, diagnosed_by, notes, status,
+		SELECT id, profile_id,
 			version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
 		FROM allergies WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE`
 
@@ -139,14 +135,12 @@ func (r *AllergyRepo) Update(ctx context.Context, a *allergies.Allergy) error {
 
 	query := `
 		INSERT INTO allergies (
-			id, profile_id, name, category, reaction_type, severity,
-			onset_date, diagnosed_by, notes, status,
+			id, profile_id,
 			version, previous_id, is_current, created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
 
 	_, err = tx.Exec(ctx, query,
-		a.ID, a.ProfileID, a.Name, a.Category, a.ReactionType, a.Severity,
-		a.OnsetDate, a.DiagnosedBy, a.Notes, a.Status,
+		a.ID, a.ProfileID,
 		a.Version, a.PreviousID, a.IsCurrent, a.CreatedAt, a.UpdatedAt, a.ContentEnc,
 	)
 	if err != nil {
@@ -170,8 +164,7 @@ func (r *AllergyRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 func (r *AllergyRepo) scanAllergy(row pgx.Row) (*allergies.Allergy, error) {
 	var a allergies.Allergy
 	err := row.Scan(
-		&a.ID, &a.ProfileID, &a.Name, &a.Category, &a.ReactionType, &a.Severity,
-		&a.OnsetDate, &a.DiagnosedBy, &a.Notes, &a.Status,
+		&a.ID, &a.ProfileID,
 		&a.Version, &a.PreviousID, &a.IsCurrent, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt, &a.ContentEnc,
 	)
 	if err != nil {
@@ -200,8 +193,7 @@ func (r *AllergyRepo) SetContentEnc(ctx context.Context, id uuid.UUID, contentEn
 func (r *AllergyRepo) scanAllergyRow(rows pgx.Rows) (*allergies.Allergy, error) {
 	var a allergies.Allergy
 	err := rows.Scan(
-		&a.ID, &a.ProfileID, &a.Name, &a.Category, &a.ReactionType, &a.Severity,
-		&a.OnsetDate, &a.DiagnosedBy, &a.Notes, &a.Status,
+		&a.ID, &a.ProfileID,
 		&a.Version, &a.PreviousID, &a.IsCurrent, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt, &a.ContentEnc,
 	)
 	if err != nil {

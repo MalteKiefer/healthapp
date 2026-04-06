@@ -18,6 +18,7 @@ type Profile struct {
 	RhesusFactor          *string          `json:"rhesus_factor,omitempty"`
 	AvatarColor           string           `json:"avatar_color"`
 	AvatarImageEnc        []byte           `json:"avatar_image_enc,omitempty"`
+	ContentEnc            *string          `json:"content_enc,omitempty"`
 	ArchivedAt            *time.Time       `json:"archived_at,omitempty"`
 	OnboardingCompletedAt *time.Time       `json:"onboarding_completed_at,omitempty"`
 	RotationState         string           `json:"rotation_state"`

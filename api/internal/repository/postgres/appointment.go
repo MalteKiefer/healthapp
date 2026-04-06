@@ -24,19 +24,15 @@ func (r *AppointmentRepo) Create(ctx context.Context, a *appointments.Appointmen
 	now := time.Now().UTC()
 	a.CreatedAt = now
 	a.UpdatedAt = now
-	if a.Recurrence == "" {
-		a.Recurrence = "none"
-	}
 	if a.Status == "" {
 		a.Status = "scheduled"
 	}
 
 	_, err := r.db.Exec(ctx, `
-		INSERT INTO appointments (id, profile_id, title, appointment_type, scheduled_at, duration_minutes, doctor_id, location, preparation_notes, reminder_days_before, status, recurrence, created_at, updated_at, content_enc)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
-		a.ID, a.ProfileID, a.Title, a.AppointmentType, a.ScheduledAt, a.DurationMinutes,
-		a.DoctorID, a.Location, a.PreparationNotes, a.ReminderDaysBefore,
-		a.Status, a.Recurrence, a.CreatedAt, a.UpdatedAt, a.ContentEnc)
+		INSERT INTO appointments (id, profile_id, scheduled_at, duration_minutes, doctor_id, status, created_at, updated_at, content_enc)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		a.ID, a.ProfileID, a.ScheduledAt, a.DurationMinutes,
+		a.DoctorID, a.Status, a.CreatedAt, a.UpdatedAt, a.ContentEnc)
 	if err != nil {
 		return fmt.Errorf("create appointment: %w", err)
 	}
@@ -46,11 +42,10 @@ func (r *AppointmentRepo) Create(ctx context.Context, a *appointments.Appointmen
 func (r *AppointmentRepo) GetByID(ctx context.Context, id uuid.UUID) (*appointments.Appointment, error) {
 	var a appointments.Appointment
 	err := r.db.QueryRow(ctx, `
-		SELECT id, profile_id, title, appointment_type, scheduled_at, duration_minutes, doctor_id, location, preparation_notes, reminder_days_before, status, linked_diary_event_id, recurrence, created_at, updated_at, content_enc
+		SELECT id, profile_id, scheduled_at, duration_minutes, doctor_id, status, linked_diary_event_id, created_at, updated_at, content_enc
 		FROM appointments WHERE id = $1`, id).Scan(
-		&a.ID, &a.ProfileID, &a.Title, &a.AppointmentType, &a.ScheduledAt, &a.DurationMinutes,
-		&a.DoctorID, &a.Location, &a.PreparationNotes, &a.ReminderDaysBefore,
-		&a.Status, &a.LinkedDiaryEventID, &a.Recurrence, &a.CreatedAt, &a.UpdatedAt, &a.ContentEnc)
+		&a.ID, &a.ProfileID, &a.ScheduledAt, &a.DurationMinutes,
+		&a.DoctorID, &a.Status, &a.LinkedDiaryEventID, &a.CreatedAt, &a.UpdatedAt, &a.ContentEnc)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -62,13 +57,13 @@ func (r *AppointmentRepo) GetByID(ctx context.Context, id uuid.UUID) (*appointme
 
 func (r *AppointmentRepo) List(ctx context.Context, profileID uuid.UUID) ([]appointments.Appointment, error) {
 	return r.queryAppointments(ctx, `
-		SELECT id, profile_id, title, appointment_type, scheduled_at, duration_minutes, doctor_id, location, preparation_notes, reminder_days_before, status, linked_diary_event_id, recurrence, created_at, updated_at, content_enc
+		SELECT id, profile_id, scheduled_at, duration_minutes, doctor_id, status, linked_diary_event_id, created_at, updated_at, content_enc
 		FROM appointments WHERE profile_id = $1 ORDER BY scheduled_at DESC`, profileID)
 }
 
 func (r *AppointmentRepo) GetUpcoming(ctx context.Context, profileID uuid.UUID) ([]appointments.Appointment, error) {
 	return r.queryAppointments(ctx, `
-		SELECT id, profile_id, title, appointment_type, scheduled_at, duration_minutes, doctor_id, location, preparation_notes, reminder_days_before, status, linked_diary_event_id, recurrence, created_at, updated_at, content_enc
+		SELECT id, profile_id, scheduled_at, duration_minutes, doctor_id, status, linked_diary_event_id, created_at, updated_at, content_enc
 		FROM appointments WHERE profile_id = $1 AND status = 'scheduled' AND scheduled_at >= NOW()
 		ORDER BY scheduled_at ASC`, profileID)
 }
@@ -76,10 +71,10 @@ func (r *AppointmentRepo) GetUpcoming(ctx context.Context, profileID uuid.UUID) 
 func (r *AppointmentRepo) Update(ctx context.Context, a *appointments.Appointment) error {
 	a.UpdatedAt = time.Now().UTC()
 	_, err := r.db.Exec(ctx, `
-		UPDATE appointments SET title=$2, appointment_type=$3, scheduled_at=$4, duration_minutes=$5, doctor_id=$6, location=$7, preparation_notes=$8, reminder_days_before=$9, status=$10, recurrence=$11, updated_at=$12, content_enc=$13
+		UPDATE appointments SET scheduled_at=$2, duration_minutes=$3, doctor_id=$4, status=$5, updated_at=$6, content_enc=$7
 		WHERE id=$1`,
-		a.ID, a.Title, a.AppointmentType, a.ScheduledAt, a.DurationMinutes, a.DoctorID,
-		a.Location, a.PreparationNotes, a.ReminderDaysBefore, a.Status, a.Recurrence, a.UpdatedAt, a.ContentEnc)
+		a.ID, a.ScheduledAt, a.DurationMinutes, a.DoctorID,
+		a.Status, a.UpdatedAt, a.ContentEnc)
 	if err != nil {
 		return fmt.Errorf("update appointment: %w", err)
 	}
@@ -127,9 +122,8 @@ func (r *AppointmentRepo) queryAppointments(ctx context.Context, query string, a
 	var result []appointments.Appointment
 	for rows.Next() {
 		var a appointments.Appointment
-		if err := rows.Scan(&a.ID, &a.ProfileID, &a.Title, &a.AppointmentType, &a.ScheduledAt, &a.DurationMinutes,
-			&a.DoctorID, &a.Location, &a.PreparationNotes, &a.ReminderDaysBefore,
-			&a.Status, &a.LinkedDiaryEventID, &a.Recurrence, &a.CreatedAt, &a.UpdatedAt, &a.ContentEnc); err != nil {
+		if err := rows.Scan(&a.ID, &a.ProfileID, &a.ScheduledAt, &a.DurationMinutes,
+			&a.DoctorID, &a.Status, &a.LinkedDiaryEventID, &a.CreatedAt, &a.UpdatedAt, &a.ContentEnc); err != nil {
 			return nil, fmt.Errorf("scan appointment row: %w", err)
 		}
 		result = append(result, a)

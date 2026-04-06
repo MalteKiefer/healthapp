@@ -14,4 +14,5 @@ type Repository interface {
 	Update(ctx context.Context, f *Feed) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	UpdateLastPolled(ctx context.Context, id uuid.UUID) error
+	SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error
 }

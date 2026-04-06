@@ -8,7 +8,6 @@ import { ProfileSelector } from '../components/ProfileSelector';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { medicationsApi, type Medication } from '../api/medications';
-import { api } from '../api/client';
 import { ContactPicker } from '../components/ContactPicker';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
@@ -127,23 +126,26 @@ export function Medications() {
   const queryClient = useQueryClient();
   const profileId = ui.selectedProfile || profiles[0]?.id || '';
 
-  // Queries
-  const { data, isLoading } = useQuery({
-    queryKey: ['medications', profileId, ui.showActive],
-    queryFn: () => ui.showActive ? medicationsApi.active(profileId) : medicationsApi.list(profileId),
+  // Queries — always fetch full list; active filtering done client-side
+  const { data: allData, isLoading } = useQuery({
+    queryKey: ['medications', profileId],
+    queryFn: () => medicationsApi.list(profileId),
     enabled: !!profileId,
   });
+  const data = useMemo(() => {
+    if (!allData) return allData;
+    if (!ui.showActive) return allData;
+    const activeItems = allData.items.filter((m: Medication) => !m.ended_at);
+    return { items: activeItems, total: activeItems.length };
+  }, [allData, ui.showActive]);
   const { data: intakeData } = useQuery({
     queryKey: ['med-intake', profileId, ui.selectedMed?.id],
     queryFn: () => medicationsApi.listIntake(profileId, ui.selectedMed!.id),
     enabled: !!profileId && !!ui.selectedMed,
   });
   const intakes = intakeData?.items || [];
-  const { data: adherenceData } = useQuery({
-    queryKey: ['med-adherence', profileId],
-    queryFn: () => api.get<{ rate?: number }>(`/api/v1/profiles/${profileId}/medications/adherence`),
-    enabled: !!profileId && !ui.selectedMed,
-  });
+  // Adherence endpoint removed (410 Gone) — computed client-side if needed.
+  const adherenceData: { rate?: number } | undefined = undefined;
 
   // Mutations
   const createMutation = useMutation({

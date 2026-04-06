@@ -8,33 +8,36 @@ import (
 
 // Vital represents a single vital signs measurement.
 type Vital struct {
-	ID                     uuid.UUID  `json:"id"`
-	ProfileID              uuid.UUID  `json:"profile_id"`
-	BloodPressureSystolic  *int       `json:"blood_pressure_systolic,omitempty"`
-	BloodPressureDiastolic *int       `json:"blood_pressure_diastolic,omitempty"`
-	Pulse                  *int       `json:"pulse,omitempty"`
-	OxygenSaturation       *float64   `json:"oxygen_saturation,omitempty"`
-	Weight                 *float64   `json:"weight,omitempty"`
-	Height                 *float64   `json:"height,omitempty"`
-	BodyTemperature        *float64   `json:"body_temperature,omitempty"`
-	BloodGlucose           *float64   `json:"blood_glucose,omitempty"`
-	RespiratoryRate        *int       `json:"respiratory_rate,omitempty"`
-	WaistCircumference     *float64   `json:"waist_circumference,omitempty"`
-	HipCircumference       *float64   `json:"hip_circumference,omitempty"`
-	BodyFatPercentage      *float64   `json:"body_fat_percentage,omitempty"`
-	BMI                    *float64   `json:"bmi,omitempty"`
-	SleepDurationMinutes   *int       `json:"sleep_duration_minutes,omitempty"`
-	SleepQuality           *int       `json:"sleep_quality,omitempty"`
-	MeasuredAt             time.Time  `json:"measured_at"`
-	Device                 *string    `json:"device,omitempty"`
-	Notes                  *string    `json:"notes,omitempty"`
-	CreatedAt              time.Time  `json:"created_at"`
-	UpdatedAt              time.Time  `json:"updated_at"`
-	DeletedAt              *time.Time `json:"-"`
+	ID        uuid.UUID  `json:"id"`
+	ProfileID uuid.UUID  `json:"profile_id"`
+
+	// --- Fields below come from content_enc decryption on the client, not from DB columns ---
+	BloodPressureSystolic  *int     `json:"blood_pressure_systolic,omitempty"`
+	BloodPressureDiastolic *int     `json:"blood_pressure_diastolic,omitempty"`
+	Pulse                  *int     `json:"pulse,omitempty"`
+	OxygenSaturation       *float64 `json:"oxygen_saturation,omitempty"`
+	Weight                 *float64 `json:"weight,omitempty"`
+	Height                 *float64 `json:"height,omitempty"`
+	BodyTemperature        *float64 `json:"body_temperature,omitempty"`
+	BloodGlucose           *float64 `json:"blood_glucose,omitempty"`
+	RespiratoryRate        *int     `json:"respiratory_rate,omitempty"`
+	WaistCircumference     *float64 `json:"waist_circumference,omitempty"`
+	HipCircumference       *float64 `json:"hip_circumference,omitempty"`
+	BodyFatPercentage      *float64 `json:"body_fat_percentage,omitempty"`
+	BMI                    *float64 `json:"bmi,omitempty"`
+	SleepDurationMinutes   *int     `json:"sleep_duration_minutes,omitempty"`
+	SleepQuality           *int     `json:"sleep_quality,omitempty"`
+	Device                 *string  `json:"device,omitempty"`
+	Notes                  *string  `json:"notes,omitempty"`
+	// --- End content_enc-only fields ---
+
+	MeasuredAt time.Time  `json:"measured_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+	DeletedAt  *time.Time `json:"-"`
 	// ContentEnc holds the AES-GCM-encrypted JSON blob of all health fields
-	// (produced client-side with the profile key). During Stage 2 lazy
-	// migration it lives alongside the plaintext columns; Stage 2.4 drops
-	// the plaintext columns and enforces NOT NULL.
+	// (produced client-side with the profile key). The plaintext DB columns
+	// were dropped in Stage 2.4; this is now the sole source of health data.
 	ContentEnc *string `json:"content_enc,omitempty"`
 }
 

@@ -1,4 +1,6 @@
 import { api } from './client';
+import { getProfileKey } from '../crypto/keys';
+import { encryptFile, encryptString } from '../crypto/encrypt';
 
 export interface Document {
   id: string;
@@ -8,6 +10,7 @@ export interface Document {
   file_size_bytes: number;
   category: string;
   tags?: string[];
+  encrypted_at?: string;
   created_at: string;
 }
 
@@ -30,8 +33,20 @@ export const documentsApi = {
   // Upload handled separately with multipart form
   upload: async (profileId: string, file: File, category: string) => {
     const formData = new FormData();
-    formData.append('file', file);
     formData.append('category', category);
+
+    const profileKey = getProfileKey(profileId);
+    if (profileKey) {
+      // Encrypt file content and filename before upload
+      const encryptedBlob = await encryptFile(file, profileKey);
+      const encryptedFilename = await encryptString(file.name, profileKey);
+      formData.append('file', encryptedBlob, 'encrypted');
+      formData.append('filename_enc', encryptedFilename);
+      formData.append('encrypted', 'true');
+    } else {
+      // Legacy path: no profile key available, upload raw
+      formData.append('file', file);
+    }
 
     const res = await fetch(`/api/v1/profiles/${profileId}/documents`, {
       method: 'POST',

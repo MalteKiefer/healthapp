@@ -269,6 +269,7 @@ func (s *Server) setupRoutes() {
 					r.Post("/transfer", s.GrantHandler.HandleTransfer)
 					r.Post("/archive", s.ProfileHandler.HandleArchive)
 					r.Post("/unarchive", s.ProfileHandler.HandleUnarchive)
+					r.Patch("/migrate-content", s.ProfileHandler.HandleMigrateContent)
 
 					// Vitals
 					r.Route("/vitals", func(r chi.Router) {
@@ -468,6 +469,7 @@ func (s *Server) setupRoutes() {
 				r.Get("/{feedID}", s.CalendarHandler.HandleGetFeed)
 				r.Patch("/{feedID}", s.CalendarHandler.HandleUpdateFeed)
 				r.Delete("/{feedID}", s.CalendarHandler.HandleDeleteFeed)
+				r.Patch("/{feedID}/migrate-content", s.CalendarHandler.HandleMigrateContent)
 			})
 
 			// Export

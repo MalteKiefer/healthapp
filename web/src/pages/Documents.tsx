@@ -8,6 +8,8 @@ import { useProfiles } from '../hooks/useProfiles';
 import { documentsApi, type Document } from '../api/documents';
 import { api } from '../api/client';
 import { formatBytes } from '../utils/format';
+import { getProfileKey } from '../crypto/keys';
+import { decryptToBytes, decrypt } from '../crypto/encrypt';
 
 const CATEGORIES = [
   'lab_result', 'imaging', 'prescription', 'referral',
@@ -114,14 +116,57 @@ function getDocIconComponent(mimeType: string, size = 20) {
 }
 
 /* ---------------------------------------------------------------------------
+   Filename decryption helper
+   --------------------------------------------------------------------------- */
+
+function useDecryptedFilename(profileId: string, doc: Document | null): string {
+  const [name, setName] = useState('');
+  useEffect(() => {
+    if (!doc) { setName(''); return; }
+    if (!doc.encrypted_at) { setName(doc.filename_enc); return; }
+    const profileKey = getProfileKey(profileId);
+    if (!profileKey) { setName(doc.filename_enc); return; }
+    let cancelled = false;
+    decrypt(doc.filename_enc, profileKey)
+      .then((decrypted) => { if (!cancelled) setName(decrypted); })
+      .catch(() => { if (!cancelled) setName(doc.filename_enc); });
+    return () => { cancelled = true; };
+  }, [profileId, doc?.id, doc?.filename_enc, doc?.encrypted_at]);
+  return name;
+}
+
+/**
+ * Decrypt a filename synchronously from cache or return the raw value.
+ * For list views where we can't easily use a hook per-item, we fire-and-forget
+ * decrypt and show the encrypted string until ready.
+ */
+function DecryptedName({ profileId, doc }: { profileId: string; doc: Document }) {
+  const name = useDecryptedFilename(profileId, doc);
+  return <>{name || doc.filename_enc}</>;
+}
+
+/* ---------------------------------------------------------------------------
    Blob URL fetcher for authenticated preview/download
    --------------------------------------------------------------------------- */
 
-async function fetchBlobUrl(profileId: string, docId: string): Promise<string> {
+async function fetchBlobUrl(profileId: string, docId: string, mimeType: string): Promise<string> {
   const res = await fetch(documentsApi.downloadUrl(profileId, docId), {
     credentials: 'include',
   });
   if (!res.ok) throw new Error('Download failed');
+
+  const isEncrypted = res.headers.get('X-Encrypted') === 'true';
+  if (isEncrypted) {
+    const profileKey = getProfileKey(profileId);
+    if (!profileKey) throw new Error('No profile key for decryption');
+    // The stored file is base64(iv+ciphertext) text written by encryptFile
+    const base64Text = await res.text();
+    const decryptedBytes = await decryptToBytes(base64Text, profileKey);
+    const blob = new Blob([decryptedBytes], { type: mimeType });
+    return URL.createObjectURL(blob);
+  }
+
+  // Legacy unencrypted file
   const blob = await res.blob();
   return URL.createObjectURL(blob);
 }
@@ -353,7 +398,7 @@ export function Documents() {
                   {getDocIconComponent(doc.mime_type, 26)}
                 </div>
                 <div className="doc-info">
-                  <div className="doc-name">{doc.filename_enc}</div>
+                  <div className="doc-name"><DecryptedName profileId={profileId} doc={doc} /></div>
                   <div className="doc-meta">
                     <span className="doc-category-badge">{t('documents.cat_' + doc.category)}</span>
                     {' '}&middot;{' '}{formatBytes(doc.file_size_bytes)}{' '}&middot;{' '}{fmt(doc.created_at, 'dd. MMM yyyy')}
@@ -410,6 +455,7 @@ function DocumentDetail({
   doc, profileId, onBack, onDelete, onUpdate, updatePending,
   t, fmt, deleteTarget, deleteMutation, setDeleteTarget,
 }: DocumentDetailProps) {
+  const displayFilename = useDecryptedFilename(profileId, doc);
   const [editFilename, setEditFilename] = useState(doc.filename_enc);
   const [editCategory, setEditCategory] = useState(doc.category);
   const [editTags, setEditTags] = useState(getNonLinkTags(doc.tags).join(', '));
@@ -441,12 +487,12 @@ function DocumentDetail({
   const isPdf = doc.mime_type === 'application/pdf';
   const canPreview = isImage || isPdf;
 
-  // Sync edit state when doc changes
+  // Sync edit state when doc changes or filename is decrypted
   useEffect(() => {
-    setEditFilename(doc.filename_enc);
+    setEditFilename(displayFilename || doc.filename_enc);
     setEditCategory(doc.category);
     setEditTags(getNonLinkTags(doc.tags).join(', '));
-  }, [doc]);
+  }, [doc, displayFilename]);
 
   // Load blob URL for preview
   useEffect(() => {
@@ -455,7 +501,7 @@ function DocumentDetail({
     setPreviewLoading(true);
     setPreviewError(false);
 
-    fetchBlobUrl(profileId, doc.id)
+    fetchBlobUrl(profileId, doc.id, doc.mime_type)
       .then((url) => {
         if (!cancelled) {
           setBlobUrl(url);
@@ -482,7 +528,7 @@ function DocumentDetail({
     };
   }, [profileId, doc.id, canPreview]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const nonLinkTags = editTags
       .split(',')
       .map((t) => t.trim())
@@ -490,8 +536,17 @@ function DocumentDetail({
     const linkTags = (doc.tags || []).filter((t) => t.startsWith('link:'));
     const allTags = [...nonLinkTags, ...linkTags];
 
+    let filenameToSave = editFilename;
+    if (doc.encrypted_at) {
+      const profileKey = getProfileKey(profileId);
+      if (profileKey) {
+        const { encryptString } = await import('../crypto/encrypt');
+        filenameToSave = await encryptString(editFilename, profileKey);
+      }
+    }
+
     onUpdate(doc.id, {
-      filename_enc: editFilename,
+      filename_enc: filenameToSave,
       category: editCategory,
       tags: allTags,
     });
@@ -513,10 +568,10 @@ function DocumentDetail({
 
   const handleDownload = async () => {
     try {
-      const url = await fetchBlobUrl(profileId, doc.id);
+      const url = await fetchBlobUrl(profileId, doc.id, doc.mime_type);
       const a = document.createElement('a');
       a.href = url;
-      a.download = doc.filename_enc;
+      a.download = displayFilename || doc.filename_enc;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -527,7 +582,7 @@ function DocumentDetail({
   };
 
   const hasChanges =
-    editFilename !== doc.filename_enc ||
+    editFilename !== (displayFilename || doc.filename_enc) ||
     editCategory !== doc.category ||
     editTags !== getNonLinkTags(doc.tags).join(', ');
 
@@ -562,7 +617,7 @@ function DocumentDetail({
             {getDocIconComponent(doc.mime_type, 32)}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 16 }}>{doc.filename_enc}</div>
+            <div style={{ fontWeight: 600, fontSize: 16 }}>{displayFilename}</div>
             <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 2 }}>
               <span className="doc-category-badge">{t('documents.cat_' + doc.category)}</span>
               {' '}&middot;{' '}{formatBytes(doc.file_size_bytes)}{' '}&middot;{' '}{fmt(doc.created_at, 'dd. MMM yyyy, HH:mm')}
@@ -589,7 +644,7 @@ function DocumentDetail({
             <div className="doc-preview-container">
               <img
                 src={blobUrl}
-                alt={doc.filename_enc}
+                alt={displayFilename}
                 className="doc-preview-image"
               />
             </div>
@@ -597,7 +652,7 @@ function DocumentDetail({
             <div className="doc-preview-container">
               <iframe
                 src={blobUrl}
-                title={doc.filename_enc}
+                title={displayFilename}
                 className="doc-preview-pdf"
               />
             </div>

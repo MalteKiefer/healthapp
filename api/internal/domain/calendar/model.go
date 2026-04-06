@@ -19,6 +19,7 @@ type Feed struct {
 	IncludeMedications  bool      `json:"include_medications"`
 	IncludeLabs         bool      `json:"include_labs"`
 	VerboseMode         bool      `json:"verbose_mode"`
+	ContentEnc          *string   `json:"content_enc,omitempty"`
 	LastPolledAt        *time.Time `json:"last_polled_at,omitempty"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`

@@ -33,14 +33,12 @@ func (r *DiaryRepo) Create(ctx context.Context, e *diary.DiaryEvent) error {
 
 	query := `
 		INSERT INTO diary_events (
-			id, profile_id, title, event_type, started_at, ended_at,
-			description, severity, location, outcome,
+			id, profile_id,
 			version, previous_id, is_current, created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
 
 	_, err := r.db.Exec(ctx, query,
-		e.ID, e.ProfileID, e.Title, e.EventType, e.StartedAt, e.EndedAt,
-		e.Description, e.Severity, e.Location, e.Outcome,
+		e.ID, e.ProfileID,
 		e.Version, e.PreviousID, e.IsCurrent, e.CreatedAt, e.UpdatedAt, e.ContentEnc,
 	)
 	if err != nil {
@@ -51,8 +49,7 @@ func (r *DiaryRepo) Create(ctx context.Context, e *diary.DiaryEvent) error {
 
 func (r *DiaryRepo) GetByID(ctx context.Context, id uuid.UUID) (*diary.DiaryEvent, error) {
 	query := `
-		SELECT id, profile_id, title, event_type, started_at, ended_at,
-			description, severity, location, outcome,
+		SELECT id, profile_id,
 			version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
 		FROM diary_events WHERE id = $1 AND deleted_at IS NULL`
 
@@ -62,22 +59,6 @@ func (r *DiaryRepo) GetByID(ctx context.Context, id uuid.UUID) (*diary.DiaryEven
 func (r *DiaryRepo) List(ctx context.Context, filter diary.ListFilter) ([]diary.DiaryEvent, int, error) {
 	countQuery := "SELECT COUNT(*) FROM diary_events WHERE profile_id = $1 AND is_current = TRUE AND deleted_at IS NULL"
 	args := []interface{}{filter.ProfileID}
-	argIdx := 2
-
-	if filter.EventType != nil {
-		countQuery += fmt.Sprintf(" AND event_type = $%d", argIdx)
-		args = append(args, *filter.EventType)
-		argIdx++
-	}
-	if filter.From != nil {
-		countQuery += fmt.Sprintf(" AND started_at >= $%d", argIdx)
-		args = append(args, *filter.From)
-		argIdx++
-	}
-	if filter.To != nil {
-		countQuery += fmt.Sprintf(" AND started_at <= $%d", argIdx)
-		args = append(args, *filter.To)
-	}
 
 	var total int
 	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
@@ -85,31 +66,14 @@ func (r *DiaryRepo) List(ctx context.Context, filter diary.ListFilter) ([]diary.
 	}
 
 	query := `
-		SELECT id, profile_id, title, event_type, started_at, ended_at,
-			description, severity, location, outcome,
+		SELECT id, profile_id,
 			version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
 		FROM diary_events WHERE profile_id = $1 AND is_current = TRUE AND deleted_at IS NULL`
 
 	listArgs := []interface{}{filter.ProfileID}
 	listIdx := 2
 
-	if filter.EventType != nil {
-		query += fmt.Sprintf(" AND event_type = $%d", listIdx)
-		listArgs = append(listArgs, *filter.EventType)
-		listIdx++
-	}
-	if filter.From != nil {
-		query += fmt.Sprintf(" AND started_at >= $%d", listIdx)
-		listArgs = append(listArgs, *filter.From)
-		listIdx++
-	}
-	if filter.To != nil {
-		query += fmt.Sprintf(" AND started_at <= $%d", listIdx)
-		listArgs = append(listArgs, *filter.To)
-		listIdx++
-	}
-
-	query += " ORDER BY started_at DESC"
+	query += " ORDER BY created_at DESC"
 
 	if filter.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT $%d", listIdx)
@@ -172,14 +136,12 @@ func (r *DiaryRepo) Update(ctx context.Context, e *diary.DiaryEvent) error {
 
 	query := `
 		INSERT INTO diary_events (
-			id, profile_id, title, event_type, started_at, ended_at,
-			description, severity, location, outcome,
+			id, profile_id,
 			version, previous_id, is_current, created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
 
 	_, err = tx.Exec(ctx, query,
-		e.ID, e.ProfileID, e.Title, e.EventType, e.StartedAt, e.EndedAt,
-		e.Description, e.Severity, e.Location, e.Outcome,
+		e.ID, e.ProfileID,
 		e.Version, e.PreviousID, e.IsCurrent, e.CreatedAt, e.UpdatedAt, e.ContentEnc,
 	)
 	if err != nil {
@@ -203,8 +165,7 @@ func (r *DiaryRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 func (r *DiaryRepo) scanEvent(row pgx.Row) (*diary.DiaryEvent, error) {
 	var e diary.DiaryEvent
 	err := row.Scan(
-		&e.ID, &e.ProfileID, &e.Title, &e.EventType, &e.StartedAt, &e.EndedAt,
-		&e.Description, &e.Severity, &e.Location, &e.Outcome,
+		&e.ID, &e.ProfileID,
 		&e.Version, &e.PreviousID, &e.IsCurrent, &e.CreatedAt, &e.UpdatedAt, &e.DeletedAt, &e.ContentEnc,
 	)
 	if err != nil {
@@ -233,8 +194,7 @@ func (r *DiaryRepo) SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc 
 func (r *DiaryRepo) scanEventRow(rows pgx.Rows) (*diary.DiaryEvent, error) {
 	var e diary.DiaryEvent
 	err := rows.Scan(
-		&e.ID, &e.ProfileID, &e.Title, &e.EventType, &e.StartedAt, &e.EndedAt,
-		&e.Description, &e.Severity, &e.Location, &e.Outcome,
+		&e.ID, &e.ProfileID,
 		&e.Version, &e.PreviousID, &e.IsCurrent, &e.CreatedAt, &e.UpdatedAt, &e.DeletedAt, &e.ContentEnc,
 	)
 	if err != nil {

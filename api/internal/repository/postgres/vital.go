@@ -28,23 +28,14 @@ func (r *VitalRepo) Create(ctx context.Context, v *vitals.Vital) error {
 	now := time.Now().UTC()
 	v.CreatedAt = now
 	v.UpdatedAt = now
-	v.CalculateBMI()
 
 	query := `
 		INSERT INTO vitals (
-			id, profile_id, blood_pressure_systolic, blood_pressure_diastolic,
-			pulse, oxygen_saturation, weight, height, body_temperature,
-			blood_glucose, respiratory_rate, waist_circumference, hip_circumference,
-			body_fat_percentage, bmi, sleep_duration_minutes, sleep_quality,
-			measured_at, device, notes, created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`
+			id, profile_id, measured_at, created_at, updated_at, content_enc
+		) VALUES ($1,$2,$3,$4,$5,$6)`
 
 	_, err := r.db.Exec(ctx, query,
-		v.ID, v.ProfileID, v.BloodPressureSystolic, v.BloodPressureDiastolic,
-		v.Pulse, v.OxygenSaturation, v.Weight, v.Height, v.BodyTemperature,
-		v.BloodGlucose, v.RespiratoryRate, v.WaistCircumference, v.HipCircumference,
-		v.BodyFatPercentage, v.BMI, v.SleepDurationMinutes, v.SleepQuality,
-		v.MeasuredAt, v.Device, v.Notes, v.CreatedAt, v.UpdatedAt, v.ContentEnc,
+		v.ID, v.ProfileID, v.MeasuredAt, v.CreatedAt, v.UpdatedAt, v.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("insert vital: %w", err)
@@ -54,11 +45,7 @@ func (r *VitalRepo) Create(ctx context.Context, v *vitals.Vital) error {
 
 func (r *VitalRepo) GetByID(ctx context.Context, id uuid.UUID) (*vitals.Vital, error) {
 	query := `
-		SELECT id, profile_id, blood_pressure_systolic, blood_pressure_diastolic,
-			pulse, oxygen_saturation, weight, height, body_temperature,
-			blood_glucose, respiratory_rate, waist_circumference, hip_circumference,
-			body_fat_percentage, bmi, sleep_duration_minutes, sleep_quality,
-			measured_at, device, notes, created_at, updated_at, deleted_at, content_enc
+		SELECT id, profile_id, measured_at, created_at, updated_at, deleted_at, content_enc
 		FROM vitals WHERE id = $1 AND deleted_at IS NULL`
 
 	return r.scanVital(r.db.QueryRow(ctx, query, id))
@@ -85,11 +72,7 @@ func (r *VitalRepo) List(ctx context.Context, filter vitals.ListFilter) ([]vital
 	}
 
 	query := `
-		SELECT id, profile_id, blood_pressure_systolic, blood_pressure_diastolic,
-			pulse, oxygen_saturation, weight, height, body_temperature,
-			blood_glucose, respiratory_rate, waist_circumference, hip_circumference,
-			body_fat_percentage, bmi, sleep_duration_minutes, sleep_quality,
-			measured_at, device, notes, created_at, updated_at, deleted_at, content_enc
+		SELECT id, profile_id, measured_at, created_at, updated_at, deleted_at, content_enc
 		FROM vitals WHERE profile_id = $1 AND deleted_at IS NULL`
 
 	listArgs := []interface{}{filter.ProfileID}
@@ -141,27 +124,14 @@ func (r *VitalRepo) List(ctx context.Context, filter vitals.ListFilter) ([]vital
 
 func (r *VitalRepo) Update(ctx context.Context, v *vitals.Vital) error {
 	v.UpdatedAt = time.Now().UTC()
-	v.CalculateBMI()
 
 	query := `
 		UPDATE vitals SET
-			blood_pressure_systolic = $2, blood_pressure_diastolic = $3,
-			pulse = $4, oxygen_saturation = $5, weight = $6, height = $7,
-			body_temperature = $8, blood_glucose = $9, respiratory_rate = $10,
-			waist_circumference = $11, hip_circumference = $12,
-			body_fat_percentage = $13, bmi = $14, sleep_duration_minutes = $15,
-			sleep_quality = $16, measured_at = $17, device = $18, notes = $19,
-			updated_at = $20, content_enc = $21
+			measured_at = $2, updated_at = $3, content_enc = $4
 		WHERE id = $1 AND deleted_at IS NULL`
 
 	_, err := r.db.Exec(ctx, query,
-		v.ID, v.BloodPressureSystolic, v.BloodPressureDiastolic,
-		v.Pulse, v.OxygenSaturation, v.Weight, v.Height,
-		v.BodyTemperature, v.BloodGlucose, v.RespiratoryRate,
-		v.WaistCircumference, v.HipCircumference,
-		v.BodyFatPercentage, v.BMI, v.SleepDurationMinutes,
-		v.SleepQuality, v.MeasuredAt, v.Device, v.Notes,
-		v.UpdatedAt, v.ContentEnc,
+		v.ID, v.MeasuredAt, v.UpdatedAt, v.ContentEnc,
 	)
 	if err != nil {
 		return fmt.Errorf("update vital: %w", err)
@@ -180,7 +150,7 @@ func (r *VitalRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// CheckDuplicate looks for an entry with similar values within ±2 minutes.
+// CheckDuplicate looks for an entry within ±2 minutes.
 func (r *VitalRepo) CheckDuplicate(ctx context.Context, v *vitals.Vital) (*uuid.UUID, error) {
 	query := `
 		SELECT id FROM vitals
@@ -201,6 +171,9 @@ func (r *VitalRepo) CheckDuplicate(ctx context.Context, v *vitals.Vital) (*uuid.
 	return &existingID, nil
 }
 
+// GetChartData returns time-series data for a given metric.
+// NOTE: This method references columns that were dropped in Stage 2.4.
+// It will be cleaned up separately to read from content_enc instead.
 func (r *VitalRepo) GetChartData(ctx context.Context, profileID uuid.UUID, metric string, from, to *string) ([]vitals.ChartPoint, error) {
 	query := fmt.Sprintf(`
 		SELECT measured_at, %s
@@ -248,11 +221,8 @@ func (r *VitalRepo) GetChartData(ctx context.Context, profileID uuid.UUID, metri
 func (r *VitalRepo) scanVital(row pgx.Row) (*vitals.Vital, error) {
 	var v vitals.Vital
 	err := row.Scan(
-		&v.ID, &v.ProfileID, &v.BloodPressureSystolic, &v.BloodPressureDiastolic,
-		&v.Pulse, &v.OxygenSaturation, &v.Weight, &v.Height, &v.BodyTemperature,
-		&v.BloodGlucose, &v.RespiratoryRate, &v.WaistCircumference, &v.HipCircumference,
-		&v.BodyFatPercentage, &v.BMI, &v.SleepDurationMinutes, &v.SleepQuality,
-		&v.MeasuredAt, &v.Device, &v.Notes, &v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
+		&v.ID, &v.ProfileID, &v.MeasuredAt,
+		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -266,11 +236,8 @@ func (r *VitalRepo) scanVital(row pgx.Row) (*vitals.Vital, error) {
 func (r *VitalRepo) scanVitalRow(rows pgx.Rows) (*vitals.Vital, error) {
 	var v vitals.Vital
 	err := rows.Scan(
-		&v.ID, &v.ProfileID, &v.BloodPressureSystolic, &v.BloodPressureDiastolic,
-		&v.Pulse, &v.OxygenSaturation, &v.Weight, &v.Height, &v.BodyTemperature,
-		&v.BloodGlucose, &v.RespiratoryRate, &v.WaistCircumference, &v.HipCircumference,
-		&v.BodyFatPercentage, &v.BMI, &v.SleepDurationMinutes, &v.SleepQuality,
-		&v.MeasuredAt, &v.Device, &v.Notes, &v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
+		&v.ID, &v.ProfileID, &v.MeasuredAt,
+		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan vital row: %w", err)

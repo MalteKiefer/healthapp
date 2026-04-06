@@ -50,22 +50,7 @@ export const appointmentsApi = {
     return { items, total: res.total };
   },
 
-  upcoming: async (profileId: string): Promise<AppointmentListResponse> => {
-    const res = await api.get<AppointmentListResponse>(
-      `/api/v1/profiles/${profileId}/appointments/upcoming`,
-    );
-    const items = await Promise.all(
-      (res.items || []).map((r) =>
-        decryptOrPassthrough(
-          r,
-          ENTITY,
-          CONTENT_FIELDS as unknown as readonly (keyof Appointment)[],
-          migratePath,
-        ),
-      ),
-    );
-    return { items, total: res.total };
-  },
+  // upcoming endpoint removed (410 Gone) — use list() + client-side filter instead.
 
   create: async (profileId: string, data: Partial<Appointment>): Promise<Appointment> => {
     const newId = crypto.randomUUID();

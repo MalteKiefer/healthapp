@@ -33,6 +33,7 @@ type Document struct {
 	Tags          []string   `json:"tags,omitempty"`
 	OCRTextEnc    *string    `json:"ocr_text_enc,omitempty"`
 	UploadedBy    uuid.UUID  `json:"uploaded_by"`
+	EncryptedAt   *time.Time `json:"encrypted_at,omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 	DeletedAt     *time.Time `json:"-"`

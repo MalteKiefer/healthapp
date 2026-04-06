@@ -8,30 +8,33 @@ import (
 )
 
 type Contact struct {
-	ID                 uuid.UUID  `json:"id"`
-	ProfileID          uuid.UUID  `json:"profile_id"`
-	ContactType        string     `json:"contact_type"`
-	Name               string     `json:"name"`
-	Specialty          *string    `json:"specialty,omitempty"`
-	Facility           *string    `json:"facility,omitempty"`
-	Phone              *string    `json:"phone,omitempty"`
-	Email              *string    `json:"email,omitempty"`
-	Street             *string    `json:"street,omitempty"`
-	PostalCode         *string    `json:"postal_code,omitempty"`
-	City               *string    `json:"city,omitempty"`
-	Country            *string    `json:"country,omitempty"`
-	Latitude           *float64   `json:"latitude,omitempty"`
-	Longitude          *float64   `json:"longitude,omitempty"`
-	Address            *string    `json:"address,omitempty"`
-	Notes              *string    `json:"notes,omitempty"`
-	IsEmergencyContact bool       `json:"is_emergency_contact"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
-	DeletedAt          *time.Time `json:"-"`
+	ID        uuid.UUID `json:"id"`
+	ProfileID uuid.UUID `json:"profile_id"`
+
+	// --- Fields below come from content_enc decryption on the client, not from DB columns ---
+	ContactType        string   `json:"contact_type"`
+	Name               string   `json:"name"`
+	Specialty          *string  `json:"specialty,omitempty"`
+	Facility           *string  `json:"facility,omitempty"`
+	Phone              *string  `json:"phone,omitempty"`
+	Email              *string  `json:"email,omitempty"`
+	Street             *string  `json:"street,omitempty"`
+	PostalCode         *string  `json:"postal_code,omitempty"`
+	City               *string  `json:"city,omitempty"`
+	Country            *string  `json:"country,omitempty"`
+	Latitude           *float64 `json:"latitude,omitempty"`
+	Longitude          *float64 `json:"longitude,omitempty"`
+	Address            *string  `json:"address,omitempty"`
+	Notes              *string  `json:"notes,omitempty"`
+	IsEmergencyContact bool     `json:"is_emergency_contact"`
+	// --- End content_enc-only fields ---
+
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `json:"-"`
 	// ContentEnc holds the AES-GCM-encrypted JSON blob of all sensitive fields
-	// (produced client-side with the profile key). During Stage 2 lazy
-	// migration it lives alongside the plaintext columns; Stage 2.4 drops
-	// the plaintext columns and enforces NOT NULL.
+	// (produced client-side with the profile key). The plaintext DB columns
+	// were dropped in Stage 2.4; this is now the sole source of health data.
 	ContentEnc *string `json:"content_enc,omitempty"`
 }
 

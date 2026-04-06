@@ -27,9 +27,9 @@ func (r *ProfileRepo) Create(ctx context.Context, p *profiles.Profile) error {
 		INSERT INTO profiles (
 			id, owner_user_id, display_name, date_of_birth, biological_sex,
 			blood_type, rhesus_factor, avatar_color, avatar_image_enc,
-			archived_at, onboarding_completed_at, rotation_state,
+			content_enc, archived_at, onboarding_completed_at, rotation_state,
 			rotation_started_at, rotation_progress, created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`
 
 	now := time.Now().UTC()
 	if p.ID == uuid.Nil {
@@ -48,7 +48,7 @@ func (r *ProfileRepo) Create(ctx context.Context, p *profiles.Profile) error {
 	_, err := r.db.Exec(ctx, query,
 		p.ID, p.OwnerUserID, p.DisplayName, p.DateOfBirth, p.BiologicalSex,
 		p.BloodType, p.RhesusFactor, p.AvatarColor, p.AvatarImageEnc,
-		p.ArchivedAt, p.OnboardingCompletedAt, p.RotationState,
+		p.ContentEnc, p.ArchivedAt, p.OnboardingCompletedAt, p.RotationState,
 		p.RotationStartedAt, p.RotationProgress, p.CreatedAt, p.UpdatedAt,
 	)
 	if err != nil {
@@ -61,7 +61,7 @@ func (r *ProfileRepo) GetByID(ctx context.Context, id uuid.UUID) (*profiles.Prof
 	query := `
 		SELECT id, owner_user_id, display_name, date_of_birth, biological_sex,
 		       blood_type, rhesus_factor, avatar_color, avatar_image_enc,
-		       archived_at, onboarding_completed_at, rotation_state,
+		       content_enc, archived_at, onboarding_completed_at, rotation_state,
 		       rotation_started_at, rotation_progress, created_at, updated_at
 		FROM profiles WHERE id = $1`
 
@@ -69,7 +69,7 @@ func (r *ProfileRepo) GetByID(ctx context.Context, id uuid.UUID) (*profiles.Prof
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&p.ID, &p.OwnerUserID, &p.DisplayName, &p.DateOfBirth, &p.BiologicalSex,
 		&p.BloodType, &p.RhesusFactor, &p.AvatarColor, &p.AvatarImageEnc,
-		&p.ArchivedAt, &p.OnboardingCompletedAt, &p.RotationState,
+		&p.ContentEnc, &p.ArchivedAt, &p.OnboardingCompletedAt, &p.RotationState,
 		&p.RotationStartedAt, &p.RotationProgress, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
@@ -85,7 +85,7 @@ func (r *ProfileRepo) GetByOwnerID(ctx context.Context, ownerUserID uuid.UUID) (
 	query := `
 		SELECT id, owner_user_id, display_name, date_of_birth, biological_sex,
 		       blood_type, rhesus_factor, avatar_color, avatar_image_enc,
-		       archived_at, onboarding_completed_at, rotation_state,
+		       content_enc, archived_at, onboarding_completed_at, rotation_state,
 		       rotation_started_at, rotation_progress, created_at, updated_at
 		FROM profiles WHERE owner_user_id = $1
 		ORDER BY created_at ASC`
@@ -103,7 +103,7 @@ func (r *ProfileRepo) GetAccessibleByUserID(ctx context.Context, userID uuid.UUI
 	query := `
 		SELECT DISTINCT p.id, p.owner_user_id, p.display_name, p.date_of_birth, p.biological_sex,
 		       p.blood_type, p.rhesus_factor, p.avatar_color, p.avatar_image_enc,
-		       p.archived_at, p.onboarding_completed_at, p.rotation_state,
+		       p.content_enc, p.archived_at, p.onboarding_completed_at, p.rotation_state,
 		       p.rotation_started_at, p.rotation_progress, p.created_at, p.updated_at
 		FROM profiles p
 		LEFT JOIN profile_key_grants pkg ON p.id = pkg.profile_id
@@ -128,15 +128,15 @@ func (r *ProfileRepo) Update(ctx context.Context, p *profiles.Profile) error {
 		UPDATE profiles SET
 			display_name = $2, date_of_birth = $3, biological_sex = $4,
 			blood_type = $5, rhesus_factor = $6, avatar_color = $7,
-			avatar_image_enc = $8, onboarding_completed_at = $9,
-			rotation_state = $10, rotation_started_at = $11,
-			rotation_progress = $12, updated_at = $13
+			avatar_image_enc = $8, content_enc = $9, onboarding_completed_at = $10,
+			rotation_state = $11, rotation_started_at = $12,
+			rotation_progress = $13, updated_at = $14
 		WHERE id = $1`
 
 	_, err := r.db.Exec(ctx, query,
 		p.ID, p.DisplayName, p.DateOfBirth, p.BiologicalSex,
 		p.BloodType, p.RhesusFactor, p.AvatarColor,
-		p.AvatarImageEnc, p.OnboardingCompletedAt,
+		p.AvatarImageEnc, p.ContentEnc, p.OnboardingCompletedAt,
 		p.RotationState, p.RotationStartedAt,
 		p.RotationProgress, p.UpdatedAt,
 	)
@@ -264,6 +264,17 @@ func (r *ProfileRepo) HasAccess(ctx context.Context, profileID, userID uuid.UUID
 	return exists, nil
 }
 
+func (r *ProfileRepo) SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
+	_, err := r.db.Exec(ctx,
+		"UPDATE profiles SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL",
+		id, contentEnc,
+	)
+	if err != nil {
+		return fmt.Errorf("set content_enc: %w", err)
+	}
+	return nil
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────
 
 func scanProfiles(rows pgx.Rows) ([]profiles.Profile, error) {
@@ -273,7 +284,7 @@ func scanProfiles(rows pgx.Rows) ([]profiles.Profile, error) {
 		if err := rows.Scan(
 			&p.ID, &p.OwnerUserID, &p.DisplayName, &p.DateOfBirth, &p.BiologicalSex,
 			&p.BloodType, &p.RhesusFactor, &p.AvatarColor, &p.AvatarImageEnc,
-			&p.ArchivedAt, &p.OnboardingCompletedAt, &p.RotationState,
+			&p.ContentEnc, &p.ArchivedAt, &p.OnboardingCompletedAt, &p.RotationState,
 			&p.RotationStartedAt, &p.RotationProgress, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan profile: %w", err)

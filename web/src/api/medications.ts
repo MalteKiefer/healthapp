@@ -74,22 +74,7 @@ export const medicationsApi = {
     return { items, total: res.total };
   },
 
-  active: async (profileId: string): Promise<MedicationListResponse> => {
-    const res = await api.get<MedicationListResponse>(
-      `/api/v1/profiles/${profileId}/medications/active`,
-    );
-    const items = await Promise.all(
-      (res.items || []).map((r) =>
-        decryptOrPassthrough(
-          r,
-          ENTITY,
-          CONTENT_FIELDS as unknown as readonly (keyof Medication)[],
-          migratePath,
-        ),
-      ),
-    );
-    return { items, total: res.total };
-  },
+  // active endpoint removed (410 Gone) — use list() + client-side filter instead.
 
   create: async (profileId: string, data: Partial<Medication>): Promise<Medication> => {
     const newId = crypto.randomUUID();

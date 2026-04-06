@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -157,6 +158,11 @@ func (h *DocumentHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 
 	if v := r.FormValue("ocr_text_enc"); v != "" {
 		d.OCRTextEnc = &v
+	}
+
+	if r.FormValue("encrypted") == "true" {
+		now := time.Now().UTC()
+		d.EncryptedAt = &now
 	}
 
 	// Parse tags from repeated form field or JSON-encoded string.
@@ -449,7 +455,12 @@ func (h *DocumentHandler) HandleDownload(w http.ResponseWriter, r *http.Request)
 	}
 	defer f.Close()
 
-	w.Header().Set("Content-Type", d.MimeType)
+	if d.EncryptedAt != nil {
+		w.Header().Set("X-Encrypted", "true")
+		w.Header().Set("Content-Type", "application/octet-stream")
+	} else {
+		w.Header().Set("Content-Type", d.MimeType)
+	}
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(d.FilenameEnc, `"`, `\"`)))
 	w.Header().Set("Content-Length", strconv.FormatInt(d.FileSizeBytes, 10))
 	io.Copy(w, f)

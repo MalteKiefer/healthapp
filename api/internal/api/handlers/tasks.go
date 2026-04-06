@@ -102,35 +102,12 @@ func (h *TaskHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, t)
 }
 
-// HandleGetOpen returns open tasks for a profile.
+// HandleGetOpen is deprecated — filtering is now done client-side after
+// decrypting the full list.
 func (h *TaskHandler) HandleGetOpen(w http.ResponseWriter, r *http.Request) {
-	claims, ok := ClaimsFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
-		return
-	}
-
-	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
-		return
-	}
-
-	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
-	if err != nil || !hasAccess {
-		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
-		return
-	}
-
-	items, err := h.taskRepo.GetOpen(r.Context(), profileID)
-	if err != nil {
-		h.logger.Error("get open tasks", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"items": items,
+	writeJSON(w, http.StatusGone, map[string]string{
+		"error":   "endpoint_removed",
+		"message": "This endpoint has been removed. Use the list endpoint with client-side filtering instead.",
 	})
 }
 
