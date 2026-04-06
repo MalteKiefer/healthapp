@@ -59,7 +59,7 @@ const THRESHOLD_METRICS: { key: string; labelKey: string; unit: string }[] = [
   { key: 'weight', labelKey: 'vitals_data.weight', unit: 'kg' },
 ];
 
-type TimeRange = '7d' | '30d' | '90d' | '1y' | 'all';
+type TimeRange = '3d' | '7d' | '30d' | '90d' | '1y' | 'all';
 type ViewTab = 'chart' | 'table';
 
 export function Vitals() {
@@ -161,7 +161,7 @@ export function Vitals() {
   const filteredVitals = useMemo(() => {
     const items = vitalsData?.items || [];
     if (timeRange === 'all') return items;
-    const days = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 }[timeRange];
+    const days = { '3d': 3, '7d': 7, '30d': 30, '90d': 90, '1y': 365 }[timeRange];
     const cutoff = new Date(Date.now() - days * 86400000);
     return items.filter((v) => new Date(v.measured_at) >= cutoff);
   }, [vitalsData, timeRange]);
@@ -327,7 +327,7 @@ export function Vitals() {
           </div>
           <div className="view-toolbar-right">
             <div className="chart-filters">
-              {(['7d', '30d', '90d', '1y', 'all'] as TimeRange[]).map((r) => (
+              {(['3d', '7d', '30d', '90d', '1y', 'all'] as TimeRange[]).map((r) => (
                 <button key={r} className={`chart-range-btn${timeRange === r ? ' active' : ''}`} onClick={() => setTimeRange(r)}>
                   {r === 'all' ? t('common.all') : r}
                 </button>
