@@ -143,7 +143,7 @@ export const symptomsApi = {
     const res = await api.get<SymptomListResponse>(
       `/api/v1/profiles/${profileId}/symptoms${qs ? `?${qs}` : ''}`,
     );
-    const items = await Promise.all(res.items.map((r) => decryptRecord(profileId, r)));
+    const items = await Promise.all((res.items || []).map((r) => decryptRecord(profileId, r)));
     return { items, total: res.total };
   },
 

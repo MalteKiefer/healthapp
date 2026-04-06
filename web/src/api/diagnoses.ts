@@ -51,7 +51,7 @@ export const diagnosesApi = {
       `/api/v1/profiles/${profileId}/diagnoses${qs ? `?${qs}` : ''}`,
     );
     const items = await Promise.all(
-      res.items.map((r) =>
+      (res.items || []).map((r) =>
         decryptOrPassthrough(
           r,
           ENTITY,

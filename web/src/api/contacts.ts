@@ -49,7 +49,7 @@ export const contactsApi = {
       `/api/v1/profiles/${profileId}/contacts${qs ? `?${qs}` : ''}`,
     );
     const items = await Promise.all(
-      res.items.map((r) =>
+      (res.items || []).map((r) =>
         decryptOrPassthrough(
           r,
           ENTITY,

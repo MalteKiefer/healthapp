@@ -48,7 +48,7 @@ export const vaccinationsApi = {
       `/api/v1/profiles/${profileId}/vaccinations${qs ? `?${qs}` : ''}`,
     );
     const items = await Promise.all(
-      res.items.map((r) =>
+      (res.items || []).map((r) =>
         decryptOrPassthrough(
           r,
           ENTITY,

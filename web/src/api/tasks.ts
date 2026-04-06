@@ -41,7 +41,7 @@ export const tasksApi = {
       `/api/v1/profiles/${profileId}/tasks${qs ? `?${qs}` : ''}`,
     );
     const items = await Promise.all(
-      res.items.map((r) =>
+      (res.items || []).map((r) =>
         decryptOrPassthrough(
           r,
           ENTITY,

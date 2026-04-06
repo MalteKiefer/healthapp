@@ -62,7 +62,7 @@ export const medicationsApi = {
       `/api/v1/profiles/${profileId}/medications`,
     );
     const items = await Promise.all(
-      res.items.map((r) =>
+      (res.items || []).map((r) =>
         decryptOrPassthrough(
           r,
           ENTITY,
@@ -79,7 +79,7 @@ export const medicationsApi = {
       `/api/v1/profiles/${profileId}/medications/active`,
     );
     const items = await Promise.all(
-      res.items.map((r) =>
+      (res.items || []).map((r) =>
         decryptOrPassthrough(
           r,
           ENTITY,
@@ -152,7 +152,7 @@ export const medicationsApi = {
       `/api/v1/profiles/${profileId}/medications/${medicationId}/intake`,
     );
     const items = await Promise.all(
-      res.items.map((r) =>
+      (res.items || []).map((r) =>
         decryptOrPassthrough(
           r,
           INTAKE_ENTITY,

@@ -162,7 +162,7 @@ export const labsApi = {
     const res = await api.get<LabListResponse>(
       `/api/v1/profiles/${profileId}/labs${qs ? `?${qs}` : ''}`,
     );
-    const items = await Promise.all(res.items.map((r) => decryptLab(profileId, r)));
+    const items = await Promise.all((res.items || []).map((r) => decryptLab(profileId, r)));
     return { items, total: res.total };
   },
 

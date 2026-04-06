@@ -139,7 +139,7 @@ export const vitalsApi = {
     const res = await api.get<VitalListResponse>(
       `/api/v1/profiles/${profileId}/vitals${qs ? `?${qs}` : ''}`,
     );
-    const items = await Promise.all(res.items.map((v) => decryptOrPassthrough(profileId, v)));
+    const items = await Promise.all((res.items || []).map((v) => decryptOrPassthrough(profileId, v)));
     return { items, total: res.total };
   },
 
