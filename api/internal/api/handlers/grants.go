@@ -71,7 +71,9 @@ func (h *GrantHandler) HandleCreateGrant(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if req.EncryptedKey == "" || req.GrantSignature == "" || req.GranteeUserID == "" {
+	// GrantSignature is intentionally optional — signing keys are ECDH (not
+	// ECDSA) so clients can't produce real signatures yet. Stage 2 follow-up.
+	if req.EncryptedKey == "" || req.GranteeUserID == "" {
 		writeJSON(w, http.StatusBadRequest, errorResponse("missing_required_fields"))
 		return
 	}
