@@ -162,7 +162,7 @@ async function fetchBlobUrl(profileId: string, docId: string, mimeType: string):
     // The stored file is base64(iv+ciphertext) text written by encryptFile
     const base64Text = await res.text();
     const decryptedBytes = await decryptToBytes(base64Text, profileKey);
-    const blob = new Blob([decryptedBytes], { type: mimeType });
+    const blob = new Blob([decryptedBytes.buffer as ArrayBuffer], { type: mimeType });
     return URL.createObjectURL(blob);
   }
 

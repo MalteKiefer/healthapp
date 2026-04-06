@@ -34,7 +34,10 @@ export function Appointments() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['appointments', profileId, showUpcoming],
-    queryFn: () => showUpcoming ? appointmentsApi.upcoming(profileId) : appointmentsApi.list(profileId),
+    queryFn: () => appointmentsApi.list(profileId),
+    select: (data) => showUpcoming
+      ? { ...data, items: (data.items || []).filter((a: Appointment) => new Date(a.scheduled_at) > new Date()) }
+      : data,
     enabled: !!profileId,
   });
 

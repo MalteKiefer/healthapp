@@ -144,9 +144,6 @@ export function Medications() {
     enabled: !!profileId && !!ui.selectedMed,
   });
   const intakes = intakeData?.items || [];
-  // Adherence endpoint removed (410 Gone) — computed client-side if needed.
-  const adherenceData: { rate?: number } | undefined = undefined;
-
   // Mutations
   const createMutation = useMutation({
     mutationFn: (med: Partial<Medication>) => medicationsApi.create(profileId, med),
@@ -383,13 +380,6 @@ export function Medications() {
           <button className="btn btn-add" onClick={() => dispatch({ type: 'SHOW_FORM' })}>+ {t('common.add')}</button>
         </div>
       </div>
-
-      {adherenceData?.rate != null && (
-        <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="badge badge-active" style={{ fontSize: 13 }}>{t('medications.adherence')}</span>
-          <span>{t('medications.adherence_rate', { rate: Math.round(adherenceData.rate) })}</span>
-        </div>
-      )}
 
       <div className="card">
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (

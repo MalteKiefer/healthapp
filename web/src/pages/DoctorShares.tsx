@@ -70,7 +70,9 @@ async function encryptPayload(data: unknown, key: CryptoKey): Promise<string> {
 /** Fetch health data for a profile and return a summary object */
 async function gatherHealthData(profileId: string): Promise<Record<string, unknown>> {
   const [meds, allergies, diagnoses, vitals, contacts] = await Promise.allSettled([
-    medicationsApi.active(profileId),
+    medicationsApi.list(profileId).then((data) => ({
+      items: (data.items || []).filter((m: { ended_at?: string | null }) => !m.ended_at || new Date(m.ended_at) > new Date()),
+    })),
     api.get<{ items: unknown[] }>(`/api/v1/profiles/${profileId}/allergies`),
     api.get<{ items: unknown[] }>(`/api/v1/profiles/${profileId}/diagnoses`),
     api.get<{ items: unknown[] }>(`/api/v1/profiles/${profileId}/vitals?limit=10`),
