@@ -3,7 +3,11 @@ import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/auth';
 import { useUIStore } from '../store/ui';
-import { clearAllKeys } from '../crypto';
+import { clearAllKeys, generateProfileKey, getIdentityPrivateKey, setProfileKey, createKeyGrant } from '../crypto';
+import { useProfiles } from '../hooks/useProfiles';
+import { api } from '../api/client';
+import type { Profile } from '../api/profiles';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { NotificationBell } from './NotificationBell';
 import { SyncIndicator } from './SyncIndicator';
 import { useIdleTimeout } from '../hooks/useIdleTimeout';
@@ -52,9 +56,83 @@ export function Layout() {
 
   const activeGroupItems = navGroups.find((g) => g.key === activeNavGroup)?.items || [];
 
+  // ── Profile gate: block the app until the user creates their first profile ──
+  const { data: profilesData, isLoading: profilesLoading } = useProfiles();
+  const profiles = profilesData || [];
+  const queryClient = useQueryClient();
+  const { userId } = useAuthStore();
+
+  const [newProfileName, setNewProfileName] = useState('');
+  const [newProfileDOB, setNewProfileDOB] = useState('');
+  const [newProfileSex, setNewProfileSex] = useState('unspecified');
+
+  const createFirstProfile = useMutation({
+    mutationFn: async (body: { display_name: string; date_of_birth?: string; biological_sex: string }) => {
+      const idPriv = getIdentityPrivateKey();
+      const me = await api.get<{ identity_pubkey: string }>('/api/v1/users/me');
+      if (idPriv && me.identity_pubkey && userId) {
+        const profileKey = await generateProfileKey();
+        const wrapped = await createKeyGrant(profileKey, idPriv, me.identity_pubkey, `selfgrant:${userId}`);
+        const created = await api.post<Profile>('/api/v1/profiles', { ...body, self_grant: { encrypted_key: wrapped } });
+        setProfileKey(created.id, profileKey);
+        return created;
+      }
+      return api.post<Profile>('/api/v1/profiles', body);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      setNewProfileName('');
+      setNewProfileDOB('');
+      setNewProfileSex('unspecified');
+    },
+  });
+
+  const needsProfile = !profilesLoading && profiles.length === 0;
+
   return (
     <div className={`app-layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}`} data-theme={theme}>
       <SyncIndicator />
+
+      {needsProfile && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }}>
+          <div className="modal-content" style={{ maxWidth: 420, padding: 32 }} onClick={(e) => e.stopPropagation()}>
+            <h2>{t('onboarding.create_profile')}</h2>
+            <p className="text-muted" style={{ marginBottom: 16 }}>{t('onboarding.create_profile_desc')}</p>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!newProfileName.trim()) return;
+              createFirstProfile.mutate({
+                display_name: newProfileName.trim(),
+                date_of_birth: newProfileDOB || undefined,
+                biological_sex: newProfileSex,
+              });
+            }}>
+              <div className="form-group">
+                <label>{t('settings.new_profile_name')}</label>
+                <input type="text" value={newProfileName} onChange={(e) => setNewProfileName(e.target.value)}
+                  placeholder={t('settings.new_profile_name_placeholder')} required autoFocus />
+              </div>
+              <div className="form-group">
+                <label>{t('settings.new_profile_dob')}</label>
+                <input type="date" value={newProfileDOB} onChange={(e) => setNewProfileDOB(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label>{t('settings.new_profile_sex')}</label>
+                <select value={newProfileSex} onChange={(e) => setNewProfileSex(e.target.value)}>
+                  <option value="unspecified">{t('settings.sex_unspecified')}</option>
+                  <option value="female">{t('settings.sex_female')}</option>
+                  <option value="male">{t('settings.sex_male')}</option>
+                  <option value="other">{t('settings.sex_other')}</option>
+                </select>
+              </div>
+              <button type="submit" className="btn btn-add" style={{ width: '100%' }}
+                disabled={!newProfileName.trim() || createFirstProfile.isPending}>
+                {createFirstProfile.isPending ? t('common.loading') : t('settings.create_profile_btn')}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════
           DESKTOP SIDEBAR — hidden on tablet/mobile via CSS
