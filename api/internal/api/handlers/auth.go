@@ -131,6 +131,8 @@ type registerCompleteRequest struct {
 	Email              string   `json:"email"`
 	DisplayName        string   `json:"display_name"`
 	AuthHash           string   `json:"auth_hash"`
+	PEKSalt            string   `json:"pek_salt"`
+	AuthSalt           string   `json:"auth_salt"`
 	IdentityPubkey     string   `json:"identity_pubkey"`
 	IdentityPrivkeyEnc string   `json:"identity_privkey_enc"`
 	SigningPubkey      string   `json:"signing_pubkey"`
@@ -322,18 +324,18 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Generate salts (the client already derived from these, but we also store them)
-	pekSalt, err := crypto.GenerateSalt(16)
-	if err != nil {
-		h.logger.Error("generate pek_salt", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
+	// Use the salts the client derived PEK/auth from during the init step. The
+	// client already encrypted identity_privkey_enc with PEK(passphrase, pek_salt),
+	// so the stored salt MUST match — otherwise login can't decrypt the key.
+	// Fall back to generating new salts for backward compatibility with older
+	// clients that don't send them (though those keys will be unrecoverable).
+	pekSalt := req.PEKSalt
+	if pekSalt == "" {
+		pekSalt, _ = crypto.GenerateSalt(16)
 	}
-	authSalt, err := crypto.GenerateSalt(16)
-	if err != nil {
-		h.logger.Error("generate auth_salt", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
+	authSalt := req.AuthSalt
+	if authSalt == "" {
+		authSalt, _ = crypto.GenerateSalt(16)
 	}
 
 	u := &user.User{

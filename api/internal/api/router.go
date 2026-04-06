@@ -245,6 +245,7 @@ func (s *Server) setupRoutes() {
 				r.Delete("/me/sessions/{sessionID}", s.UserHandler.HandleRevokeSession)
 				r.Delete("/me/sessions/others", s.UserHandler.HandleRevokeOtherSessions)
 				r.Post("/me/change-passphrase", s.UserHandler.HandleChangePassphrase)
+				r.Patch("/me/keys", s.UserHandler.HandleUpdateKeys)
 				r.Get("/me/storage", s.UserHandler.HandleGetStorage)
 				r.Get("/me/preferences", s.UserHandler.HandleGetPreferences)
 				r.Patch("/me/preferences", s.UserHandler.HandleUpdatePreferences)

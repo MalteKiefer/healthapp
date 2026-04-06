@@ -112,11 +112,15 @@ export function Register() {
       // Step 5: Generate recovery codes (server will hash with Argon2id)
       const codes = generateRecoveryCodes(10);
 
-      // Step 6: Complete registration
+      // Step 6: Complete registration — include salts so the server stores the
+      // same ones used to derive PEK. Without this, login would derive a
+      // different PEK and fail to decrypt identity_privkey_enc.
       await api.post<RegisterCompleteResponse>('/api/v1/auth/register/complete', {
         email,
         display_name: displayName || email.split('@')[0],
         auth_hash: authHash,
+        pek_salt: salts.pek_salt,
+        auth_salt: salts.auth_salt,
         identity_pubkey: identityPubkey,
         identity_privkey_enc: identityPrivkeyEnc,
         signing_pubkey: signingPubkey,

@@ -84,6 +84,40 @@ func (h *UserHandler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, sanitizeUser(u))
 }
 
+// HandleUpdateKeys replaces the user's identity keypair. Called by the client
+// when the stored identity_privkey_enc can't be decrypted (salt mismatch from
+// a legacy registration bug). The client generates a fresh ECDH keypair,
+// encrypts the private key with the current PEK, and sends both to replace the
+// stored values. Existing profile grants signed with the old key become
+// invalid; the client creates new self-grants as part of the flow.
+func (h *UserHandler) HandleUpdateKeys(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	var req struct {
+		IdentityPubkey     string `json:"identity_pubkey"`
+		IdentityPrivkeyEnc string `json:"identity_privkey_enc"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.IdentityPubkey == "" || req.IdentityPrivkeyEnc == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("missing_required_fields"))
+		return
+	}
+
+	_, err := h.db.Exec(r.Context(),
+		"UPDATE users SET identity_pubkey = $2, identity_privkey_enc = $3, updated_at = NOW() WHERE id = $1",
+		claims.UserID, req.IdentityPubkey, req.IdentityPrivkeyEnc)
+	if err != nil {
+		h.logger.Error("update keys", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "keys_updated"})
+}
+
 // HandleDeleteMe deletes the authenticated user's account.
 func (h *UserHandler) HandleDeleteMe(w http.ResponseWriter, r *http.Request) {
 	claims, ok := ClaimsFromContext(r.Context())

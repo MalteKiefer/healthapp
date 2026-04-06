@@ -3,7 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/auth';
 import { api, ApiError } from '../api/client';
-import { deriveAuthHash, derivePEK, setPEK, importPrivateKeyEncrypted, setIdentityPrivateKey } from '../crypto';
+import {
+  deriveAuthHash, derivePEK, setPEK,
+  importPrivateKeyEncrypted, setIdentityPrivateKey,
+  generateIdentityKeyPair, exportPublicKey, exportPrivateKeyEncrypted,
+} from '../crypto';
 
 interface LoginResponse {
   expires_at?: number;
@@ -59,14 +63,27 @@ export function Login() {
       if (res.pek_salt) {
         const pekKey = await derivePEK(passphrase, res.pek_salt);
         setPEK(pekKey);
-        // Unwrap the identity ECDH private key so profile key wrap/unwrap
-        // flows can run later without re-prompting for the passphrase.
+        // Unwrap the identity ECDH private key. If decryption fails (legacy
+        // users whose stored PEK salt doesn't match the one used to encrypt
+        // the key), regenerate the keypair and update the server.
         if (res.identity_privkey_enc) {
           try {
             const idPriv = await importPrivateKeyEncrypted(res.identity_privkey_enc, pekKey);
             setIdentityPrivateKey(idPriv);
-          } catch (e) {
-            console.warn('Failed to unwrap identity private key:', e);
+          } catch {
+            console.warn('Identity key decrypt failed — regenerating keypair');
+            try {
+              const kp = await generateIdentityKeyPair();
+              const pub = await exportPublicKey(kp.publicKey);
+              const privEnc = await exportPrivateKeyEncrypted(kp.privateKey, pekKey);
+              await api.patch('/api/v1/users/me/keys', {
+                identity_pubkey: pub,
+                identity_privkey_enc: privEnc,
+              });
+              setIdentityPrivateKey(kp.privateKey);
+            } catch (regenErr) {
+              console.warn('Identity key regen failed:', regenErr);
+            }
           }
         }
       }
@@ -104,8 +121,20 @@ export function Login() {
           try {
             const idPriv = await importPrivateKeyEncrypted(res.identity_privkey_enc, pekKey);
             setIdentityPrivateKey(idPriv);
-          } catch (e) {
-            console.warn('Failed to unwrap identity private key:', e);
+          } catch {
+            console.warn('Identity key decrypt failed (2FA) — regenerating');
+            try {
+              const kp = await generateIdentityKeyPair();
+              const pub = await exportPublicKey(kp.publicKey);
+              const privEnc = await exportPrivateKeyEncrypted(kp.privateKey, pekKey);
+              await api.patch('/api/v1/users/me/keys', {
+                identity_pubkey: pub,
+                identity_privkey_enc: privEnc,
+              });
+              setIdentityPrivateKey(kp.privateKey);
+            } catch (regenErr) {
+              console.warn('Identity key regen failed:', regenErr);
+            }
           }
         }
       }
