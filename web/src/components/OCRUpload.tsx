@@ -88,11 +88,11 @@ export function OCRUpload({ profileId, onLabValuesDetected, onVitalsDetected }: 
           value: lv.value,
           unit: lv.unit,
           reference_low: (() => {
-            const parts = lv.referenceRange?.split(/[\u2013\u2014\-]/).map(s => parseFloat(s.trim()));
+            const parts = lv.referenceRange?.split(/[\u2013\u2014-]/).map(s => parseFloat(s.trim()));
             return parts?.[0] != null && !isNaN(parts[0]) ? parts[0] : undefined;
           })(),
           reference_high: (() => {
-            const parts = lv.referenceRange?.split(/[\u2013\u2014\-]/).map(s => parseFloat(s.trim()));
+            const parts = lv.referenceRange?.split(/[\u2013\u2014-]/).map(s => parseFloat(s.trim()));
             return parts?.[1] != null && !isNaN(parts[1]) ? parts[1] : undefined;
           })(),
         })),

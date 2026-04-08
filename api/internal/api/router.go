@@ -106,7 +106,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	familyRepo := postgres.NewFamilyRepo(db)
 	familyHandler := handlers.NewFamilyHandler(familyRepo, logger, db)
 
-	userHandler := handlers.NewUserHandler(db, userRepo, logger, "/data/uploads")
+	userHandler := handlers.NewUserHandler(db, userRepo, logger, "/data/uploads", tokenService)
 	labRepo := postgres.NewLabRepo(db)
 	labHandler := handlers.NewLabHandler(labRepo, profileRepo, logger)
 	emergencyHandler := handlers.NewEmergencyHandler(db, logger)

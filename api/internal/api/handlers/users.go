@@ -20,14 +20,15 @@ import (
 
 // UserHandler handles user/me endpoints.
 type UserHandler struct {
+	tokenService *crypto.TokenService
 	db        *pgxpool.Pool
 	userRepo  user.Repository
 	logger    *zap.Logger
 	uploadDir string
 }
 
-func NewUserHandler(db *pgxpool.Pool, repo user.Repository, logger *zap.Logger, uploadDir string) *UserHandler {
-	return &UserHandler{db: db, userRepo: repo, logger: logger, uploadDir: uploadDir}
+func NewUserHandler(db *pgxpool.Pool, repo user.Repository, logger *zap.Logger, uploadDir string, ts *crypto.TokenService) *UserHandler {
+	return &UserHandler{db: db, userRepo: repo, logger: logger, uploadDir: uploadDir, tokenService: ts}
 }
 
 // HandleGetMe returns the authenticated user's profile (without sensitive fields).
