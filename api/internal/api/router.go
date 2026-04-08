@@ -226,6 +226,7 @@ func (s *Server) setupRoutes() {
 			r.Use(middleware.JWTAuth(s.TokenService))
 			r.Use(middleware.ConsentCheck(s.DB, s.Redis))
 			r.Use(middleware.SessionTimeout(s.Redis, s.Config.Instance.SessionTimeout))
+			r.Use(middleware.AuditWrites(middleware.NewAuditWriter(s.DB, s.Logger)))
 
 			// Logout (requires authenticated user)
 			r.Post("/auth/logout", s.AuthHandler.HandleLogout)

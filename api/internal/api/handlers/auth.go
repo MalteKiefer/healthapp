@@ -405,9 +405,7 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 		h.logger.Error("init preferences", zap.Error(err))
 	}
 
-	h.writeAuditLog(r.Context(), r, u.ID, "auth.register", "user", &u.ID, map[string]interface{}{
-		"email": u.Email,
-	})
+	h.writeAuditLog(r.Context(), r, u.ID, "auth.register", "user", &u.ID, nil)
 
 	writeJSON(w, http.StatusCreated, map[string]string{
 		"id":    u.ID.String(),
@@ -825,9 +823,7 @@ func (h *AuthHandler) completeLogin(w http.ResponseWriter, r *http.Request, u *u
 		h.logger.Error("create session", zap.Error(err))
 	}
 
-	h.writeAuditLog(r.Context(), r, u.ID, "auth.login", "session", nil, map[string]interface{}{
-		"email": u.Email,
-	})
+	h.writeAuditLog(r.Context(), r, u.ID, "auth.login", "session", nil, nil)
 
 	setAuthCookies(w, pair.AccessToken, pair.RefreshToken, h.secureCookies)
 

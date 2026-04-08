@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
@@ -56,9 +57,18 @@ func (a *AuditWriter) LogAction(ctx context.Context, userID *uuid.UUID, action, 
 func AuditWrites(aw *AuditWriter) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r)
+			ww := chimiddleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			next.ServeHTTP(ww, r)
 
-			// Only audit write operations
+			// Only audit write operations that succeeded (2xx/3xx)
+			status := ww.Status()
+			if status == 0 {
+				status = http.StatusOK // default when WriteHeader was never called
+			}
+			if status >= 400 {
+				return
+			}
+
 			switch r.Method {
 			case http.MethodPost, http.MethodPatch, http.MethodPut, http.MethodDelete:
 				var userID *uuid.UUID
