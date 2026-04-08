@@ -103,7 +103,7 @@ export async function decryptOrPassthrough<T extends EntityBase>(
 }
 
 /** Build the content_enc blob for a write, plus stripped structural fields. */
-export async function encryptForWrite<T extends EntityBase>(
+export async function encryptForWrite<T extends object>(
   profileId: string,
   rowId: string,
   entityName: string,

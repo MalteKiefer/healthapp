@@ -1,11 +1,8 @@
 import { api } from './client';
 import {
-  encryptProfileContent,
-  decryptProfileContent,
-  makeAAD,
-  getProfileKey,
-} from '../crypto';
-import { enqueueMigration } from '../utils/migrationQueue';
+  decryptOrPassthrough as decryptEntity,
+  encryptForWrite as encryptEntity,
+} from './encryptedEntity';
 
 export interface Vital {
   id: string;
@@ -33,68 +30,22 @@ export interface Vital {
   content_enc?: string | null;
 }
 
+const ENTITY = 'vital';
+
 // Fields that live inside content_enc (everything except structural ids/ts).
-const CONTENT_FIELDS = [
+const CONTENT_FIELDS: readonly (keyof Vital)[] = [
   'blood_pressure_systolic', 'blood_pressure_diastolic', 'pulse',
   'oxygen_saturation', 'weight', 'height', 'body_temperature',
   'blood_glucose', 'respiratory_rate', 'waist_circumference',
   'hip_circumference', 'body_fat_percentage', 'bmi',
   'sleep_duration_minutes', 'sleep_quality', 'device', 'notes',
-] as const;
+];
 
-type ContentField = typeof CONTENT_FIELDS[number];
-type VitalContent = Partial<Pick<Vital, ContentField>>;
-
-function extractContent(v: Partial<Vital>): VitalContent {
-  const out = {} as Record<string, unknown>;
-  for (const k of CONTENT_FIELDS) {
-    if (v[k] !== undefined) out[k] = v[k];
-  }
-  return out as VitalContent;
-}
-
-function mergeContent(base: Vital, content: VitalContent): Vital {
-  // Clear any plaintext that came off the wire — decrypted blob is
-  // authoritative. Missing keys in content = field is null.
-  const cleared = { ...base } as unknown as Record<string, unknown>;
-  for (const k of CONTENT_FIELDS) cleared[k] = undefined;
-  return { ...(cleared as unknown as Vital), ...content };
-}
+const migratePath = (v: Vital) =>
+  `/api/v1/profiles/${v.profile_id}/vitals/${v.id}/migrate-content`;
 
 async function decryptOrPassthrough(profileId: string, raw: Vital): Promise<Vital> {
-  const key = getProfileKey(profileId);
-  if (!key) return raw; // key not unwrapped yet — caller handles
-
-  if (raw.content_enc) {
-    try {
-      const content = await decryptProfileContent<VitalContent>(
-        raw.content_enc,
-        key,
-        makeAAD(profileId, 'vital', raw.id),
-      );
-      return mergeContent(raw, content);
-    } catch (err) {
-      console.warn('vital decrypt failed, falling back to plaintext', raw.id, err);
-      return raw;
-    }
-  }
-
-  // Legacy row: plaintext fields still present. Schedule a background
-  // migrate-content so the next read gets the encrypted blob.
-  const content = extractContent(raw);
-  enqueueMigration(`vitals:${profileId}`, async () => {
-    const freshKey = getProfileKey(profileId);
-    if (!freshKey) return;
-    const blob = await encryptProfileContent(
-      content,
-      freshKey,
-      makeAAD(profileId, 'vital', raw.id),
-    );
-    await api.patch(`/api/v1/profiles/${profileId}/vitals/${raw.id}/migrate-content`, {
-      content_enc: blob,
-    });
-  });
-  return raw;
+  return decryptEntity(raw, ENTITY, CONTENT_FIELDS, migratePath);
 }
 
 async function encryptForWrite(
@@ -102,22 +53,7 @@ async function encryptForWrite(
   vitalId: string,
   data: Partial<Vital>,
 ): Promise<{ content_enc: string | undefined; structural: Partial<Vital> }> {
-  const key = getProfileKey(profileId);
-  const content = extractContent(data);
-  let content_enc: string | undefined;
-  if (key && Object.keys(content).length > 0) {
-    content_enc = await encryptProfileContent(
-      content,
-      key,
-      makeAAD(profileId, 'vital', vitalId),
-    );
-  }
-  // Strip content fields from the outgoing object so the server sees only
-  // structural data plus content_enc.
-  const structural: Partial<Vital> = { ...data };
-  for (const k of CONTENT_FIELDS) delete structural[k];
-  delete structural.content_enc;
-  return { content_enc, structural };
+  return encryptEntity(profileId, vitalId, ENTITY, data, CONTENT_FIELDS);
 }
 
 export interface VitalListResponse {

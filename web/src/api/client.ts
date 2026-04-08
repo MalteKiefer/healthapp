@@ -24,6 +24,11 @@ class ApiError extends Error {
   }
 }
 
+interface FormDataRequestOptions {
+  method?: string;
+  body: FormData;
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -94,9 +99,53 @@ async function tryRefresh(): Promise<boolean> {
   }
 }
 
+async function requestFormData<T>(path: string, options: FormDataRequestOptions): Promise<T> {
+  // Do NOT set Content-Type — the browser sets it with the multipart boundary.
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: options.method || 'POST',
+    credentials: 'include',
+    body: options.body,
+  });
+
+  if (res.status === 401) {
+    if (!refreshPromise) {
+      refreshPromise = tryRefresh().finally(() => {
+        refreshPromise = null;
+      });
+    }
+
+    const refreshed = await refreshPromise;
+    if (refreshed) {
+      return requestFormData<T>(path, options);
+    }
+
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('user_email');
+    window.location.href = '/login';
+    throw new ApiError(401, 'unauthorized');
+  }
+
+  if (res.status === 451) {
+    throw new ApiError(451, 'updated_policy_acceptance_required');
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: 'unknown' }));
+    throw new ApiError(res.status, data.error || 'unknown');
+  }
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  return res.json();
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
+  postFormData: <T>(path: string, body: FormData) => requestFormData<T>(path, { method: 'POST', body }),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),

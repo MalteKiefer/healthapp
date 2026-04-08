@@ -48,13 +48,9 @@ export const documentsApi = {
       formData.append('file', file);
     }
 
-    const res = await fetch(`/api/v1/profiles/${profileId}/documents`, {
-      method: 'POST',
-      credentials: 'include',
-      body: formData,
-    });
-
-    if (!res.ok) throw new Error('Upload failed');
-    return res.json() as Promise<Document>;
+    return api.postFormData<Document>(
+      `/api/v1/profiles/${profileId}/documents`,
+      formData,
+    );
   },
 };
