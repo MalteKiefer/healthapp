@@ -59,7 +59,7 @@ async function deriveWrappingKey(
     {
       name: 'HKDF',
       hash: 'SHA-256',
-      salt: new Uint8Array(0),
+      salt: encoder.encode('HealthVault-ProfileKeyGrant-v1'),
       info: encoder.encode(`HealthVault ProfileKeyGrant v1 ${context}`),
     },
     hkdfKey,

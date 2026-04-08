@@ -197,7 +197,7 @@ export function Vitals() {
   }, [chartData]);
 
   // Auto-select first available tab if current has no data
-  useMemo(() => {
+  useEffect(() => {
     if (tabsWithData.length > 0 && !tabsWithData.includes(activeChartTab)) {
       setActiveChartTab(tabsWithData[0]);
     }

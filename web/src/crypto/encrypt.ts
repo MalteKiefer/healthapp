@@ -117,7 +117,7 @@ export async function unwrapKey(wrappedBase64: string, unwrappingKey: CryptoKey)
     unwrappingKey,
     { name: 'AES-GCM', iv, tagLength: 128 },
     { name: 'AES-GCM', length: 256 },
-    true,
+    false,
     ['encrypt', 'decrypt'],
   );
 }

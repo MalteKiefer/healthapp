@@ -55,7 +55,7 @@ export function Login() {
         setUserId(res.user_id);
         setChallengeToken(res.challenge_token || '');
         // Store pek_salt for after 2FA verification
-        if (res.pek_salt) localStorage.setItem('_pek_salt_tmp', res.pek_salt);
+        if (res.pek_salt) sessionStorage.setItem('_pek_salt_tmp', res.pek_salt);
         setLoading(false);
         return;
       }
@@ -113,7 +113,7 @@ export function Login() {
       });
 
       // Derive PEK with passphrase still in memory
-      const pekSalt = localStorage.getItem('_pek_salt_tmp') || res.pek_salt;
+      const pekSalt = sessionStorage.getItem('_pek_salt_tmp') || res.pek_salt;
       if (pekSalt && passphrase) {
         const pekKey = await derivePEK(passphrase, pekSalt);
         setPEK(pekKey);
@@ -138,10 +138,11 @@ export function Login() {
           }
         }
       }
-      localStorage.removeItem('_pek_salt_tmp');
+      sessionStorage.removeItem('_pek_salt_tmp');
       login(res.user_id, res.role || 'user', email);
       navigate('/');
     } catch (err) {
+      sessionStorage.removeItem('_pek_salt_tmp');
       if (err instanceof ApiError) {
         setError(err.code === 'invalid_totp_code' ? t('auth.invalid_totp') : err.code);
       }

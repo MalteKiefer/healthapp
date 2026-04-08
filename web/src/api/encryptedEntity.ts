@@ -113,7 +113,10 @@ export async function encryptForWrite<T extends EntityBase>(
   const key = getProfileKey(profileId);
   const content = extractContent(data, contentFields);
   let content_enc: string | undefined;
-  if (key && Object.keys(content).length > 0) {
+  if (Object.keys(content).length > 0) {
+    if (!key) {
+      throw new Error(`Profile key not available for profile ${profileId} — cannot encrypt`);
+    }
     content_enc = await encryptProfileContent(
       content,
       key,
