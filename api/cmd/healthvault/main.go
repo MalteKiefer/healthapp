@@ -352,14 +352,40 @@ func migrateDown(ctx context.Context, db *pgxpool.Pool, n int) {
 
 		fmt.Printf("Rolling back migration %d (%s)...\n", mig.Version, mig.Name)
 
+		tx, err := db.Begin(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "begin tx for rollback %d: %v\n", currentVersion, err)
+			os.Exit(1)
+		}
+
 		// Mark dirty before attempting
-		_, _ = db.Exec(ctx,
+		if _, err := tx.Exec(ctx,
 			"UPDATE schema_migrations SET dirty = TRUE WHERE version = $1",
 			currentVersion,
-		)
+		); err != nil {
+			_ = tx.Rollback(ctx)
+			fmt.Fprintf(os.Stderr, "mark dirty version %d: %v\n", currentVersion, err)
+			os.Exit(1)
+		}
 
-		if _, err := db.Exec(ctx, string(sql)); err != nil {
+		if _, err := tx.Exec(ctx, string(sql)); err != nil {
+			_ = tx.Rollback(ctx)
 			fmt.Fprintf(os.Stderr, "rollback version %d failed (dirty=true): %v\n", currentVersion, err)
+			os.Exit(1)
+		}
+
+		// Remove the rolled-back version from schema_migrations
+		if _, err := tx.Exec(ctx,
+			"DELETE FROM schema_migrations WHERE version = $1",
+			currentVersion,
+		); err != nil {
+			_ = tx.Rollback(ctx)
+			fmt.Fprintf(os.Stderr, "delete schema_migrations row for version %d: %v\n", currentVersion, err)
+			os.Exit(1)
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "commit rollback for version %d: %v\n", currentVersion, err)
 			os.Exit(1)
 		}
 
@@ -536,9 +562,21 @@ func listMigrations(direction string) ([]migrationFile, error) {
 }
 
 // getSchemaVersion queries the current schema version from the database.
+// It fatally exits if any migration is marked dirty, indicating a previous
+// migration failed mid-way and requires manual intervention.
 func getSchemaVersion(ctx context.Context, db *pgxpool.Pool) (int, error) {
-	var version int
+	// Check for dirty migrations first.
+	var dirtyVersion int
 	err := db.QueryRow(ctx,
+		"SELECT version FROM schema_migrations WHERE dirty = TRUE ORDER BY version DESC LIMIT 1",
+	).Scan(&dirtyVersion)
+	if err == nil {
+		fmt.Fprintf(os.Stderr, "FATAL: migration version %d is marked dirty. A previous migration failed and requires manual intervention.\n", dirtyVersion)
+		os.Exit(1)
+	}
+
+	var version int
+	err = db.QueryRow(ctx,
 		"SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1",
 	).Scan(&version)
 	if err != nil {
@@ -559,40 +597,58 @@ func countPending(migs []migrationFile, currentVersion int) int {
 }
 
 // applyMigrationsUp applies all pending up-migrations after currentVersion.
+// Each migration runs inside a single transaction so that a failure leaves
+// the schema_migrations table in a consistent state.
 func applyMigrationsUp(ctx context.Context, db *pgxpool.Pool, migs []migrationFile, currentVersion int) error {
+	// Ensure the tracking table exists (outside the per-migration tx).
+	_, _ = db.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version     BIGINT PRIMARY KEY,
+			dirty       BOOLEAN NOT NULL DEFAULT FALSE,
+			applied_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`)
+
 	for _, m := range migs {
 		if m.Version <= currentVersion {
 			continue
 		}
 
-		sql, err := fs.ReadFile(migrations.FS, m.Filename)
+		sqlBytes, err := fs.ReadFile(migrations.FS, m.Filename)
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", m.Filename, err)
 		}
 
-		// Mark dirty before attempting (insert or update)
-		_, _ = db.Exec(ctx, `
-			CREATE TABLE IF NOT EXISTS schema_migrations (
-				version     BIGINT PRIMARY KEY,
-				dirty       BOOLEAN NOT NULL DEFAULT FALSE,
-				applied_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-			)`)
-		_, _ = db.Exec(ctx,
+		tx, err := db.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("begin tx for migration %d: %w", m.Version, err)
+		}
+
+		// Mark dirty before attempting
+		if _, err := tx.Exec(ctx,
 			"INSERT INTO schema_migrations (version, dirty) VALUES ($1, TRUE) ON CONFLICT (version) DO UPDATE SET dirty = TRUE",
 			m.Version,
-		)
+		); err != nil {
+			_ = tx.Rollback(ctx)
+			return fmt.Errorf("mark dirty migration %d: %w", m.Version, err)
+		}
 
-		if _, err := db.Exec(ctx, string(sql)); err != nil {
+		// Execute the migration SQL
+		if _, err := tx.Exec(ctx, string(sqlBytes)); err != nil {
+			_ = tx.Rollback(ctx)
 			return fmt.Errorf("apply migration %06d (%s): %w [dirty=true]", m.Version, m.Name, err)
 		}
 
 		// Mark clean after success
-		_, err = db.Exec(ctx,
+		if _, err := tx.Exec(ctx,
 			"INSERT INTO schema_migrations (version, dirty) VALUES ($1, FALSE) ON CONFLICT (version) DO UPDATE SET dirty = FALSE, applied_at = NOW()",
 			m.Version,
-		)
-		if err != nil {
+		); err != nil {
+			_ = tx.Rollback(ctx)
 			return fmt.Errorf("record migration %d: %w", m.Version, err)
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("commit migration %d: %w", m.Version, err)
 		}
 	}
 	return nil
