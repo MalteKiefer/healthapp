@@ -18,7 +18,7 @@ docker compose version
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USER/healthvault.git
+git clone https://github.com/MalteKiefer/healthapp.git
 cd healthvault
 
 # 2. Copy the example environment file

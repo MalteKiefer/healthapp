@@ -30,7 +30,10 @@ cp .env.example .env
 # 3. Edit .env with your secrets and configuration
 $EDITOR .env
 
-# 4. Launch everything
+# 4. Run the setup script (installs dependencies, generates keys, etc.)
+./setup.sh
+
+# 5. Launch everything
 docker compose up -d
 ```
 
@@ -223,7 +226,7 @@ This assumes you have a Traefik instance running with a `traefik` network and a 
 
 | Layer | Technology |
 |---|---|
-| **Backend** | Go 1.26, chi router, pgx (PostgreSQL driver), Redis, JWT RS256, Argon2id |
+| **Backend** | Go 1.26.1, chi router, pgx (PostgreSQL driver), Redis, JWT RS256, Argon2id |
 | **Frontend** | React 19, TypeScript, Vite, TanStack Query, Recharts, Zustand, i18next |
 | **Database** | PostgreSQL 16, PgBouncer (connection pooling), Redis 7 |
 | **Backup** | Encrypted backup container with scheduled dumps and verification |

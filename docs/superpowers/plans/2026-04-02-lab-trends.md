@@ -58,7 +58,7 @@ type MarkerTrend struct {
 
 - [ ] **Step 2: Verify it compiles**
 
-Run: `cd /home/pr0ph37/Entwicklung/healthvault/api && go build ./...`
+Run: `cd api && go build ./...`
 Expected: No errors.
 
 - [ ] **Step 3: Commit**
@@ -101,7 +101,7 @@ Note: This will cause a compile error until we implement it in Task 3. That's ex
 
 - [ ] **Step 2: Verify the interface change is syntactically correct**
 
-Run: `cd /home/pr0ph37/Entwicklung/healthvault/api && go vet ./internal/domain/labs/...`
+Run: `cd api && go vet ./internal/domain/labs/...`
 Expected: No errors (vet only checks the package, not implementors).
 
 - [ ] **Step 3: Commit**
@@ -207,7 +207,7 @@ func (r *LabRepo) ListTrends(ctx context.Context, profileID uuid.UUID, from, to 
 
 - [ ] **Step 2: Verify it compiles**
 
-Run: `cd /home/pr0ph37/Entwicklung/healthvault/api && go build ./...`
+Run: `cd api && go build ./...`
 Expected: No errors. The `LabRepo` now satisfies the updated `Repository` interface.
 
 - [ ] **Step 3: Commit**
@@ -302,7 +302,7 @@ r.Route("/labs", func(r chi.Router) {
 
 - [ ] **Step 3: Verify it compiles**
 
-Run: `cd /home/pr0ph37/Entwicklung/healthvault/api && go build ./...`
+Run: `cd api && go build ./...`
 Expected: No errors.
 
 - [ ] **Step 4: Commit**
@@ -721,7 +721,7 @@ export function LabTrendsView({ profileId }: { profileId: string }) {
 
 - [ ] **Step 2: Verify it compiles**
 
-Run: `cd /home/pr0ph37/Entwicklung/healthvault/web && npx tsc --noEmit`
+Run: `cd web && npx tsc --noEmit`
 Expected: No type errors.
 
 - [ ] **Step 3: Commit**
@@ -795,7 +795,7 @@ And after the list card's closing `</div>` (around line 256, before the edit mod
 
 - [ ] **Step 5: Verify it compiles**
 
-Run: `cd /home/pr0ph37/Entwicklung/healthvault/web && npx tsc --noEmit`
+Run: `cd web && npx tsc --noEmit`
 Expected: No type errors.
 
 - [ ] **Step 6: Commit**
