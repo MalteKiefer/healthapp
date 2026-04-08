@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -16,6 +18,10 @@ func CORS(hostname string) func(next http.Handler) http.Handler {
 	if hostname == "localhost" || strings.HasPrefix(hostname, "localhost:") {
 		allowedOrigins[fmt.Sprintf("http://%s", hostname)] = true
 		if devOrigin := os.Getenv("DEV_ORIGIN"); devOrigin != "" {
+			validDevOrigin := regexp.MustCompile(`^http://(localhost|127\.0\.0\.1)(:\d+)?$`)
+			if !validDevOrigin.MatchString(devOrigin) {
+				log.Fatalf("DEV_ORIGIN %q must match http://localhost:<port> or http://127.0.0.1:<port>", devOrigin)
+			}
 			allowedOrigins[devOrigin] = true
 		}
 	}
@@ -32,6 +38,8 @@ func CORS(hostname string) func(next http.Handler) http.Handler {
 				w.Header().Set("Access-Control-Expose-Headers", "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset")
 				w.Header().Set("Access-Control-Max-Age", "86400")
 			}
+
+			w.Header().Add("Vary", "Origin")
 
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
