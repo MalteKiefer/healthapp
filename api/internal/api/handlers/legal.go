@@ -168,6 +168,48 @@ func (h *LegalHandler) HandleCreateDocument(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+// HandleAcceptConsent records the authenticated user's acceptance of the
+// latest effective legal document.
+// POST /api/v1/legal/accept
+func (h *LegalHandler) HandleAcceptConsent(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	// Find the latest effective legal document.
+	var docID uuid.UUID
+	err := h.db.QueryRow(r.Context(),
+		`SELECT id FROM instance_legal_documents WHERE effective_from <= NOW() ORDER BY effective_from DESC LIMIT 1`,
+	).Scan(&docID)
+	if err != nil {
+		h.logger.Error("get latest legal document", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	ip := r.RemoteAddr
+	ua := r.UserAgent()
+
+	_, err = h.db.Exec(r.Context(),
+		`INSERT INTO user_consent_records (document_id, user_id, ip_address, user_agent, accepted_at)
+		 VALUES ($1, $2, $3::inet, $4, NOW())
+		 ON CONFLICT DO NOTHING`,
+		docID, claims.UserID, ip, ua,
+	)
+	if err != nil {
+		h.logger.Error("insert consent record", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"accepted":    true,
+		"document_id": docID,
+	})
+}
+
 // HandleListConsentRecords returns all user consent records.
 // GET /admin/legal/consent-records
 func (h *LegalHandler) HandleListConsentRecords(w http.ResponseWriter, r *http.Request) {

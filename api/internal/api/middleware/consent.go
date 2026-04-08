@@ -54,8 +54,8 @@ func ConsentCheck(db *pgxpool.Pool, rdb *redis.Client) func(next http.Handler) h
 				claims.UserID, docID,
 			).Scan(&count)
 			if err != nil {
-				// On DB error fail open so users are not locked out.
-				next.ServeHTTP(w, r)
+				// On DB error fail closed — never skip consent verification.
+				writeJSONError(w, http.StatusServiceUnavailable, "service_unavailable")
 				return
 			}
 
