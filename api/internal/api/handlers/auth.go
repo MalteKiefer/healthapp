@@ -734,6 +734,32 @@ func (h *AuthHandler) HandleRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If 2FA is enabled, require TOTP verification before completing login.
+	// Without this check, recovery codes would bypass the second factor entirely.
+	if u.TOTPEnabled {
+		challengeBytes := make([]byte, 32)
+		if _, err := rand.Read(challengeBytes); err != nil {
+			h.logger.Error("generate 2fa challenge token", zap.Error(err))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+		challengeToken := hex.EncodeToString(challengeBytes)
+
+		if err := h.rdb.Set(r.Context(), "2fa_challenge:"+challengeToken, u.ID.String(), 5*time.Minute).Err(); err != nil {
+			h.logger.Error("store 2fa challenge token", zap.Error(err))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+
+		writeJSON(w, http.StatusOK, loginResponse{
+			UserID:         u.ID.String(),
+			RequiresTOTP:   true,
+			PEKSalt:        u.PEKSalt,
+			ChallengeToken: challengeToken,
+		})
+		return
+	}
+
 	h.completeLogin(w, r, u)
 }
 
