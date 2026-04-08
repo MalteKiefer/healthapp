@@ -213,7 +213,6 @@ func (s *Server) setupRoutes() {
 			r.With(rl.Limit(middleware.RateLimitConfig{
 				Requests: 30, Window: time.Hour, BlockDuration: 30 * time.Minute,
 			})).Post("/refresh", s.AuthHandler.HandleRefresh)
-			r.Post("/logout", s.AuthHandler.HandleLogout)
 
 			r.Get("/policy", s.AuthHandler.HandleGetPolicy)
 
@@ -227,6 +226,9 @@ func (s *Server) setupRoutes() {
 			r.Use(middleware.JWTAuth(s.TokenService))
 			r.Use(middleware.ConsentCheck(s.DB, s.Redis))
 			r.Use(middleware.SessionTimeout(s.Redis, s.Config.Instance.SessionTimeout))
+
+			// Logout (requires authenticated user)
+			r.Post("/auth/logout", s.AuthHandler.HandleLogout)
 
 			// 2FA management (requires authenticated user)
 			r.Route("/auth/2fa", func(r chi.Router) {
