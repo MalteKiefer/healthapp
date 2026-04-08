@@ -804,7 +804,8 @@
     "submit": "Recover Account",
     "success": "Account recovered. Please log in.",
     "invalid": "Invalid email or recovery code",
-    "back_to_login": "Back to Login"
+    "back_to_login": "Back to Login",
+    "connection_error": "Connection error. Please try again."
   },
   "family": {
     "title": "Family",

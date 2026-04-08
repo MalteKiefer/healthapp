@@ -37,14 +37,14 @@ interface VitalFormData {
 
 type VitalCategory = 'blood_pressure' | 'pulse' | 'weight' | 'temperature' | 'oxygen' | 'glucose' | 'sleep';
 
-const VITAL_CHIPS: { id: VitalCategory; label: string; icon: string }[] = [
-  { id: 'blood_pressure', label: 'Blood Pressure', icon: '\u2764\uFE0F' },
-  { id: 'pulse', label: 'Pulse', icon: '\uD83D\uDC93' },
-  { id: 'weight', label: 'Weight', icon: '\u2696\uFE0F' },
-  { id: 'temperature', label: 'Temperature', icon: '\uD83C\uDF21\uFE0F' },
-  { id: 'oxygen', label: 'SpO2', icon: '\uD83E\uDE78' },
-  { id: 'glucose', label: 'Blood Glucose', icon: '\uD83E\uDE78' },
-  { id: 'sleep', label: 'Sleep', icon: '\uD83D\uDCA4' },
+const VITAL_CHIPS: { id: VitalCategory; labelKey: string; icon: string }[] = [
+  { id: 'blood_pressure', labelKey: 'vitals.blood_pressure', icon: '\u2764\uFE0F' },
+  { id: 'pulse', labelKey: 'vitals.pulse', icon: '\uD83D\uDC93' },
+  { id: 'weight', labelKey: 'vitals.weight', icon: '\u2696\uFE0F' },
+  { id: 'temperature', labelKey: 'vitals.temperature', icon: '\uD83C\uDF21\uFE0F' },
+  { id: 'oxygen', labelKey: 'vitals.oxygen', icon: '\uD83E\uDE78' },
+  { id: 'glucose', labelKey: 'vitals.glucose', icon: '\uD83E\uDE78' },
+  { id: 'sleep', labelKey: 'vitals.sleep', icon: '\uD83D\uDCA4' },
 ];
 
 type ThresholdConfig = Record<string, { low?: number | null; high?: number | null }>;
@@ -276,7 +276,7 @@ export function Vitals() {
                   {VITAL_CHIPS.map((chip) => (
                     <button key={chip.id} type="button" className={`vital-chip ${selectedVitals.has(chip.id) ? 'active' : ''}`} onClick={() => toggleVitalChip(chip.id)}>
                       <span className="vital-chip-icon">{chip.icon}</span>
-                      <span className="vital-chip-label">{t(`vitals.${chip.id}`) || chip.label}</span>
+                      <span className="vital-chip-label">{t(chip.labelKey)}</span>
                     </button>
                   ))}
                 </div>

@@ -8,6 +8,7 @@ import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { vaccinationsApi, type Vaccination } from '../api/vaccinations';
+import { fixDates } from '../utils/dates';
 import { ContactPicker } from '../components/ContactPicker';
 
 export function Vaccinations() {
@@ -34,20 +35,6 @@ export function Vaccinations() {
 
   // Due vaccinations are now filtered client-side from the full list
   // (server endpoint returned 410 Gone after encryption migration).
-
-  const fixDates = (data: Record<string, unknown>, dateFields: string[]) => {
-    const cleaned = { ...data };
-    for (const field of dateFields) {
-      const val = cleaned[field];
-      if (typeof val === 'string' && val && !val.includes('T')) {
-        cleaned[field] = new Date(val + 'T00:00:00').toISOString();
-      }
-      if (typeof val === 'string' && val === '') {
-        delete cleaned[field];
-      }
-    }
-    return cleaned;
-  };
 
   const createMutation = useMutation({
     mutationFn: (v: Partial<Vaccination>) => vaccinationsApi.create(profileId, fixDates(v as Record<string, unknown>, ['administered_at', 'next_due_at']) as Partial<Vaccination>),

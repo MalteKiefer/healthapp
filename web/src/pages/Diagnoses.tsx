@@ -7,6 +7,7 @@ import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
 import { useProfiles } from '../hooks/useProfiles';
 import { diagnosesApi, type Diagnosis } from '../api/diagnoses';
+import { fixDates } from '../utils/dates';
 import { ContactPicker } from '../components/ContactPicker';
 
 const STATUSES = ['active', 'resolved', 'chronic', 'in_remission', 'suspected'];
@@ -35,20 +36,6 @@ export function Diagnoses() {
     queryFn: () => diagnosesApi.list(profileId),
     enabled: !!profileId,
   });
-
-  const fixDates = (data: Record<string, unknown>, dateFields: string[]) => {
-    const cleaned = { ...data };
-    for (const field of dateFields) {
-      const val = cleaned[field];
-      if (typeof val === 'string' && val && !val.includes('T')) {
-        cleaned[field] = new Date(val + 'T00:00:00').toISOString();
-      }
-      if (typeof val === 'string' && val === '') {
-        delete cleaned[field];
-      }
-    }
-    return cleaned;
-  };
 
   const createMutation = useMutation({
     mutationFn: (d: Partial<Diagnosis>) => diagnosesApi.create(profileId, fixDates(d as Record<string, unknown>, ['diagnosed_at', 'resolved_at']) as Partial<Diagnosis>),

@@ -31,7 +31,7 @@ export function Recovery() {
       if (err instanceof ApiError) {
         setError(t('recovery.invalid'));
       } else {
-        setError(t('common.error'));
+        setError(t('recovery.connection_error'));
       }
     } finally {
       setLoading(false);

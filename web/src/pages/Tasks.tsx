@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { isPast, differenceInDays } from 'date-fns';
+import { fixDates } from '../utils/dates';
 import { ProfileSelector } from '../components/ProfileSelector';
 import { useDateFormat } from '../hooks/useDateLocale';
 import { ConfirmDelete } from '../components/ConfirmDelete';
@@ -37,20 +38,6 @@ export function Tasks() {
       : tasksApi.list(profileId),
     enabled: !!profileId,
   });
-
-  const fixDates = (data: Record<string, unknown>, dateFields: string[]) => {
-    const cleaned = { ...data };
-    for (const field of dateFields) {
-      const val = cleaned[field];
-      if (typeof val === 'string' && val && !val.includes('T')) {
-        cleaned[field] = new Date(val + 'T00:00:00').toISOString();
-      }
-      if (typeof val === 'string' && val === '') {
-        delete cleaned[field];
-      }
-    }
-    return cleaned;
-  };
 
   const createMutation = useMutation({
     mutationFn: (task: Partial<Task>) => tasksApi.create(profileId, fixDates(task as Record<string, unknown>, ['due_date']) as Partial<Task>),

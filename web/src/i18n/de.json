@@ -804,7 +804,8 @@
     "submit": "Konto wiederherstellen",
     "success": "Konto wiederhergestellt. Bitte melde dich an.",
     "invalid": "Ungültige E-Mail oder Wiederherstellungscode",
-    "back_to_login": "Zurück zur Anmeldung"
+    "back_to_login": "Zurück zur Anmeldung",
+    "connection_error": "Verbindungsfehler. Bitte versuche es erneut."
   },
   "family": {
     "title": "Familie",
