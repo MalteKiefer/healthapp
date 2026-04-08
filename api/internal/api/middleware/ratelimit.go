@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -75,11 +76,10 @@ func (rl *RateLimiter) checkLimit(ctx context.Context, key string, cfg RateLimit
 	windowStart := now - cfg.Window.Milliseconds()
 	member := fmt.Sprintf("%d", now)
 
+	// First, clean up old entries and check the current count.
 	pipe := rl.rdb.Pipeline()
 	pipe.ZRemRangeByScore(ctx, key, "0", strconv.FormatInt(windowStart, 10))
-	pipe.ZAdd(ctx, key, redis.Z{Score: float64(now), Member: member})
 	countCmd := pipe.ZCard(ctx, key)
-	pipe.Expire(ctx, key, cfg.Window+time.Second)
 
 	_, err := pipe.Exec(ctx)
 	if err != nil {
@@ -87,12 +87,27 @@ func (rl *RateLimiter) checkLimit(ctx context.Context, key string, cfg RateLimit
 	}
 
 	count := int(countCmd.Val())
+	if count >= cfg.Requests {
+		// Already at or over limit — reject without adding a new entry.
+		return false, 0, nil
+	}
+
+	// Under the limit — record this request.
+	addPipe := rl.rdb.Pipeline()
+	addPipe.ZAdd(ctx, key, redis.Z{Score: float64(now), Member: member})
+	addPipe.Expire(ctx, key, cfg.Window+time.Second)
+	_, err = addPipe.Exec(ctx)
+	if err != nil {
+		return false, 0, err
+	}
+
+	count++ // account for the entry we just added
 	remaining := cfg.Requests - count
 	if remaining < 0 {
 		remaining = 0
 	}
 
-	return count <= cfg.Requests, remaining, nil
+	return true, remaining, nil
 }
 
 func (rl *RateLimiter) buildKey(r *http.Request, cfg RateLimitConfig) string {
@@ -102,7 +117,11 @@ func (rl *RateLimiter) buildKey(r *http.Request, cfg RateLimitConfig) string {
 			return fmt.Sprintf("rl:%s:%s", r.URL.Path, claims.UserID)
 		}
 	}
-	return fmt.Sprintf("rl:%s:%s", r.URL.Path, r.RemoteAddr)
+	host, _, _ := net.SplitHostPort(r.RemoteAddr)
+	if host == "" {
+		host = r.RemoteAddr
+	}
+	return fmt.Sprintf("rl:%s:%s", r.URL.Path, host)
 }
 
 func writeRateLimitHeaders(w http.ResponseWriter, limit, remaining int, reset time.Time) {

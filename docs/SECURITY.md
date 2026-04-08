@@ -114,7 +114,7 @@ Rate limiting uses a Redis-backed sliding window counter. Limits are enforced pe
 
 When the limit is exceeded and a block duration is configured, subsequent requests are rejected for the block duration without consuming further counter entries.
 
-On Redis failure, the limiter fails open (allows the request) to avoid locking out users.
+On Redis failure, the limiter fails closed (denies the request with 503) to prevent brute-force attacks on this health-data application.
 
 Standard `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, and `Retry-After` headers are returned.
 
