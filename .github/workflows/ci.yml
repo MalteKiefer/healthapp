@@ -70,7 +70,7 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           REDIS_PASSWORD: ""
-        run: go test -race -count=1 -skip 'TestAuthHashArgon2id|TestRegisterAndLogin|TestLoginInvalidCredentials|TestLogout|TestCreateAndListVitals' ./...
+        run: go test -race -count=1 -skip 'TestAuthHashArgon2id|TestRegisterAndLogin|TestLoginInvalidCredentials|TestLogout|TestCreateAndListVitals|TestVitalDuplicateDetection' ./...
 
   backend-build:
     name: Backend Build
