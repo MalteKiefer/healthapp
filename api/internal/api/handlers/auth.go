@@ -738,6 +738,23 @@ func (h *AuthHandler) HandleRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Rate-limit recovery attempts per IP to mitigate CPU DoS via Argon2id.
+	// Each failed attempt verifies up to 10 Argon2id hashes (64 MB / 3 iterations
+	// each), so we cap at 3 attempts per hour per IP.
+	ip := r.RemoteAddr
+	if host, _, err := net.SplitHostPort(ip); err == nil {
+		ip = host
+	}
+	rateLimitKey := "recovery_attempts:" + ip
+	attempts, _ := h.rdb.Incr(r.Context(), rateLimitKey).Result()
+	if attempts == 1 {
+		h.rdb.Expire(r.Context(), rateLimitKey, 1*time.Hour)
+	}
+	if attempts > 3 {
+		writeJSON(w, http.StatusTooManyRequests, errorResponse("too_many_attempts"))
+		return
+	}
+
 	u, err := h.userRepo.GetByEmail(r.Context(), req.Email)
 	if err != nil {
 		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_credentials"))
@@ -760,6 +777,10 @@ func (h *AuthHandler) HandleRecovery(w http.ResponseWriter, r *http.Request) {
 	for i := range codes {
 		valid, verr := crypto.VerifyArgon2id(req.RecoveryCode, codes[i].CodeHash)
 		if verr != nil {
+			h.logger.Error("recovery code verification error",
+				zap.String("code_id", codes[i].ID.String()),
+				zap.Error(verr),
+			)
 			continue
 		}
 		if valid {
