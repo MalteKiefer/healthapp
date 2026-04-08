@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -10,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/healthvault/healthvault/internal/domain/appointments"
+	"github.com/healthvault/healthvault/internal/domain/diary"
 	"github.com/healthvault/healthvault/internal/domain/profiles"
 	"github.com/healthvault/healthvault/internal/repository/postgres"
 )
@@ -17,12 +19,13 @@ import (
 // AppointmentHandler handles appointment endpoints.
 type AppointmentHandler struct {
 	apptRepo    appointments.Repository
+	diaryRepo   diary.Repository
 	profileRepo profiles.Repository
 	logger      *zap.Logger
 }
 
-func NewAppointmentHandler(ar appointments.Repository, pr profiles.Repository, logger *zap.Logger) *AppointmentHandler {
-	return &AppointmentHandler{apptRepo: ar, profileRepo: pr, logger: logger}
+func NewAppointmentHandler(ar appointments.Repository, dr diary.Repository, pr profiles.Repository, logger *zap.Logger) *AppointmentHandler {
+	return &AppointmentHandler{apptRepo: ar, diaryRepo: dr, profileRepo: pr, logger: logger}
 }
 
 // HandleList returns appointments for a profile.
@@ -156,6 +159,11 @@ func (h *AppointmentHandler) HandleUpdate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if existing.Title == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("title_required"))
+		return
+	}
+
 	if err := h.apptRepo.Update(r.Context(), existing); err != nil {
 		h.logger.Error("update appointment", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
@@ -262,8 +270,29 @@ func (h *AppointmentHandler) HandleComplete(w http.ResponseWriter, r *http.Reque
 	var body struct {
 		DiaryEventID *uuid.UUID `json:"diary_event_id"`
 	}
-	// Body is optional; ignore decode errors for empty bodies
-	_ = json.NewDecoder(r.Body).Decode(&body)
+	// Body is optional — empty body (io.EOF) is fine, but malformed JSON is not
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
+		return
+	}
+
+	// Verify the diary event belongs to the same profile
+	if body.DiaryEventID != nil {
+		diaryEvent, err := h.diaryRepo.GetByID(r.Context(), *body.DiaryEventID)
+		if err != nil {
+			if errors.Is(err, postgres.ErrNotFound) {
+				writeJSON(w, http.StatusBadRequest, errorResponse("diary_event_not_found"))
+				return
+			}
+			h.logger.Error("get diary event", zap.Error(err))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+		if diaryEvent.ProfileID != profileID {
+			writeJSON(w, http.StatusBadRequest, errorResponse("diary_event_not_found"))
+			return
+		}
+	}
 
 	if err := h.apptRepo.Complete(r.Context(), apptID, body.DiaryEventID); err != nil {
 		h.logger.Error("complete appointment", zap.Error(err))

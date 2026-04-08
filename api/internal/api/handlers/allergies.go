@@ -164,6 +164,11 @@ func (h *AllergyHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if existing.Name == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("name_required"))
+		return
+	}
+
 	if err := h.allergyRepo.Update(r.Context(), existing); err != nil {
 		h.logger.Error("update allergy", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))

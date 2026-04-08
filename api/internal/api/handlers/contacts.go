@@ -148,6 +148,11 @@ func (h *ContactHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if existing.Name == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("name_required"))
+		return
+	}
+
 	existing.ComputeAddress()
 
 	if err := h.contactRepo.Update(r.Context(), existing); err != nil {

@@ -97,7 +97,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 
 	contactHandler := handlers.NewContactHandler(contactRepo, profileRepo, logger)
 	taskHandler := handlers.NewTaskHandler(taskRepo, profileRepo, logger)
-	apptHandler := handlers.NewAppointmentHandler(apptRepo, profileRepo, logger)
+	apptHandler := handlers.NewAppointmentHandler(apptRepo, diaryRepo, profileRepo, logger)
 	symptomHandler := handlers.NewSymptomHandler(symptomRepo, profileRepo, logger)
 
 	notifRepo := postgres.NewNotificationRepo(db)

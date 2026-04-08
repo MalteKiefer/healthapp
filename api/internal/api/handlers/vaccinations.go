@@ -213,6 +213,11 @@ func (h *VaccinationHandler) HandleUpdate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if existing.VaccineName == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("vaccine_name_required"))
+		return
+	}
+
 	if err := h.vaccinationRepo.Update(r.Context(), existing); err != nil {
 		h.logger.Error("update vaccination", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
