@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../auth/auth_service.dart';
 import '../../screens/login/login_screen.dart';
 import '../../screens/shell/app_shell.dart';
 import '../../screens/home/home_screen.dart';
@@ -21,6 +22,29 @@ import '../../screens/settings/settings_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
+  redirect: (context, state) async {
+    final isAuthenticated = await AuthService.loadCredentials() != null;
+    final location = state.uri.toString();
+    final isOnLogin = location == '/login';
+    final isOnSplash = location == '/splash';
+
+    // Splash always redirects based on auth state
+    if (isOnSplash) {
+      return isAuthenticated ? '/home' : '/login';
+    }
+
+    // Unauthenticated users can only access /login
+    if (!isAuthenticated && !isOnLogin) {
+      return '/login';
+    }
+
+    // Authenticated users should not stay on /login
+    if (isAuthenticated && isOnLogin) {
+      return '/home';
+    }
+
+    return null;
+  },
   routes: [
     GoRoute(
       path: '/splash',

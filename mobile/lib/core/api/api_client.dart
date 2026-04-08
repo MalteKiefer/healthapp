@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
@@ -37,12 +38,15 @@ class ApiClient {
     }
     cleaned = cleaned.replaceAll(RegExp(r'/api(/v1)?$'), '');
 
-    // Try to discover the working URL
-    for (final candidate in [
+    // Try to discover the working URL — never downgrade to HTTP in production
+    final bool isLocal = cleaned.contains('localhost') || cleaned.contains('10.0.2.2');
+    final candidates = <String>[
       cleaned,
       '$cleaned:3101',
-      '${cleaned.replaceFirst('https://', 'http://')}:3101',
-    ]) {
+      if (kDebugMode && isLocal)
+        '${cleaned.replaceFirst('https://', 'http://')}:3101',
+    ];
+    for (final candidate in candidates) {
       try {
         final res = await _dio.get('$candidate/health');
         if (res.statusCode == 200) {
