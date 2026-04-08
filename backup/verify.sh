@@ -29,6 +29,30 @@ START_TIME=$(date +%s%3N 2>/dev/null || echo 0)
 
 echo "[$(date -Iseconds)] Verifying: ${LATEST} (${BACKUP_SIZE} bytes)"
 
+# 1b. Verify HMAC integrity before decryption
+HMAC_FILE="${LATEST}.hmac"
+if [ ! -f "${HMAC_FILE}" ]; then
+    echo "[$(date -Iseconds)] ERROR: HMAC file not found: ${HMAC_FILE}"
+    PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" \
+        -c "INSERT INTO backup_verification_log (id, verified_at, backup_filename, backup_size_bytes, backup_created_at, status, error_message, duration_ms)
+            VALUES (gen_random_uuid(), NOW(), '$(basename "${LATEST}")', ${BACKUP_SIZE}, to_timestamp(${BACKUP_DATE}), 'failed', 'HMAC file missing', 0);" 2>/dev/null || true
+    exit 1
+fi
+
+HMAC_KEY=$(echo -n "${BACKUP_ENCRYPTION_KEY}" | openssl dgst -sha256 | awk '{print $2}')
+EXPECTED_HMAC=$(openssl dgst -sha256 -hmac "${HMAC_KEY}" "${LATEST}" | awk '{print $NF}')
+ACTUAL_HMAC=$(awk '{print $NF}' "${HMAC_FILE}")
+
+if [ "${EXPECTED_HMAC}" != "${ACTUAL_HMAC}" ]; then
+    echo "[$(date -Iseconds)] ERROR: HMAC verification failed — backup may be tampered"
+    PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" \
+        -c "INSERT INTO backup_verification_log (id, verified_at, backup_filename, backup_size_bytes, backup_created_at, status, error_message, duration_ms)
+            VALUES (gen_random_uuid(), NOW(), '$(basename "${LATEST}")', ${BACKUP_SIZE}, to_timestamp(${BACKUP_DATE}), 'failed', 'HMAC verification failed', 0);" 2>/dev/null || true
+    exit 1
+fi
+
+echo "[$(date -Iseconds)] HMAC verification passed"
+
 # 2. Decrypt the backup
 DECRYPTED=$(mktemp /tmp/verify_backup_XXXXXX.sql)
 trap 'rm -f "${DECRYPTED}"' EXIT

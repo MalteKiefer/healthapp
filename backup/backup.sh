@@ -84,5 +84,56 @@ PGPASSWORD="${DB_PASSWORD}" psql \
 echo "[$(date -Iseconds)] Removing backups older than ${RETENTION_DAYS} days..."
 find "${BACKUP_DIR}" -name "healthvault_*.enc" -mtime "+${RETENTION_DAYS}" -delete
 find "${BACKUP_DIR}" -name "healthvault_*.enc.hmac" -mtime "+${RETENTION_DAYS}" -delete
+find "${BACKUP_DIR}" -name "healthvault_*.rdb" -mtime "+${RETENTION_DAYS}" -delete
+
+# ── 5. Redis state backup ──
+REDIS_HOST="${REDIS_HOST:-redis}"
+REDIS_PORT="${REDIS_PORT:-6379}"
+REDIS_BACKUP_FILE="${BACKUP_DIR}/healthvault_redis_${TIMESTAMP}.rdb"
+
+echo "[$(date -Iseconds)] Backing up Redis state..."
+if redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" BGSAVE 2>/dev/null; then
+    # Wait for background save to complete (up to 30 seconds)
+    WAIT=0
+    while [ "${WAIT}" -lt 30 ]; do
+        BGSAVE_STATUS=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" INFO persistence 2>/dev/null | grep rdb_bgsave_in_progress | tr -d '\r' | cut -d: -f2)
+        if [ "${BGSAVE_STATUS}" = "0" ]; then
+            break
+        fi
+        sleep 1
+        WAIT=$((WAIT + 1))
+    done
+    # Copy the dump file from the Redis data directory
+    REDIS_DATA_DIR="${REDIS_DATA_DIR:-/data}"
+    if [ -f "${REDIS_DATA_DIR}/dump.rdb" ]; then
+        cp "${REDIS_DATA_DIR}/dump.rdb" "${REDIS_BACKUP_FILE}"
+        REDIS_SIZE=$(stat -c %s "${REDIS_BACKUP_FILE}" 2>/dev/null || stat -f %z "${REDIS_BACKUP_FILE}")
+        echo "[$(date -Iseconds)] Redis backup: ${REDIS_BACKUP_FILE} (${REDIS_SIZE} bytes)"
+    else
+        echo "[$(date -Iseconds)] Warning: Redis dump.rdb not found at ${REDIS_DATA_DIR}/dump.rdb"
+    fi
+else
+    echo "[$(date -Iseconds)] Warning: Could not connect to Redis, skipping Redis backup"
+fi
+
+# ── 6. Off-site backup transfer ──
+# TODO: Enable off-site backup transfer to a remote storage provider.
+# Uncomment and configure the rclone command below, or replace with your
+# preferred transfer tool (aws s3 cp, gsutil cp, etc.).
+#
+# Prerequisites:
+#   - Install rclone: https://rclone.org/install/
+#   - Configure a remote: rclone config (e.g. "offsite" pointing to S3/GCS/B2)
+#   - Mount the rclone config into the backup container
+#
+# Example using rclone:
+#   OFFSITE_REMOTE="${OFFSITE_REMOTE:-offsite:healthvault-backups}"
+#   echo "[$(date -Iseconds)] Transferring backups to off-site storage..."
+#   rclone copy "${BACKUP_DIR}/" "${OFFSITE_REMOTE}/$(date +%Y/%m)/" \
+#       --include "healthvault_*_${TIMESTAMP}.*" \
+#       --transfers 4 \
+#       --retries 3 \
+#       --log-level INFO
+#   echo "[$(date -Iseconds)] Off-site transfer complete"
 
 echo "[$(date -Iseconds)] Backup complete. DB: ${DB_SIZE} bytes, Files: ${FILES_SIZE} bytes, Total: ${TOTAL_SIZE} bytes"
