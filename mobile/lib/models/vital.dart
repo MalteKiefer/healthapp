@@ -44,9 +44,9 @@ class Vital {
   });
 
   factory Vital.fromJson(Map<String, dynamic> json) => Vital(
-        id: json['id'],
-        profileId: json['profile_id'],
-        measuredAt: json['measured_at'],
+        id: json['id'] as String? ?? '',
+        profileId: json['profile_id'] as String? ?? '',
+        measuredAt: json['measured_at'] as String? ?? '',
         systolic: (json['blood_pressure_systolic'] as num?)?.toDouble(),
         diastolic: (json['blood_pressure_diastolic'] as num?)?.toDouble(),
         pulse: (json['pulse'] as num?)?.toDouble(),
@@ -55,15 +55,15 @@ class Vital {
         temperature: (json['body_temperature'] as num?)?.toDouble(),
         oxygenSaturation: (json['oxygen_saturation'] as num?)?.toDouble(),
         bloodGlucose: (json['blood_glucose'] as num?)?.toDouble(),
-        respiratoryRate: json['respiratory_rate'] as int?,
+        respiratoryRate: (json['respiratory_rate'] as num?)?.toInt(),
         waistCircumference:
             (json['waist_circumference'] as num?)?.toDouble(),
         hipCircumference: (json['hip_circumference'] as num?)?.toDouble(),
         bodyFatPercentage:
             (json['body_fat_percentage'] as num?)?.toDouble(),
         bmi: (json['bmi'] as num?)?.toDouble(),
-        sleepDurationMinutes: json['sleep_duration_minutes'] as int?,
-        sleepQuality: json['sleep_quality'] as int?,
+        sleepDurationMinutes: (json['sleep_duration_minutes'] as num?)?.toInt(),
+        sleepQuality: (json['sleep_quality'] as num?)?.toInt(),
         device: json['device'] as String?,
         notes: json['notes'] as String?,
       );

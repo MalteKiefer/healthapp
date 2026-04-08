@@ -33,6 +33,6 @@ class LoginResponse {
         pekSalt: json['pek_salt'],
         requiresTotp: json['requires_totp'] ?? false,
         challengeToken: json['challenge_token'],
-        expiresAt: json['expires_at'],
+        expiresAt: (json['expires_at'] as num?)?.toInt(),
       );
 }

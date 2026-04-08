@@ -16,7 +16,7 @@ class LabValue {
   });
 
   factory LabValue.fromJson(Map<String, dynamic> json) => LabValue(
-        marker: json['marker'],
+        marker: json['marker'] as String? ?? '',
         value: (json['value'] as num?)?.toDouble(),
         unit: json['unit'],
         referenceLow: (json['reference_low'] as num?)?.toDouble(),
@@ -47,10 +47,10 @@ class LabResult {
   });
 
   factory LabResult.fromJson(Map<String, dynamic> json) => LabResult(
-        id: json['id'],
+        id: json['id'] as String? ?? '',
         labName: json['lab_name'],
         orderedBy: json['ordered_by'],
-        sampleDate: json['sample_date'],
+        sampleDate: json['sample_date'] as String? ?? '',
         resultDate: json['result_date'],
         notes: json['notes'],
         values: (json['values'] as List?)
@@ -77,13 +77,15 @@ class MarkerTrend {
   });
 
   factory MarkerTrend.fromJson(Map<String, dynamic> json) => MarkerTrend(
-        marker: json['marker'],
+        marker: json['marker'] as String? ?? '',
         unit: json['unit'],
         referenceLow: (json['reference_low'] as num?)?.toDouble(),
         referenceHigh: (json['reference_high'] as num?)?.toDouble(),
-        dataPoints: (json['data_points'] as List)
-            .map((d) => TrendDataPoint.fromJson(d as Map<String, dynamic>))
-            .toList(),
+        dataPoints: (json['data_points'] as List?)
+                ?.map((d) =>
+                    TrendDataPoint.fromJson(d as Map<String, dynamic>))
+                .toList() ??
+            [],
       );
 }
 
@@ -95,8 +97,8 @@ class TrendDataPoint {
   TrendDataPoint({required this.date, required this.value, this.flag});
 
   factory TrendDataPoint.fromJson(Map<String, dynamic> json) => TrendDataPoint(
-        date: json['date'],
-        value: (json['value'] as num).toDouble(),
+        date: json['date'] as String? ?? '',
+        value: (json['value'] as num?)?.toDouble() ?? 0.0,
         flag: json['flag'],
       );
 }

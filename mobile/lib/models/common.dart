@@ -26,8 +26,8 @@ class Allergy {
   });
 
   factory Allergy.fromJson(Map<String, dynamic> json) => Allergy(
-        id: json['id'],
-        allergen: json['allergen'],
+        id: json['id'] as String? ?? '',
+        allergen: json['allergen'] as String? ?? '',
         reaction: json['reaction'],
         severity: json['severity'],
         category: json['category'],
@@ -62,8 +62,8 @@ class Diagnosis {
   });
 
   factory Diagnosis.fromJson(Map<String, dynamic> json) => Diagnosis(
-        id: json['id'],
-        name: json['name'],
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
         icdCode: json['icd_code'],
         status: json['status'],
         diagnosedAt: json['diagnosed_at'],
@@ -103,15 +103,15 @@ class Vaccination {
   });
 
   factory Vaccination.fromJson(Map<String, dynamic> json) => Vaccination(
-        id: json['id'],
-        vaccine: json['vaccine'],
+        id: json['id'] as String? ?? '',
+        vaccine: json['vaccine'] as String? ?? '',
         dose: json['dose'],
         administeredAt: json['administered_at'],
         nextDueAt: json['next_due_at'],
         batchNumber: json['batch_number'],
         tradeName: json['trade_name'],
         manufacturer: json['manufacturer'],
-        doseNumber: json['dose_number'] as int?,
+        doseNumber: (json['dose_number'] as num?)?.toInt(),
         site: json['site'],
         notes: json['notes'],
         administeredBy: json['administered_by'],
@@ -146,11 +146,11 @@ class Appointment {
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) => Appointment(
-        id: json['id'],
-        title: json['title'],
-        scheduledAt: json['scheduled_at'] as String,
+        id: json['id'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        scheduledAt: json['scheduled_at'] as String? ?? '',
         appointmentType: json['appointment_type'],
-        durationMinutes: json['duration_minutes'],
+        durationMinutes: (json['duration_minutes'] as num?)?.toInt(),
         doctorId: json['doctor_id'],
         location: json['location'],
         preparationNotes: json['preparation_notes'],
@@ -190,8 +190,8 @@ class Contact {
   });
 
   factory Contact.fromJson(Map<String, dynamic> json) => Contact(
-        id: json['id'],
-        name: json['name'],
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
         contactType: json['contact_type'],
         specialty: json['specialty'],
         facility: json['facility'],
@@ -226,8 +226,8 @@ class Task {
   });
 
   factory Task.fromJson(Map<String, dynamic> json) => Task(
-        id: json['id'],
-        title: json['title'],
+        id: json['id'] as String? ?? '',
+        title: json['title'] as String? ?? '',
         description: json['description'],
         dueAt: json['due_at'],
         completed: json['completed'] ?? false,
@@ -271,18 +271,18 @@ class DiaryEvent {
   });
 
   factory DiaryEvent.fromJson(Map<String, dynamic> json) => DiaryEvent(
-        id: json['id'],
-        recordedAt: json['recorded_at'],
+        id: json['id'] as String? ?? '',
+        recordedAt: json['recorded_at'] as String? ?? '',
         title: json['title'],
         eventType: json['event_type'],
         mood: json['mood'],
-        moodScore: json['mood_score'],
+        moodScore: (json['mood_score'] as num?)?.toInt(),
         content: json['content'],
         tags: json['tags'],
         sleepHours: json['sleep_hours'],
         startedAt: json['started_at'],
         endedAt: json['ended_at'],
-        severity: json['severity'] as int?,
+        severity: (json['severity'] as num?)?.toInt(),
         location: json['location'],
         outcome: json['outcome'],
       );
@@ -316,8 +316,8 @@ class Symptom {
   });
 
   factory Symptom.fromJson(Map<String, dynamic> json) => Symptom(
-        id: json['id'],
-        name: json['name'],
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
         recordedAt: json['recorded_at'],
         severity: json['severity'],
         duration: json['duration'],
@@ -328,7 +328,7 @@ class Symptom {
             : json['trigger_factors'] as String?,
         symptomType: json['symptom_type'],
         bodyRegion: json['body_region'],
-        durationMinutes: json['duration_minutes'] as int?,
+        durationMinutes: (json['duration_minutes'] as num?)?.toInt(),
       );
 }
 
@@ -354,14 +354,14 @@ class Document {
   });
 
   factory Document.fromJson(Map<String, dynamic> json) => Document(
-        id: json['id'],
+        id: json['id'] as String? ?? '',
         filename: json['filename_enc'] ??
             json['filename'] ??
             json['file_name'] ??
             'Untitled',
         category: json['category'],
         mimeType: json['mime_type'],
-        fileSize: json['file_size'],
+        fileSize: (json['file_size'] as num?)?.toInt(),
         uploadedAt: json['uploaded_at'] ?? json['created_at'],
         notes: json['notes'],
         tags: json['tags'] is List

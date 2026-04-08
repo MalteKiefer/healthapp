@@ -18,8 +18,8 @@ class Profile {
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
-        id: json['id'],
-        displayName: json['display_name'],
+        id: json['id'] as String? ?? '',
+        displayName: json['display_name'] as String? ?? '',
         dateOfBirth: json['date_of_birth'],
         biologicalSex: json['biological_sex'],
         bloodType: json['blood_type'],
