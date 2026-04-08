@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
@@ -173,7 +172,7 @@ func (ts *TokenService) VerifyToken(ctx context.Context, tokenStr string) (*Clai
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return ts.publicKey, nil
-	})
+	}, jwt.WithIssuers("healthvault"))
 	if err != nil {
 		return nil, fmt.Errorf("parse token: %w", err)
 	}
@@ -210,23 +209,28 @@ func (ts *TokenService) IsTokenDenied(ctx context.Context, jti string) (bool, er
 }
 
 // LoadOrCreateEncryptionKey loads a dedicated 32-byte AES-256 key from keyPath.
-// If the file does not exist, it derives the key from the JWT private key using
-// the old SHA-256 method for backward compatibility with existing TOTP secrets,
-// then persists it to keyPath so future restarts are independent of the JWT key.
-// A warning is logged when the legacy derivation path is taken, recommending
-// TOTP secret rotation.
+// If the file does not exist, it generates a new random key using crypto/rand
+// and persists it to keyPath.
 func (ts *TokenService) LoadOrCreateEncryptionKey(keyPath string) error {
 	data, err := os.ReadFile(keyPath)
-	if err == nil && len(data) == 32 {
+	if err == nil {
+		if len(data) != 32 {
+			return fmt.Errorf("encryption key file %s is corrupt: expected 32 bytes, got %d", keyPath, len(data))
+		}
 		ts.encryptionKey = data
 		return nil
 	}
 
-	// Key file absent or invalid — derive from JWT key for backward compat and
-	// persist so the key becomes independent going forward.
-	privBytes := x509.MarshalPKCS1PrivateKey(ts.privateKey)
-	sum := sha256.Sum256(privBytes)
-	ts.encryptionKey = sum[:]
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("read encryption key file: %w", err)
+	}
+
+	// Key file absent — generate a new random 32-byte key.
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		return fmt.Errorf("generate random encryption key: %w", err)
+	}
+	ts.encryptionKey = key
 
 	// Ensure the parent directory exists before writing.
 	if mkErr := os.MkdirAll(filepath.Dir(keyPath), 0700); mkErr != nil {
@@ -236,13 +240,6 @@ func (ts *TokenService) LoadOrCreateEncryptionKey(keyPath string) error {
 		return fmt.Errorf("write totp key: %w", writeErr)
 	}
 
-	// Warn operators that the key was bootstrapped from the JWT key and that
-	// rotating TOTP secrets is recommended to achieve full key separation.
-	fmt.Fprintf(os.Stderr,
-		"WARNING: TOTP encryption key bootstrapped from JWT private key for backward "+
-			"compatibility. Consider rotating all TOTP secrets to achieve full key "+
-			"independence. Key saved to: %s\n", keyPath)
-
 	return nil
 }
 
@@ -250,7 +247,9 @@ func (ts *TokenService) LoadOrCreateEncryptionKey(keyPath string) error {
 // encrypt TOTP secrets at rest. The key is loaded from a separate key file
 // during initialisation and is no longer derived from the JWT private key.
 func (ts *TokenService) DeriveEncryptionKey() []byte {
-	return ts.encryptionKey
+	cp := make([]byte, len(ts.encryptionKey))
+	copy(cp, ts.encryptionKey)
+	return cp
 }
 
 func generateJTI() (string, error) {
