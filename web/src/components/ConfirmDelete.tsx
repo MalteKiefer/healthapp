@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
@@ -12,11 +12,30 @@ interface Props {
 
 function ConfirmDeleteInner({ open, title, message, onConfirm, onCancel, pending }: Props) {
   const { t } = useTranslation();
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') onCancel();
+  }, [onCancel]);
+
+  useEffect(() => {
+    if (open) dialogRef.current?.focus();
+  }, [open]);
+
   if (!open) return null;
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal confirm-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-delete-title"
+        ref={dialogRef}
+        tabIndex={-1}
+        onKeyDown={handleKeyDown}
+      >
         <div className="confirm-icon">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 6 5 6 21 6" />
@@ -25,7 +44,7 @@ function ConfirmDeleteInner({ open, title, message, onConfirm, onCancel, pending
             <line x1="14" y1="11" x2="14" y2="17" />
           </svg>
         </div>
-        <h3 className="confirm-title">{title || t('confirm_delete.title')}</h3>
+        <h3 id="confirm-delete-title" className="confirm-title">{title || t('confirm_delete.title')}</h3>
         <p className="confirm-message">{message || t('confirm_delete.message')}</p>
         <div className="confirm-actions">
           <button className="btn btn-secondary" onClick={onCancel} disabled={pending}>

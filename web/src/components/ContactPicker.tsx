@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
@@ -26,6 +26,17 @@ export function ContactPicker({ profileId, value, onChange, label, placeholder }
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  const closeModal = useCallback(() => { setOpen(false); setSearch(''); }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') closeModal();
+  }, [closeModal]);
+
+  useEffect(() => {
+    if (open) dialogRef.current?.focus();
+  }, [open]);
 
   const { data } = useQuery({
     queryKey: ['contacts', profileId],
@@ -81,11 +92,21 @@ export function ContactPicker({ profileId, value, onChange, label, placeholder }
       </div>
 
       {open && (
-        <div className="modal-overlay" onClick={() => { setOpen(false); setSearch(''); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+        <div className="modal-overlay" onClick={closeModal}>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 480 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="contact-picker-title"
+            ref={dialogRef}
+            tabIndex={-1}
+            onKeyDown={handleKeyDown}
+          >
             <div className="modal-header">
-              <h3>{t('contacts.pick_title')}</h3>
-              <button className="modal-close" onClick={() => { setOpen(false); setSearch(''); }} aria-label={t('common.close')}>&times;</button>
+              <h3 id="contact-picker-title">{t('contacts.pick_title')}</h3>
+              <button className="modal-close" onClick={closeModal} aria-label={t('common.close')}>&times;</button>
             </div>
             <div className="modal-body">
               <div className="form-group" style={{ marginBottom: 12 }}>
