@@ -51,6 +51,7 @@ export function Layout() {
   const handleLogout = async () => {
     clearAllKeys();
     await logout();
+    queryClient.clear();
     navigate('/login');
   };
 

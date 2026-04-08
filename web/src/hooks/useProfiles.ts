@@ -7,7 +7,7 @@ import { useAuthStore } from '../store/auth';
 export function useProfiles() {
   const { userId } = useAuthStore();
   const result = useQuery({
-    queryKey: ['profiles'],
+    queryKey: ['profiles', userId],
     queryFn: () => profilesApi.list(),
   });
 

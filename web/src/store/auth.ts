@@ -23,6 +23,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isAuthenticated: true, userId, role, email: email || localStorage.getItem('user_email') });
   },
 
+  // NOTE: Callers must also call queryClient.clear() to wipe cached data.
   logout: async () => {
     try {
       await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/auth/logout`, {
@@ -40,6 +41,11 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   checkAuth: () => {
     const userId = localStorage.getItem('user_id');
-    set({ isAuthenticated: !!userId });
+    set({
+      isAuthenticated: !!userId,
+      userId,
+      role: localStorage.getItem('user_role'),
+      email: localStorage.getItem('user_email'),
+    });
   },
 }));

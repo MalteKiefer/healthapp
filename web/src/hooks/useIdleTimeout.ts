@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { clearAllKeys } from '../crypto';
 import { useAuthStore } from '../store/auth';
 
@@ -12,14 +13,16 @@ const EVENTS = ['mousedown', 'keydown', 'scroll', 'touchstart'];
  */
 export function useIdleTimeout() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated, logout } = useAuthStore();
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const handleIdle = useCallback(() => {
     clearAllKeys();
     logout();
+    queryClient.clear();
     navigate('/login', { state: { reason: 'idle_timeout' } });
-  }, [logout, navigate]);
+  }, [logout, queryClient, navigate]);
 
   const resetTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);

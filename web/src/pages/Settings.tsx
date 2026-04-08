@@ -491,7 +491,7 @@ export function Settings() {
       await changePassMut.mutateAsync({ current_auth_hash: currentHash, new_auth_hash: newHash });
       setShowPassModal(false);
       setCurrentPass(''); setNewPass(''); setConfirmPass('');
-      setTimeout(() => { clearAllKeys(); logout(); navigate('/login'); }, 1500);
+      setTimeout(() => { clearAllKeys(); logout(); queryClient.clear(); navigate('/login'); }, 1500);
     } catch {
       setPassError(t('settings.passphrase_wrong'));
     }
