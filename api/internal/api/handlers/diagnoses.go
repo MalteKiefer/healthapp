@@ -311,7 +311,7 @@ func (h *DiagnosisHandler) HandleMigrateContent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	diagnosisID, err := uuid.Parse(chi.URLParam(r, "diagID"))
+	diagnosisID, err := uuid.Parse(chi.URLParam(r, "diagnosisID"))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_diagnosis_id"))
 		return

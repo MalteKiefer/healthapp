@@ -430,7 +430,7 @@ func (h *MedicationHandler) HandleUpdateIntake(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	medID, err := uuid.Parse(chi.URLParam(r, "medID"))
+	medID, err := uuid.Parse(chi.URLParam(r, "medicationID"))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_medication_id"))
 		return
@@ -512,7 +512,7 @@ func (h *MedicationHandler) HandleDeleteIntake(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	medID, err := uuid.Parse(chi.URLParam(r, "medID"))
+	medID, err := uuid.Parse(chi.URLParam(r, "medicationID"))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_medication_id"))
 		return

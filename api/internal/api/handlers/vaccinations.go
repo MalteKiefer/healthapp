@@ -295,7 +295,7 @@ func (h *VaccinationHandler) HandleMigrateContent(w http.ResponseWriter, r *http
 		return
 	}
 
-	vaccinationID, err := uuid.Parse(chi.URLParam(r, "vaccID"))
+	vaccinationID, err := uuid.Parse(chi.URLParam(r, "vaccinationID"))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_vaccination_id"))
 		return

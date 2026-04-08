@@ -355,18 +355,20 @@ func (s *Server) setupRoutes() {
 						r.Get("/", s.VaccinationHandler.HandleList)
 						r.Post("/", s.VaccinationHandler.HandleCreate)
 						r.Get("/due", s.VaccinationHandler.HandleDue)
-						r.Patch("/{vaccID}", s.VaccinationHandler.HandleUpdate)
-						r.Delete("/{vaccID}", s.VaccinationHandler.HandleDelete)
-						r.Patch("/{vaccID}/migrate-content", s.VaccinationHandler.HandleMigrateContent)
+						r.Get("/{vaccinationID}", s.VaccinationHandler.HandleGet)
+						r.Patch("/{vaccinationID}", s.VaccinationHandler.HandleUpdate)
+						r.Delete("/{vaccinationID}", s.VaccinationHandler.HandleDelete)
+						r.Patch("/{vaccinationID}/migrate-content", s.VaccinationHandler.HandleMigrateContent)
 					})
 
 					// Diagnoses
 					r.Route("/diagnoses", func(r chi.Router) {
 						r.Get("/", s.DiagnosisHandler.HandleList)
 						r.Post("/", s.DiagnosisHandler.HandleCreate)
-						r.Patch("/{diagID}", s.DiagnosisHandler.HandleUpdate)
-						r.Delete("/{diagID}", s.DiagnosisHandler.HandleDelete)
-						r.Patch("/{diagID}/migrate-content", s.DiagnosisHandler.HandleMigrateContent)
+						r.Get("/{diagnosisID}", s.DiagnosisHandler.HandleGet)
+						r.Patch("/{diagnosisID}", s.DiagnosisHandler.HandleUpdate)
+						r.Delete("/{diagnosisID}", s.DiagnosisHandler.HandleDelete)
+						r.Patch("/{diagnosisID}/migrate-content", s.DiagnosisHandler.HandleMigrateContent)
 					})
 
 					// Medical Contacts
