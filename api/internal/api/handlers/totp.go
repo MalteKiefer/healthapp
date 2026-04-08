@@ -36,7 +36,8 @@ type totpEnableRequest struct {
 }
 
 type totpDisableRequest struct {
-	Code string `json:"code"`
+	Code            string `json:"code"`
+	CurrentAuthHash string `json:"current_auth_hash"`
 }
 
 type recoveryCodesResponse struct {
@@ -165,10 +166,22 @@ func (h *TOTPHandler) HandleDisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.CurrentAuthHash == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("current_auth_hash_required"))
+		return
+	}
+
 	u, err := h.userRepo.GetByID(r.Context(), claims.UserID)
 	if err != nil {
 		h.logger.Error("get user for totp disable", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	// Verify the user's current password before allowing 2FA disable.
+	pwValid, err := crypto.VerifyArgon2id(req.CurrentAuthHash, u.AuthHash)
+	if err != nil || !pwValid {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_credentials"))
 		return
 	}
 
