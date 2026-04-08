@@ -397,13 +397,29 @@ class _ContactCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        onLongPress: onDelete,
-        child: Padding(
+    return Dismissible(
+      key: ValueKey(contact.id),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        onDelete();
+        return false;
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        decoration: BoxDecoration(
+          color: cs.error,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(Icons.delete_outline, color: cs.onError),
+      ),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          onLongPress: onDelete,
+          child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
@@ -546,6 +562,7 @@ class _ContactCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

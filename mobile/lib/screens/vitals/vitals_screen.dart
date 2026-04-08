@@ -755,40 +755,57 @@ class _VitalCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          onLongPress: onDelete,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dateStr,
-                  style: tt.labelSmall?.copyWith(color: cs.outline),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 20,
-                  runSpacing: 8,
-                  children: entries.map((e) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(e.key, style: tt.labelSmall?.copyWith(color: cs.outline)),
-                        const SizedBox(height: 2),
-                        Text(
-                          e.value,
-                          style: tt.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ],
+      child: Dismissible(
+        key: ValueKey(vital.id),
+        direction: DismissDirection.endToStart,
+        confirmDismiss: (_) async {
+          onDelete();
+          return false;
+        },
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 24),
+          decoration: BoxDecoration(
+            color: cs.error,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(Icons.delete_outline, color: cs.onError),
+        ),
+        child: Card(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            onLongPress: onDelete,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dateStr,
+                    style: tt.labelSmall?.copyWith(color: cs.outline),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 20,
+                    runSpacing: 8,
+                    children: entries.map((e) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(e.key, style: tt.labelSmall?.copyWith(color: cs.outline)),
+                          const SizedBox(height: 2),
+                          Text(
+                            e.value,
+                            style: tt.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

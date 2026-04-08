@@ -460,68 +460,85 @@ class _MedCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        onLongPress: onDelete,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: cs.primaryContainer,
-                  borderRadius: BorderRadius.circular(10),
+    return Dismissible(
+      key: ValueKey(med.id),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        onDelete();
+        return false;
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        decoration: BoxDecoration(
+          color: cs.error,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(Icons.delete_outline, color: cs.onError),
+      ),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          onLongPress: onDelete,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.medication,
+                      size: 20, color: cs.onPrimaryContainer),
                 ),
-                child: Icon(Icons.medication,
-                    size: 20, color: cs.onPrimaryContainer),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            med.name,
-                            style: tt.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              med.name,
+                              style: tt.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
                           ),
-                        ),
-                        // Active dot
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: med.isActive
-                                ? Colors.green
-                                : cs.outlineVariant,
-                            shape: BoxShape.circle,
+                          // Active dot
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: med.isActive
+                                  ? Colors.green
+                                  : cs.outlineVariant,
+                              shape: BoxShape.circle,
+                            ),
                           ),
+                        ],
+                      ),
+                      if (med.dosage != null || med.frequency != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          [
+                            if (med.dosage != null)
+                              '${med.dosage!}${med.unit != null ? ' ${med.unit}' : ''}',
+                            if (med.frequency != null) med.frequency!,
+                          ].join(' \u00b7 '),
+                          style: tt.bodySmall
+                              ?.copyWith(color: cs.onSurfaceVariant),
                         ),
                       ],
-                    ),
-                    if (med.dosage != null || med.frequency != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        [
-                          if (med.dosage != null)
-                            '${med.dosage!}${med.unit != null ? ' ${med.unit}' : ''}',
-                          if (med.frequency != null) med.frequency!,
-                        ].join(' \u00b7 '),
-                        style: tt.bodySmall
-                            ?.copyWith(color: cs.onSurfaceVariant),
-                      ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

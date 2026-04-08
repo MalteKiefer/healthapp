@@ -400,98 +400,115 @@ class _DiagnosisCard extends StatelessWidget {
       }
     }
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        onLongPress: onDelete,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: cs.primaryContainer,
-                  borderRadius: BorderRadius.circular(10),
+    return Dismissible(
+      key: ValueKey(diagnosis.id),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        onDelete();
+        return false;
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        decoration: BoxDecoration(
+          color: cs.error,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(Icons.delete_outline, color: cs.onError),
+      ),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          onLongPress: onDelete,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.local_hospital,
+                      size: 20, color: cs.onPrimaryContainer),
                 ),
-                child: Icon(Icons.local_hospital,
-                    size: 20, color: cs.onPrimaryContainer),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            diagnosis.name,
-                            style: tt.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        if (diagnosis.icdCode != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: cs.tertiaryContainer,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
                             child: Text(
-                              diagnosis.icdCode!,
-                              style: tt.labelSmall?.copyWith(
-                                  color: cs.onTertiaryContainer,
-                                  fontWeight: FontWeight.w600),
+                              diagnosis.name,
+                              style: tt.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
                             ),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        if (diagDate != null) ...[
-                          Text(
-                            '${T.tr('field.diagnosed_date')}: $diagDate',
-                            style: tt.bodySmall
-                                ?.copyWith(color: cs.onSurfaceVariant),
-                          ),
-                        ],
-                        if (isResolved) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Colors.green,
-                              shape: BoxShape.circle,
+                          if (diagnosis.icdCode != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: cs.tertiaryContainer,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                diagnosis.icdCode!,
+                                style: tt.labelSmall?.copyWith(
+                                    color: cs.onTertiaryContainer,
+                                    fontWeight: FontWeight.w600),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${T.tr('status.resolved')}${resDate != null ? ' $resDate' : ''}',
-                            style: tt.bodySmall
-                                ?.copyWith(color: Colors.green),
-                          ),
                         ],
-                      ],
-                    ),
-                    if (diagnosis.notes != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        diagnosis.notes!,
-                        style: tt.bodySmall?.copyWith(color: cs.outline),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (diagDate != null) ...[
+                            Text(
+                              '${T.tr('field.diagnosed_date')}: $diagDate',
+                              style: tt.bodySmall
+                                  ?.copyWith(color: cs.onSurfaceVariant),
+                            ),
+                          ],
+                          if (isResolved) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${T.tr('status.resolved')}${resDate != null ? ' $resDate' : ''}',
+                              style: tt.bodySmall
+                                  ?.copyWith(color: Colors.green),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (diagnosis.notes != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          diagnosis.notes!,
+                          style: tt.bodySmall?.copyWith(color: cs.outline),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

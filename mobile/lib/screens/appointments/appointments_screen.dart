@@ -615,86 +615,103 @@ class _AppointmentCard extends StatelessWidget {
       dateStr = appointment.scheduledAt;
     }
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        onLongPress: onDelete,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: cs.primaryContainer,
-                  borderRadius: BorderRadius.circular(10),
+    return Dismissible(
+      key: ValueKey(appointment.id),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        onDelete();
+        return false;
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        decoration: BoxDecoration(
+          color: cs.error,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(Icons.delete_outline, color: cs.onError),
+      ),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          onLongPress: onDelete,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.event,
+                      size: 20, color: cs.onPrimaryContainer),
                 ),
-                child: Icon(Icons.event,
-                    size: 20, color: cs.onPrimaryContainer),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            appointment.title,
-                            style: tt.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        if (isCompleted)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
                             child: Text(
-                              T.tr('status.completed'),
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.green,
-                                fontWeight: FontWeight.w600,
+                              appointment.title,
+                              style: tt.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          if (isCompleted)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                T.tr('status.completed'),
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
+                        ],
+                      ),
+                      if (dateStr != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          dateStr,
+                          style: tt.bodySmall
+                              ?.copyWith(color: cs.onSurfaceVariant),
+                        ),
                       ],
-                    ),
-                    if (dateStr != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        dateStr,
-                        style: tt.bodySmall
-                            ?.copyWith(color: cs.onSurfaceVariant),
-                      ),
+                      if (appointment.location != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          appointment.location!,
+                          style: tt.bodySmall?.copyWith(color: cs.outline),
+                        ),
+                      ],
+                      if (appointment.preparationNotes != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          appointment.preparationNotes!,
+                          style: tt.bodySmall?.copyWith(color: cs.outline),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ],
-                    if (appointment.location != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        appointment.location!,
-                        style: tt.bodySmall?.copyWith(color: cs.outline),
-                      ),
-                    ],
-                    if (appointment.preparationNotes != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        appointment.preparationNotes!,
-                        style: tt.bodySmall?.copyWith(color: cs.outline),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
