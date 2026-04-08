@@ -15,7 +15,7 @@ import (
 // idle longer than the configured duration the request is rejected with 401.
 //
 // On every authenticated request the middleware checks a Redis key
-// "session:active:{user_id}". If the key exists its TTL is refreshed. If it
+// "session:active:{jti}". If the key exists its TTL is refreshed. If it
 // does not exist AND the JWT was issued more than `timeout` ago the request is
 // treated as an expired idle session. Otherwise the key is created (or
 // refreshed) with the given timeout duration.
@@ -29,7 +29,7 @@ func SessionTimeout(rdb *redis.Client, timeout time.Duration) func(next http.Han
 				return
 			}
 
-			key := fmt.Sprintf("session:active:%s", claims.UserID.String())
+			key := fmt.Sprintf("session:active:%s", claims.ID)
 			ctx := r.Context()
 
 			exists, err := rdb.Exists(ctx, key).Result()
