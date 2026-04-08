@@ -12,11 +12,14 @@ interface UIState {
   setTheme: (theme: 'light' | 'dark') => void;
 }
 
+const initialTheme = (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+document.documentElement.setAttribute('data-theme', initialTheme);
+
 export const useUIStore = create<UIState>((set) => ({
   sidebarOpen: true,
   sidebarCollapsed: localStorage.getItem('sidebar_collapsed') === 'true',
   activeNavGroup: 'health',
-  theme: (localStorage.getItem('theme') as 'light' | 'dark') || 'light',
+  theme: initialTheme,
 
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 

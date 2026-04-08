@@ -7,19 +7,21 @@ export function useFocusTrap(isOpen: boolean) {
     if (!isOpen || !ref.current) return;
 
     const modal = ref.current;
-    const focusable = modal.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    if (focusable.length === 0) return;
+    const FOCUSABLE_SELECTOR =
+      'button:not([disabled]), [href]:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])';
 
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-
+    const initialFocusable = modal.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
     const previousFocus = document.activeElement as HTMLElement;
-    first.focus();
+    if (initialFocusable.length > 0) initialFocusable[0].focus();
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Tab') return;
+      const focusable = Array.from(
+        modal.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      ).filter((el) => el.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
       if (e.shiftKey) {
         if (document.activeElement === first) { e.preventDefault(); last.focus(); }
       } else {

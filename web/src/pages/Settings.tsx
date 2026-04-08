@@ -466,7 +466,12 @@ export function Settings() {
   const handleCropSave = async () => {
     if (!cropSrc || !croppedArea) return;
     const dataUrl = await getCroppedImg(cropSrc, croppedArea);
-    localStorage.setItem('user_avatar', dataUrl);
+    try {
+      localStorage.setItem('user_avatar', dataUrl);
+    } catch (e) {
+      alert(t('settings.avatar_storage_full'));
+      return;
+    }
     setAvatarUrl(dataUrl);
     window.dispatchEvent(new Event('avatar-changed'));
     setCropSrc(null);
