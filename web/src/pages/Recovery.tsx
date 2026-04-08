@@ -31,7 +31,7 @@ export function Recovery() {
       if (err instanceof ApiError) {
         setError(t('recovery.invalid'));
       } else {
-        setError(t('recovery.invalid'));
+        setError(t('common.error'));
       }
     } finally {
       setLoading(false);

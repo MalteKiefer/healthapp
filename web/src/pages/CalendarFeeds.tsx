@@ -68,6 +68,7 @@ export function CalendarFeeds() {
   const [newFeedUrl, setNewFeedUrl] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editingFeed, setEditingFeed] = useState<CalendarFeed | null>(null);
+  const [mutationError, setMutationError] = useState('');
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -88,6 +89,7 @@ export function CalendarFeeds() {
       setShowForm(false);
       reset();
     },
+    onError: () => setMutationError(t('common.error')),
   });
 
   const deleteMutation = useMutation({
@@ -96,6 +98,7 @@ export function CalendarFeeds() {
       removeFeedToken(id);
       queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] });
     },
+    onError: () => setMutationError(t('common.error')),
   });
 
   const updateMutation = useMutation({
@@ -105,6 +108,7 @@ export function CalendarFeeds() {
       queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] });
       setEditingFeed(null);
     },
+    onError: () => setMutationError(t('common.error')),
   });
 
   const { register, handleSubmit, reset } = useForm<{
@@ -150,6 +154,8 @@ export function CalendarFeeds() {
         <h2>{t('nav.calendar_feeds')}</h2>
         <button className="btn btn-add" onClick={() => setShowForm(!showForm)}>{t('calendar.new_feed')}</button>
       </div>
+
+      {mutationError && <div className="alert alert-error" style={{ marginBottom: 16 }}>{mutationError}</div>}
 
       {newFeedUrl && (
         <div className="card" style={{ borderLeft: '4px solid var(--success)' }}>

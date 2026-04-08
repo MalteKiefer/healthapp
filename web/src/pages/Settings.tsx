@@ -414,6 +414,7 @@ export function Settings() {
   const [totpCode, setTotpCode] = useState('');
   const [showDisable2FA, setShowDisable2FA] = useState(false);
   const [disableCode, setDisableCode] = useState('');
+  const [totpError, setTotpError] = useState('');
 
   // Recovery codes state
   const [showRecoveryCodes, setShowRecoveryCodes] = useState(false);
@@ -498,6 +499,7 @@ export function Settings() {
   };
 
   const handleSetup2FA = async () => {
+    setTotpError('');
     try {
       const data = await setup2FAMut.mutateAsync();
       setTotpSetup(data);
@@ -505,32 +507,43 @@ export function Settings() {
       const qrUrl = await QRCode.toDataURL(data.provisioning_uri, { width: 240, margin: 2 });
       setTotpQrDataUrl(qrUrl);
       setShow2FAModal(true);
-    } catch { /* */ }
+    } catch {
+      setTotpError(t('common.error'));
+    }
   };
 
   const handleEnable2FA = async () => {
+    setTotpError('');
     try {
       await enable2FAMut.mutateAsync(totpCode);
       setShow2FAModal(false);
       setTotpSetup(null);
-    } catch { /* */ }
+    } catch {
+      setTotpError(t('common.error'));
+    }
   };
 
   const handleDisable2FA = async () => {
+    setTotpError('');
     try {
       await disable2FAMut.mutateAsync(disableCode);
       setShowDisable2FA(false);
       setDisableCode('');
-    } catch { /* */ }
+    } catch {
+      setTotpError(t('common.error'));
+    }
   };
 
   const handleRegenerateRecoveryCodes = async () => {
+    setTotpError('');
     setRecoveryLoading(true);
     try {
       const data = await api.get<{ codes: string[] }>('/api/v1/auth/2fa/recovery-codes');
       setRecoveryCodes(data.codes);
       setShowRecoveryCodes(true);
-    } catch { /* */ }
+    } catch {
+      setTotpError(t('common.error'));
+    }
     setRecoveryLoading(false);
   };
 
@@ -1065,9 +1078,10 @@ export function Settings() {
                 <label>{t('settings.enter_code')}</label>
                 <input type="text" inputMode="numeric" maxLength={6} value={totpCode} onChange={(e) => setTotpCode(e.target.value)} placeholder="000000" style={{ maxWidth: 160 }} />
               </div>
+              {totpError && <div className="alert alert-error">{totpError}</div>}
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => { setShow2FAModal(false); setTotpSetup(null); }}>{t('common.cancel')}</button>
+              <button className="btn btn-secondary" onClick={() => { setShow2FAModal(false); setTotpSetup(null); setTotpError(''); }}>{t('common.cancel')}</button>
               <button className="btn btn-add" onClick={handleEnable2FA} disabled={totpCode.length !== 6 || enable2FAMut.isPending}>
                 {enable2FAMut.isPending ? t('common.loading') : t('settings.verify')}
               </button>
@@ -1089,9 +1103,10 @@ export function Settings() {
                 <label>{t('settings.enter_code')}</label>
                 <input type="text" inputMode="numeric" maxLength={6} value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder="000000" style={{ maxWidth: 160 }} />
               </div>
+              {totpError && <div className="alert alert-error">{totpError}</div>}
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowDisable2FA(false)}>{t('common.cancel')}</button>
+              <button className="btn btn-secondary" onClick={() => { setShowDisable2FA(false); setTotpError(''); }}>{t('common.cancel')}</button>
               <button className="btn btn-danger" onClick={handleDisable2FA} disabled={disableCode.length !== 6 || disable2FAMut.isPending}>
                 {disable2FAMut.isPending ? t('common.loading') : t('settings.disable_2fa')}
               </button>

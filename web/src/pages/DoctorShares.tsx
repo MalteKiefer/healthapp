@@ -101,6 +101,7 @@ export function DoctorShares() {
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState('');
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -134,6 +135,7 @@ export function DoctorShares() {
       setShowCreateModal(false);
       setShowLinkModal(true);
     },
+    onError: () => setMutationError(t('common.error')),
   });
 
   const revokeMutation = useMutation({
@@ -142,6 +144,7 @@ export function DoctorShares() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shares', profileId] });
     },
+    onError: () => setMutationError(t('common.error')),
   });
 
   const items = data?.items || [];
@@ -173,6 +176,8 @@ export function DoctorShares() {
           </button>
         </div>
       </div>
+
+      {mutationError && <div className="alert alert-error" style={{ marginBottom: 16 }}>{mutationError}</div>}
 
       {/* Create Share Modal */}
       {showCreateModal && (

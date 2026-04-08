@@ -152,12 +152,6 @@ export function Dashboard() {
       .slice(0, 5);
   }, [recentVitals, recentDiary, t]);
 
-  const isLoading = tasksLoading || apptsLoading || medsLoading || diaryLoading;
-  const isError = tasksError || apptsError || medsError || diaryError;
-
-  if (isLoading) return <p>{t('common.loading')}</p>;
-  if (isError) return <p className="text-muted">{t('common.error')}</p>;
-
   return (
     <div className="page">
       <div className="page-header">
@@ -173,17 +167,17 @@ export function Dashboard() {
       {/* Summary Stats Row */}
       <div className="stats-row">
         <Link to="/tasks" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className="stat-value">{openTasks.length}</div>
+          <div className="stat-value">{tasksLoading ? '...' : tasksError ? '\u2014' : openTasks.length}</div>
           <div className="stat-label">{t('dashboard.open_tasks')}</div>
         </Link>
 
         <Link to="/appointments" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className="stat-value">{upcomingAppts.length}</div>
+          <div className="stat-value">{apptsLoading ? '...' : apptsError ? '\u2014' : upcomingAppts.length}</div>
           <div className="stat-label">{t('dashboard.upcoming_appts')}</div>
         </Link>
 
         <Link to="/medications" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className="stat-value">{activeMeds.length}</div>
+          <div className="stat-value">{medsLoading ? '...' : medsError ? '\u2014' : activeMeds.length}</div>
           <div className="stat-label">{t('dashboard.active_meds')}</div>
         </Link>
 
@@ -215,7 +209,11 @@ export function Dashboard() {
             <h3>{t('nav.appointments')} &amp; {t('nav.tasks')}</h3>
             <Link to="/appointments" className="card-link">{t('common.view_all')}</Link>
           </div>
-          {upcomingItems.length === 0 ? (
+          {(tasksLoading || apptsLoading) ? (
+            <p className="text-muted" style={{ fontSize: 13, padding: '12px 0' }}>{t('common.loading')}</p>
+          ) : (tasksError || apptsError) ? (
+            <p className="text-muted" style={{ fontSize: 13, padding: '12px 0' }}>{t('common.error')}</p>
+          ) : upcomingItems.length === 0 ? (
             <p className="text-muted" style={{ fontSize: 13, padding: '12px 0' }}>
               {t('dashboard.empty_upcoming')}
             </p>
@@ -248,7 +246,11 @@ export function Dashboard() {
             <h3>{t('dashboard.recent_activity')}</h3>
             <Link to="/vitals" className="card-link">{t('common.view_all')}</Link>
           </div>
-          {recentActivity.length === 0 ? (
+          {diaryLoading ? (
+            <p className="text-muted" style={{ fontSize: 13, padding: '12px 0' }}>{t('common.loading')}</p>
+          ) : diaryError ? (
+            <p className="text-muted" style={{ fontSize: 13, padding: '12px 0' }}>{t('common.error')}</p>
+          ) : recentActivity.length === 0 ? (
             <p className="text-muted" style={{ fontSize: 13, padding: '12px 0' }}>
               {t('dashboard.empty_activity')}
             </p>

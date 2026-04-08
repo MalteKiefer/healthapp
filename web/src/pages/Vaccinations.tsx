@@ -21,6 +21,7 @@ export function Vaccinations() {
   const [editTarget, setEditTarget] = useState<Vaccination | null>(null);
   const [sortCol, setSortCol] = useState<string>('administered_at');
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('desc');
+  const [mutationError, setMutationError] = useState('');
   const queryClient = useQueryClient();
 
   const profileId = selectedProfile || profiles[0]?.id || '';
@@ -56,6 +57,7 @@ export function Vaccinations() {
       setShowForm(false);
       reset();
     },
+    onError: () => setMutationError(t('common.error')),
   });
 
   const updateMutation = useMutation({
@@ -66,6 +68,7 @@ export function Vaccinations() {
       // Due items are derived from the main list, no separate query to invalidate.
       setEditTarget(null);
     },
+    onError: () => setMutationError(t('common.error')),
   });
 
   const deleteMutation = useMutation({
@@ -74,6 +77,7 @@ export function Vaccinations() {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', profileId] });
       // Due items are derived from the main list, no separate query to invalidate.
     },
+    onError: () => setMutationError(t('common.error')),
   });
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<Partial<Vaccination>>();
@@ -191,6 +195,8 @@ export function Vaccinations() {
           </div>
         </div>
       )}
+
+      {mutationError && <div className="alert alert-error" style={{ marginBottom: 16 }}>{mutationError}</div>}
 
       <div className="card">
         <h3>{t('vaccinations.history')}</h3>

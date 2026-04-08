@@ -26,6 +26,7 @@ export function Diagnoses() {
   const [editTarget, setEditTarget] = useState<Diagnosis | null>(null);
   const [sortCol, setSortCol] = useState<string>('diagnosed_at');
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('desc');
+  const [mutationError, setMutationError] = useState('');
   const queryClient = useQueryClient();
   const profileId = selectedProfile || profiles[0]?.id || '';
 
@@ -56,6 +57,7 @@ export function Diagnoses() {
       setShowForm(false);
       reset();
     },
+    onError: () => setMutationError(t('common.error')),
   });
 
   const updateMutation = useMutation({
@@ -65,11 +67,13 @@ export function Diagnoses() {
       queryClient.invalidateQueries({ queryKey: ['diagnoses', profileId] });
       setEditTarget(null);
     },
+    onError: () => setMutationError(t('common.error')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => diagnosesApi.delete(profileId, id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['diagnoses', profileId] }),
+    onError: () => setMutationError(t('common.error')),
   });
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<Partial<Diagnosis>>();
@@ -133,6 +137,8 @@ export function Diagnoses() {
           </div>
         </div>
       )}
+
+      {mutationError && <div className="alert alert-error" style={{ marginBottom: 16 }}>{mutationError}</div>}
 
       <div className="card">
         {isLoading ? <p>{t('common.loading')}</p> : items.length === 0 ? <p className="text-muted">{t('common.no_data')}</p> : (
