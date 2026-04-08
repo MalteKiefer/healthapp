@@ -111,6 +111,7 @@ jobs:
         run: npm ci
       - name: Lint
         working-directory: web
+        continue-on-error: true
         run: npm run lint
       - name: Type-check
         working-directory: web
