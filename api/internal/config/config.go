@@ -2,8 +2,10 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -40,6 +42,7 @@ type RedisConfig struct {
 	Port     int
 	Password string
 	DB       int
+	TLS      bool
 }
 
 type JWTConfig struct {
@@ -85,6 +88,7 @@ func Load() (*Config, error) {
 			Port:     getEnvInt("REDIS_PORT", 6379),
 			Password: getEnv("REDIS_PASSWORD", ""),
 			DB:       getEnvInt("REDIS_DB", 0),
+			TLS:      getEnvBool("REDIS_TLS", false),
 		},
 		JWT: JWTConfig{
 			PrivateKeyPath: getEnv("JWT_PRIVATE_KEY_PATH", "/data/keys/jwt_private.pem"),
@@ -122,6 +126,18 @@ func (d *DatabaseConfig) DSN() string {
 	)
 }
 
+// CensoredDSN returns a PostgreSQL connection string with the password replaced by "***".
+func (d *DatabaseConfig) CensoredDSN() string {
+	dsn := d.DSN()
+	u, err := url.Parse(dsn)
+	if err != nil {
+		// Fallback: simple string replacement.
+		return strings.Replace(dsn, d.Password, "***", 1)
+	}
+	u.User = url.UserPassword(u.User.Username(), "***")
+	return u.String()
+}
+
 // Addr returns the Redis address as host:port.
 func (r *RedisConfig) Addr() string {
 	return fmt.Sprintf("%s:%d", r.Host, r.Port)
@@ -146,6 +162,7 @@ func getEnvInt(key string, fallback int) int {
 	}
 	i, err := strconv.Atoi(v)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: env %s=%q is not a valid integer, using default %d\n", key, v, fallback)
 		return fallback
 	}
 	return i
@@ -158,7 +175,21 @@ func getEnvDuration(key string, fallback time.Duration) time.Duration {
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: env %s=%q is not a valid duration, using default %s\n", key, v, fallback)
 		return fallback
 	}
 	return d
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: env %s=%q is not a valid boolean, using default %t\n", key, v, fallback)
+		return fallback
+	}
+	return b
 }

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 
 // NewRedisClient creates a new Redis client from config.
 func NewRedisClient(cfg *config.RedisConfig) (*redis.Client, error) {
-	client := redis.NewClient(&redis.Options{
+	opts := &redis.Options{
 		Addr:         cfg.Addr(),
 		Password:     cfg.Password,
 		DB:           cfg.DB,
@@ -21,7 +22,13 @@ func NewRedisClient(cfg *config.RedisConfig) (*redis.Client, error) {
 		WriteTimeout: 3 * time.Second,
 		PoolSize:     20,
 		MinIdleConns: 5,
-	})
+	}
+	if cfg.TLS {
+		opts.TLSConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+	}
+	client := redis.NewClient(opts)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
