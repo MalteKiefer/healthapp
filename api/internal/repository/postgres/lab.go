@@ -133,17 +133,44 @@ func (r *LabRepo) List(ctx context.Context, profileID uuid.UUID, limit, offset i
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan lab_result row: %w", err)
 		}
-
-		values, err := r.getValues(ctx, lr.ID)
-		if err != nil {
-			return nil, 0, err
-		}
-		lr.Values = values
-
 		results = append(results, lr)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("iterate rows: %w", err)
+	}
+
+	// Batch-load all lab values in a single query to avoid N+1.
+	if len(results) > 0 {
+		ids := make([]uuid.UUID, len(results))
+		for i, lr := range results {
+			ids[i] = lr.ID
+		}
+
+		valRows, err := r.db.Query(ctx, `
+			SELECT id, lab_result_id, content_enc
+			FROM lab_values
+			WHERE lab_result_id = ANY($1)
+			ORDER BY lab_result_id`, ids)
+		if err != nil {
+			return nil, 0, fmt.Errorf("batch query lab_values: %w", err)
+		}
+		defer valRows.Close()
+
+		valMap := make(map[uuid.UUID][]labs.LabValue)
+		for valRows.Next() {
+			var v labs.LabValue
+			if err := valRows.Scan(&v.ID, &v.LabResultID, &v.ContentEnc); err != nil {
+				return nil, 0, fmt.Errorf("scan lab_value: %w", err)
+			}
+			valMap[v.LabResultID] = append(valMap[v.LabResultID], v)
+		}
+		if err := valRows.Err(); err != nil {
+			return nil, 0, fmt.Errorf("iterate lab_values rows: %w", err)
+		}
+
+		for i := range results {
+			results[i].Values = valMap[results[i].ID]
+		}
 	}
 
 	return results, total, nil
