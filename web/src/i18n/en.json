@@ -857,6 +857,7 @@
     "confirm_passphrase": "Confirm Passphrase",
     "already_have_account": "Already have an account?",
     "email_already_registered": "This email is already registered",
+    "registration_failed": "Registration could not be completed. Please try again.",
     "connection_error": "Connection error",
     "recovery_codes_title": "Recovery Codes",
     "recovery_codes_warning_pre": "Save these codes in a safe place. They are the ",

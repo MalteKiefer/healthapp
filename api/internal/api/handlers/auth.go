@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -15,6 +17,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pquerna/otp/totp"
 	"github.com/redis/go-redis/v9"
@@ -231,9 +234,17 @@ func (h *AuthHandler) HandleRegisterInit(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Check if email already exists
+	// If the email already exists, return deterministic fake salts so that an
+	// attacker cannot distinguish existing accounts from new ones (prevents
+	// email enumeration). The actual duplicate check happens in
+	// HandleRegisterComplete where we return a generic error.
 	if _, err := h.userRepo.GetByEmail(r.Context(), req.Email); err == nil {
-		writeJSON(w, http.StatusConflict, errorResponse("email_already_registered"))
+		fakePEK := h.deterministicSalt(req.Email, "pek_salt")
+		fakeAuth := h.deterministicSalt(req.Email, "auth_salt")
+		writeJSON(w, http.StatusOK, registerInitResponse{
+			PEKSalt:  fakePEK,
+			AuthSalt: fakeAuth,
+		})
 		return
 	}
 
@@ -254,6 +265,17 @@ func (h *AuthHandler) HandleRegisterInit(w http.ResponseWriter, r *http.Request)
 		PEKSalt:  pekSalt,
 		AuthSalt: authSalt,
 	})
+}
+
+// deterministicSalt derives a deterministic hex-encoded salt from an email
+// address using HMAC-SHA256 keyed with the server's encryption key. This
+// produces a value indistinguishable from a random salt, ensuring that the
+// registration-init response is identical for existing and new accounts
+// (preventing email enumeration).
+func (h *AuthHandler) deterministicSalt(email, purpose string) string {
+	mac := hmac.New(sha256.New, h.totpEncKey)
+	mac.Write([]byte(fmt.Sprintf("%s:%s", purpose, email)))
+	return hex.EncodeToString(mac.Sum(nil))[:32]
 }
 
 // HandleRegisterComplete handles Step 2: creates the user account.
@@ -353,6 +375,12 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := h.userRepo.Create(r.Context(), u); err != nil {
+		// Detect unique-constraint violation (duplicate email) and return a
+		// generic error so we don't leak whether the email is registered.
+		if isDuplicateKeyError(err) {
+			writeJSON(w, http.StatusConflict, errorResponse("registration_failed"))
+			return
+		}
 		h.logger.Error("create user", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
@@ -854,4 +882,14 @@ func (h *AuthHandler) completeLogin(w http.ResponseWriter, r *http.Request, u *u
 		IdentityPrivkeyEnc: u.IdentityPrivkeyEnc,
 		SigningPrivkeyEnc:  u.SigningPrivkeyEnc,
 	})
+}
+
+// isDuplicateKeyError returns true if the error is a PostgreSQL unique
+// constraint violation (SQLSTATE 23505).
+func isDuplicateKeyError(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505"
+	}
+	return false
 }

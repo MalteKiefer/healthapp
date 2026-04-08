@@ -139,8 +139,8 @@ export function Register() {
       setStep('recovery');
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.code === 'email_already_registered') {
-          setError(t('register.email_already_registered'));
+        if (err.code === 'registration_failed' || err.code === 'email_already_registered') {
+          setError(t('register.registration_failed'));
         } else {
           setError(err.code);
         }
