@@ -112,7 +112,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	emergencyHandler := handlers.NewEmergencyHandler(db, logger)
 	searchHandler := handlers.NewSearchHandler(db, logger)
 	adminHandler := handlers.NewAdminHandler(db, rdb, logger, version)
-	totpHandler := handlers.NewTOTPHandler(userRepo, logger, totpEncKey)
+	totpHandler := handlers.NewTOTPHandler(userRepo, rdb, logger, totpEncKey)
 	exportHandler := handlers.NewExportHandler(db, logger)
 	thresholdHandler := handlers.NewThresholdHandler(db, profileRepo, logger)
 	inviteHandler := handlers.NewInviteHandler(db, logger)

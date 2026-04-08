@@ -4,9 +4,12 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/pquerna/otp/totp"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
 	"github.com/healthvault/healthvault/internal/crypto"
@@ -16,12 +19,30 @@ import (
 // TOTPHandler handles TOTP two-factor authentication endpoints.
 type TOTPHandler struct {
 	userRepo user.Repository
+	rdb      *redis.Client
 	logger   *zap.Logger
 	encKey   []byte // 32-byte AES-256 key for encrypting TOTP secrets at rest
 }
 
-func NewTOTPHandler(repo user.Repository, logger *zap.Logger, encKey []byte) *TOTPHandler {
-	return &TOTPHandler{userRepo: repo, logger: logger, encKey: encKey}
+func NewTOTPHandler(repo user.Repository, rdb *redis.Client, logger *zap.Logger, encKey []byte) *TOTPHandler {
+	return &TOTPHandler{userRepo: repo, rdb: rdb, logger: logger, encKey: encKey}
+}
+
+// totpReplayTTL is the window during which a TOTP code is considered valid
+// (the library uses ±1 period = 90 s). Used codes are cached for this duration
+// so they cannot be replayed.
+const totpReplayTTL = 90 * time.Second
+
+// checkTOTPReplay returns true if the code was already used for the given user.
+// It sets the key atomically so that concurrent requests are also blocked.
+func (h *TOTPHandler) checkTOTPReplay(r *http.Request, userID, code string) (bool, error) {
+	key := fmt.Sprintf("totp_used:%s:%s", userID, code)
+	set, err := h.rdb.SetNX(r.Context(), key, "1", totpReplayTTL).Result()
+	if err != nil {
+		return false, err
+	}
+	// SetNX returns true if the key was set (code NOT used before).
+	return !set, nil
 }
 
 // ── Request/Response Types ──────────────────────────────────────────
@@ -130,8 +151,23 @@ func (h *TOTPHandler) HandleEnable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Replay protection: reject codes that have already been used.
+	alreadyUsed, err := h.checkTOTPReplay(r, claims.UserID.String(), req.Code)
+	if err != nil {
+		h.logger.Error("check totp replay", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if alreadyUsed {
+		writeJSON(w, http.StatusTooManyRequests, errorResponse("totp_code_already_used"))
+		return
+	}
+
 	valid := totp.Validate(req.Code, secret)
 	if !valid {
+		// Code invalid — remove the replay marker so the user isn't locked
+		// out of a code they never successfully used.
+		h.rdb.Del(r.Context(), fmt.Sprintf("totp_used:%s:%s", claims.UserID.String(), req.Code))
 		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_totp_code"))
 		return
 	}
@@ -197,8 +233,23 @@ func (h *TOTPHandler) HandleDisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Replay protection: reject codes that have already been used.
+	alreadyUsed, err := h.checkTOTPReplay(r, claims.UserID.String(), req.Code)
+	if err != nil {
+		h.logger.Error("check totp replay", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if alreadyUsed {
+		writeJSON(w, http.StatusTooManyRequests, errorResponse("totp_code_already_used"))
+		return
+	}
+
 	valid := totp.Validate(req.Code, secret)
 	if !valid {
+		// Code invalid — remove the replay marker so the user isn't locked
+		// out of a code they never successfully used.
+		h.rdb.Del(r.Context(), fmt.Sprintf("totp_used:%s:%s", claims.UserID.String(), req.Code))
 		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_totp_code"))
 		return
 	}

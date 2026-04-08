@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/mail"
@@ -558,8 +559,26 @@ func (h *AuthHandler) HandleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Replay protection: reject codes that have already been used within
+	// the TOTP validity window (90 s). SetNX is used so that the first caller
+	// wins atomically, preventing concurrent replays.
+	totpUsedKey := fmt.Sprintf("totp_used:%s:%s", userID.String(), req.Code)
+	wasSet, rErr := h.rdb.SetNX(r.Context(), totpUsedKey, "1", 90*time.Second).Result()
+	if rErr != nil {
+		h.logger.Error("check totp replay", zap.Error(rErr))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	if !wasSet {
+		writeJSON(w, http.StatusTooManyRequests, errorResponse("totp_code_already_used"))
+		return
+	}
+
 	valid := totp.Validate(req.Code, secret)
 	if !valid {
+		// Code invalid — remove the replay marker so the user isn't locked out
+		// of a code they never successfully used.
+		h.rdb.Del(r.Context(), totpUsedKey)
 		writeJSON(w, http.StatusUnauthorized, errorResponse("invalid_totp_code"))
 		return
 	}
