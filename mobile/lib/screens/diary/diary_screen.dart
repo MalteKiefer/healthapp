@@ -560,6 +560,7 @@ class _DiaryCard extends StatelessWidget {
                     minHeight: 6,
                     backgroundColor: cs.surfaceContainerHighest,
                     color: moodColor,
+                    semanticsLabel: 'Mood score ${entry.moodScore!.toInt()} out of 10',
                   ),
                 ),
               ],

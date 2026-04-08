@@ -84,7 +84,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildProfileSelector(List<Profile> profiles) {
     final selected = ref.watch(selectedProfileProvider);
     final cs = Theme.of(context).colorScheme;
-    return PopupMenuButton<Profile>(
+    return Semantics(
+      label: 'Profile: ${selected?.displayName ?? 'None selected'}',
+      child: PopupMenuButton<Profile>(
       tooltip: 'Select profile',
       icon: CircleAvatar(
         radius: 18,
@@ -126,6 +128,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ))
           .toList(),
+    ),
     );
   }
 
@@ -283,7 +286,10 @@ class _QuickAction extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     return Expanded(
-      child: Card(
+      child: Semantics(
+        label: label,
+        button: true,
+        child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
@@ -305,6 +311,7 @@ class _QuickAction extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

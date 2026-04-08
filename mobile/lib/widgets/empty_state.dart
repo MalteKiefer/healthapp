@@ -22,7 +22,9 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 64, color: cs.outline),
+            ExcludeSemantics(
+              child: Icon(icon, size: 64, color: cs.outline),
+            ),
             const SizedBox(height: 16),
             Text(title,
                 style: tt.titleMedium?.copyWith(color: cs.onSurface),

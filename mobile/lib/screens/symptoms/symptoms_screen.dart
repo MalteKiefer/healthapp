@@ -476,6 +476,7 @@ class _SymptomCard extends StatelessWidget {
                     minHeight: 6,
                     backgroundColor: cs.surfaceContainerHighest,
                     color: intColor,
+                    semanticsLabel: 'Severity ${severityVal.toInt()} out of 10',
                   ),
                 ),
               ],
