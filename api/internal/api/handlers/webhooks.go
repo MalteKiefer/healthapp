@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+
+	"github.com/healthvault/healthvault/internal/crypto"
 )
 
 // privateCIDRs holds the parsed private/reserved CIDR ranges used by the SSRF
@@ -47,11 +49,12 @@ func init() {
 type WebhookHandler struct {
 	db     *pgxpool.Pool
 	logger *zap.Logger
+	encKey []byte // 32-byte AES-256 key for encrypting webhook secrets at rest
 }
 
 // NewWebhookHandler creates a new WebhookHandler.
-func NewWebhookHandler(db *pgxpool.Pool, logger *zap.Logger) *WebhookHandler {
-	return &WebhookHandler{db: db, logger: logger}
+func NewWebhookHandler(db *pgxpool.Pool, logger *zap.Logger, encKey []byte) *WebhookHandler {
+	return &WebhookHandler{db: db, logger: logger, encKey: encKey}
 }
 
 // ── Response / Request Types ────────────────────────────────────────
@@ -176,14 +179,11 @@ func (h *WebhookHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 		webhooks = []webhookEntry{}
 	}
 
-	// Mask secrets - only show last 4 chars
+	// Secrets are encrypted at rest – never expose them on list, show a
+	// fixed mask instead. The plaintext is only returned once at creation.
 	for i := range webhooks {
 		if webhooks[i].Secret != "" {
-			if len(webhooks[i].Secret) > 4 {
-				webhooks[i].Secret = "****" + webhooks[i].Secret[len(webhooks[i].Secret)-4:]
-			} else {
-				webhooks[i].Secret = "****"
-			}
+			webhooks[i].Secret = "****"
 		}
 	}
 
@@ -232,13 +232,21 @@ func (h *WebhookHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Encrypt the secret before storing – plaintext is returned only once.
+	encryptedSecret, err := crypto.EncryptAESGCM(req.Secret, h.encKey)
+	if err != nil {
+		h.logger.Error("encrypt webhook secret", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
 	now := time.Now().UTC()
 	var id uuid.UUID
-	err := h.db.QueryRow(r.Context(),
+	err = h.db.QueryRow(r.Context(),
 		`INSERT INTO webhooks (url, events, secret, enabled, created_at, updated_at)
 		 VALUES ($1, $2, $3, true, $4, $4)
 		 RETURNING id`,
-		req.URL, req.Events, req.Secret, now,
+		req.URL, req.Events, encryptedSecret, now,
 	).Scan(&id)
 	if err != nil {
 		h.logger.Error("create webhook", zap.Error(err))
@@ -246,10 +254,12 @@ func (h *WebhookHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Return the plaintext secret only once (like API tokens).
 	writeJSON(w, http.StatusCreated, map[string]interface{}{
 		"id":         id,
 		"url":        req.URL,
 		"events":     req.Events,
+		"secret":     req.Secret,
 		"enabled":    true,
 		"created_at": now,
 	})
@@ -291,6 +301,18 @@ func (h *WebhookHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Encrypt the new secret if one was provided.
+	var encSecret *string
+	if req.Secret != nil && *req.Secret != "" {
+		enc, encErr := crypto.EncryptAESGCM(*req.Secret, h.encKey)
+		if encErr != nil {
+			h.logger.Error("encrypt webhook secret", zap.Error(encErr))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+		encSecret = &enc
+	}
+
 	// Build dynamic update
 	now := time.Now().UTC()
 	tag, err := h.db.Exec(r.Context(),
@@ -301,7 +323,7 @@ func (h *WebhookHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 		     enabled    = COALESCE($4, enabled),
 		     updated_at = $5
 		 WHERE id = $6`,
-		req.URL, req.Events, req.Secret, req.Enabled, now, webhookID,
+		req.URL, req.Events, encSecret, req.Enabled, now, webhookID,
 	)
 	if err != nil {
 		h.logger.Error("update webhook", zap.Error(err))
@@ -441,6 +463,17 @@ func (h *WebhookHandler) HandleTest(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("fetch webhook for test", zap.Error(err))
 		writeJSON(w, http.StatusNotFound, errorResponse("webhook_not_found"))
 		return
+	}
+
+	// Decrypt the secret for use in delivery signing.
+	if wh.Secret != "" {
+		plainSecret, decErr := crypto.DecryptAESGCM(wh.Secret, h.encKey)
+		if decErr != nil {
+			h.logger.Error("decrypt webhook secret", zap.Error(decErr))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+		wh.Secret = plainSecret
 	}
 
 	// Validate URL scheme

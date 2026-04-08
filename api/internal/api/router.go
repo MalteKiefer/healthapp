@@ -116,7 +116,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	exportHandler := handlers.NewExportHandler(db, logger)
 	thresholdHandler := handlers.NewThresholdHandler(db, profileRepo, logger)
 	inviteHandler := handlers.NewInviteHandler(db, logger)
-	webhookHandler := handlers.NewWebhookHandler(db, logger)
+	webhookHandler := handlers.NewWebhookHandler(db, logger, totpEncKey)
 	legalHandler := handlers.NewLegalHandler(db, logger)
 	grantHandler := handlers.NewGrantHandler(db, profileRepo, logger)
 	activityHandler := handlers.NewActivityHandler(db, profileRepo, logger)
