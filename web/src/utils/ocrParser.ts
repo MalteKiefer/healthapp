@@ -163,7 +163,7 @@ export function parseOCRText(text: string): OCRResult {
     }
 
     // Vitals
-    const bpMatch = line.match(/(?:Blutdruck|Blood\s*Pressure|RR|BD)\s*[:\s]*(\d{2,3})\s*[\/]\s*(\d{2,3})/i);
+    const bpMatch = line.match(/(?:Blutdruck|Blood\s*Pressure|RR|BD)\s*[:\s]*(\d{2,3})\s*[[/]]\s*(\d{2,3})/i);
     if (bpMatch) {
       vitals.push({ type: 'Systolic BP', value: parseInt(bpMatch[1]), unit: 'mmHg' });
       vitals.push({ type: 'Diastolic BP', value: parseInt(bpMatch[2]), unit: 'mmHg' });

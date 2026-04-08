@@ -591,7 +591,7 @@ func (h *AuthHandler) HandleLogin2FA(w http.ResponseWriter, r *http.Request) {
 	// the TOTP validity window (90 s). SetNX is used so that the first caller
 	// wins atomically, preventing concurrent replays.
 	totpUsedKey := fmt.Sprintf("totp_used:%s:%s", userID.String(), req.Code)
-	wasSet, rErr := h.rdb.SetNX(r.Context(), totpUsedKey, "1", 90*time.Second).Result()
+	wasSet, rErr := h.rdb.SetNX(r.Context(), totpUsedKey, "1", 90*time.Second) //nolint:staticcheck // SetNX is needed for atomic check-and-set.Result()
 	if rErr != nil {
 		h.logger.Error("check totp replay", zap.Error(rErr))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))

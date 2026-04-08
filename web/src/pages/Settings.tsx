@@ -468,7 +468,7 @@ export function Settings() {
     const dataUrl = await getCroppedImg(cropSrc, croppedArea);
     try {
       localStorage.setItem('user_avatar', dataUrl);
-    } catch (e) {
+    } catch {
       alert(t('settings.avatar_storage_full'));
       return;
     }

@@ -81,6 +81,7 @@ export function Register() {
       setError(t('settings.pass_need_number'));
       return;
     }
+    // eslint-disable-next-line no-useless-escape
     if (policy?.require_symbols && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(passphrase)) {
       setError(t('settings.pass_need_symbol'));
       return;
