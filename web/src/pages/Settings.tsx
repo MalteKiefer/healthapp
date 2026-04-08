@@ -490,6 +490,7 @@ export function Settings() {
     if (policy?.require_uppercase && !/[A-Z]/.test(newPass)) { setPassError(t('settings.pass_need_upper')); return; }
     if (policy?.require_lowercase && !/[a-z]/.test(newPass)) { setPassError(t('settings.pass_need_lower')); return; }
     if (policy?.require_numbers && !/[0-9]/.test(newPass)) { setPassError(t('settings.pass_need_number')); return; }
+    // eslint-disable-next-line no-useless-escape
     if (policy?.require_symbols && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPass)) { setPassError(t('settings.pass_need_symbol')); return; }
     try {
       const currentHash = await deriveAuthHash(currentPass, email || '');

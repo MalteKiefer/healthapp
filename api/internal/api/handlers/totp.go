@@ -37,7 +37,7 @@ const totpReplayTTL = 90 * time.Second
 // It sets the key atomically so that concurrent requests are also blocked.
 func (h *TOTPHandler) checkTOTPReplay(r *http.Request, userID, code string) (bool, error) {
 	key := fmt.Sprintf("totp_used:%s:%s", userID, code)
-	set, err := h.rdb.SetNX(r.Context(), key, "1", totpReplayTTL) //nolint:staticcheck // SetNX is needed for atomic check-and-set.Result()
+	set, err := h.rdb.SetNX(r.Context(), key, "1", totpReplayTTL).Result() //nolint:staticcheck
 	if err != nil {
 		return false, err
 	}
