@@ -96,24 +96,48 @@ jobs:
             -o ../healthvault-${{ matrix.goos }}-${{ matrix.goarch }} \
             ./cmd/healthvault
 
-  docker-build:
-    name: Docker Build (no push)
+  frontend:
+    name: Frontend Lint & Test & Build
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+      - name: Lint
+        working-directory: web
+        run: npm run lint
+      - name: Type-check
+        working-directory: web
+        run: npx tsc --noEmit
+      - name: Test
+        working-directory: web
+        run: npm test -- --run
+
+  docker-build:
+    name: Docker Build (${{ matrix.image.tag }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - { context: ./api, tag: healthvault-api }
+          - { context: ./proxy, tag: healthvault-proxy }
+          - { context: ./web, tag: healthvault-web }
+          - { context: ./backup, tag: healthvault-backup }
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build API image
+      - name: Build ${{ matrix.image.tag }} image
         uses: docker/build-push-action@v5
         with:
-          context: ./api
+          context: ${{ matrix.image.context }}
           push: false
-          tags: healthvault-api:ci
+          tags: ${{ matrix.image.tag }}:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Build Proxy image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./proxy
-          push: false
-          tags: healthvault-proxy:ci

@@ -68,7 +68,7 @@ setup:
 	docker compose up -d
 
 deploy:
-	git push origin main
+	@echo "ERROR: Direct deploy via Makefile is disabled. Use the CI/CD pipeline instead." && exit 1
 
 version:
 	@echo "$(VERSION)"
