@@ -168,8 +168,14 @@ func (h *LegalHandler) HandleCreateDocument(w http.ResponseWriter, r *http.Reque
 	})
 }
 
-// HandleAcceptConsent records the authenticated user's acceptance of the
-// latest effective legal document.
+type acceptConsentRequest struct {
+	DocumentID string `json:"document_id"`
+}
+
+// HandleAcceptConsent records the authenticated user's acceptance of a specific
+// legal document identified by document_id in the request body. Each document
+// type (privacy_policy, terms_of_service) must be accepted separately to
+// satisfy GDPR requirements for purpose-specific consent.
 // POST /api/v1/legal/accept
 func (h *LegalHandler) HandleAcceptConsent(w http.ResponseWriter, r *http.Request) {
 	claims, ok := ClaimsFromContext(r.Context())
@@ -178,14 +184,32 @@ func (h *LegalHandler) HandleAcceptConsent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Find the latest effective legal document.
-	var docID uuid.UUID
-	err := h.db.QueryRow(r.Context(),
-		`SELECT id FROM instance_legal_documents WHERE effective_from <= NOW() ORDER BY effective_from DESC LIMIT 1`,
-	).Scan(&docID)
+	var req acceptConsentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
+		return
+	}
+
+	if req.DocumentID == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("document_id_required"))
+		return
+	}
+
+	docID, err := uuid.Parse(req.DocumentID)
 	if err != nil {
-		h.logger.Error("get latest legal document", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_document_id"))
+		return
+	}
+
+	// Verify the document exists and is currently effective.
+	var docType string
+	err = h.db.QueryRow(r.Context(),
+		`SELECT document_type FROM instance_legal_documents WHERE id = $1 AND effective_from <= NOW()`,
+		docID,
+	).Scan(&docType)
+	if err != nil {
+		h.logger.Error("verify legal document", zap.Error(err))
+		writeJSON(w, http.StatusNotFound, errorResponse("document_not_found"))
 		return
 	}
 
@@ -205,8 +229,75 @@ func (h *LegalHandler) HandleAcceptConsent(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"accepted":    true,
-		"document_id": docID,
+		"accepted":      true,
+		"document_id":   docID,
+		"document_type": docType,
+	})
+}
+
+// HandlePendingConsent returns the list of legal documents that the
+// authenticated user has not yet accepted. Clients use this to display the
+// correct acceptance prompts.
+// GET /api/v1/legal/pending
+func (h *LegalHandler) HandlePendingConsent(w http.ResponseWriter, r *http.Request) {
+	claims, ok := ClaimsFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
+		return
+	}
+
+	rows, err := h.db.Query(r.Context(),
+		`SELECT d.id, d.document_type, d.version, d.effective_from
+		 FROM instance_legal_documents d
+		 INNER JOIN (
+		     SELECT document_type, MAX(effective_from) AS max_ef
+		     FROM instance_legal_documents
+		     WHERE effective_from <= NOW()
+		     GROUP BY document_type
+		 ) latest ON d.document_type = latest.document_type AND d.effective_from = latest.max_ef
+		 WHERE d.document_type IN ('privacy_policy', 'terms_of_service')
+		   AND NOT EXISTS (
+		       SELECT 1 FROM user_consent_records ucr
+		       WHERE ucr.document_id = d.id AND ucr.user_id = $1
+		   )`,
+		claims.UserID,
+	)
+	if err != nil {
+		h.logger.Error("query pending consent", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+	defer rows.Close()
+
+	type pendingDoc struct {
+		ID            uuid.UUID `json:"id"`
+		DocumentType  string    `json:"document_type"`
+		Version       string    `json:"version"`
+		EffectiveFrom time.Time `json:"effective_from"`
+	}
+
+	var pending []pendingDoc
+	for rows.Next() {
+		var d pendingDoc
+		if err := rows.Scan(&d.ID, &d.DocumentType, &d.Version, &d.EffectiveFrom); err != nil {
+			h.logger.Error("scan pending consent", zap.Error(err))
+			writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+			return
+		}
+		pending = append(pending, d)
+	}
+	if err := rows.Err(); err != nil {
+		h.logger.Error("iterate pending consent", zap.Error(err))
+		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
+		return
+	}
+
+	if pending == nil {
+		pending = []pendingDoc{}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"pending": pending,
 	})
 }
 

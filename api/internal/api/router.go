@@ -235,8 +235,9 @@ func (s *Server) setupRoutes() {
 			// Logout (requires authenticated user)
 			r.Post("/auth/logout", s.AuthHandler.HandleLogout)
 
-			// Legal consent acceptance (exempt from consent check via middleware)
+			// Legal consent (exempt from consent check via middleware)
 			r.Post("/legal/accept", s.LegalHandler.HandleAcceptConsent)
+			r.Get("/legal/pending", s.LegalHandler.HandlePendingConsent)
 
 			// 2FA management (requires authenticated user)
 			r.Route("/auth/2fa", func(r chi.Router) {
