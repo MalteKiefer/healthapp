@@ -98,7 +98,9 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
         initialChildSize: 0.80,
         minChildSize: 0.45,
         maxChildSize: 0.95,
-        builder: (ctx, scrollCtrl) => StatefulBuilder(
+        builder: (ctx, scrollCtrl) {
+          bool isSaving = false;
+          return StatefulBuilder(
           builder: (ctx, setSheetState) => Padding(
             padding: EdgeInsets.only(
               left: 20,
@@ -212,9 +214,9 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                   ),
                   const SizedBox(height: 20),
                   FilledButton(
-                    onPressed: () async {
+                    onPressed: isSaving ? null : () async {
                       if (!formKey.currentState!.validate()) return;
-                      Navigator.pop(ctx);
+                      setSheetState(() => isSaving = true);
                       final body = <String, dynamic>{
                         'name': nameCtrl.text.trim(),
                         if (icdCtrl.text.trim().isNotEmpty)
@@ -245,20 +247,31 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                         }
                         ref.invalidate(
                             _diagnosesProvider(widget.profileId));
+                        if (ctx.mounted) Navigator.pop(ctx);
                       } catch (e) {
+                        if (ctx.mounted) {
+                          setSheetState(() => isSaving = false);
+                        }
                         if (mounted) {
                           ScaffoldMessenger.of(context)
                               .showSnackBar(SnackBar(content: Text('$e')));
                         }
                       }
                     },
-                    child: Text(T.tr('common.save')),
+                    child: isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(T.tr('common.save')),
                   ),
                 ],
               ),
             ),
           ),
-        ),
+        );
+        },
       ),
     );
     nameCtrl.dispose();

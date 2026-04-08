@@ -116,7 +116,9 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
         initialChildSize: 0.85,
         minChildSize: 0.45,
         maxChildSize: 0.95,
-        builder: (ctx, scrollCtrl) => StatefulBuilder(
+        builder: (ctx, scrollCtrl) {
+          bool isSaving = false;
+          return StatefulBuilder(
           builder: (ctx, setSheetState) => Padding(
             padding: EdgeInsets.only(
               left: 20,
@@ -298,8 +300,8 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                   ),
                   const SizedBox(height: 20),
                   FilledButton(
-                    onPressed: () async {
-                      Navigator.pop(ctx);
+                    onPressed: isSaving ? null : () async {
+                      setSheetState(() => isSaving = true);
                       final body = <String, dynamic>{
                         'recorded_at': isEdit
                             ? existing.recordedAt
@@ -339,20 +341,31 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                         }
                         ref.invalidate(
                             _diaryProvider(widget.profileId));
+                        if (ctx.mounted) Navigator.pop(ctx);
                       } catch (e) {
+                        if (ctx.mounted) {
+                          setSheetState(() => isSaving = false);
+                        }
                         if (mounted) {
                           ScaffoldMessenger.of(context)
                               .showSnackBar(SnackBar(content: Text('$e')));
                         }
                       }
                     },
-                    child: Text(T.tr('common.save')),
+                    child: isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(T.tr('common.save')),
                   ),
                 ],
               ),
             ),
           ),
-        ),
+        );
+        },
       ),
     );
     titleCtrl.dispose();

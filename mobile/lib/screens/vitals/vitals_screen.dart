@@ -155,7 +155,9 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
         initialChildSize: 0.85,
         minChildSize: 0.5,
         maxChildSize: 0.95,
-        builder: (ctx, scrollCtrl) => StatefulBuilder(
+        builder: (ctx, scrollCtrl) {
+          bool isSaving = false;
+          return StatefulBuilder(
           builder: (ctx, setSheetState) => Padding(
             padding: EdgeInsets.only(
               left: 20,
@@ -257,8 +259,8 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
+                  onPressed: isSaving ? null : () async {
+                    setSheetState(() => isSaving = true);
                     double? d(String key) =>
                         double.tryParse(ctrl[key]!.text.trim());
                     int? i(String key) =>
@@ -308,19 +310,30 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                         );
                       }
                       ref.invalidate(_vitalsProvider(widget.profileId));
+                      if (ctx.mounted) Navigator.pop(ctx);
                     } catch (e) {
+                      if (ctx.mounted) {
+                        setSheetState(() => isSaving = false);
+                      }
                       if (mounted) {
                         ScaffoldMessenger.of(context)
                             .showSnackBar(SnackBar(content: Text('Error: $e')));
                       }
                     }
                   },
-                  child: Text(T.tr('common.save')),
+                  child: isSaving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(T.tr('common.save')),
                 ),
               ],
             ),
           ),
-        ),
+        );
+        },
       ),
     );
     for (final c in ctrl.values) {
