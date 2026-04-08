@@ -14,7 +14,7 @@ async function ensureKey(profileId: string, userId: string, ownerUserId: string)
   return ensureProfileKey(profileId, userId, ownerUserId);
 }
 
-export function useVitals(profileId: string | undefined, params?: { limit?: number }) {
+export function useVitals(profileId: string | undefined, params?: { limit?: number; from?: string; to?: string }) {
   const { userId } = useAuthStore();
   const { data: profiles } = useProfiles();
   return useQuery({

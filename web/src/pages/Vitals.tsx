@@ -85,7 +85,14 @@ export function Vitals() {
 
   const { fmt } = useDateFormat();
   const profileId = selectedProfile || profiles[0]?.id || '';
-  const { data: vitalsData, isLoading } = useVitals(profileId, { limit: 200 });
+
+  const vitalsFrom = useMemo(() => {
+    if (timeRange === 'all') return undefined;
+    const days = { '3d': 3, '7d': 7, '30d': 30, '90d': 90, '1y': 365 }[timeRange];
+    return new Date(Date.now() - days * 86400000).toISOString();
+  }, [timeRange]);
+
+  const { data: vitalsData, isLoading } = useVitals(profileId, { limit: 200, from: vitalsFrom });
   const createVital = useCreateVital(profileId);
   const deleteVital = useDeleteVital(profileId);
   const updateVital = useUpdateVital(profileId);
@@ -158,13 +165,7 @@ export function Vitals() {
     }
   };
 
-  const filteredVitals = useMemo(() => {
-    const items = vitalsData?.items || [];
-    if (timeRange === 'all') return items;
-    const days = { '3d': 3, '7d': 7, '30d': 30, '90d': 90, '1y': 365 }[timeRange];
-    const cutoff = new Date(Date.now() - days * 86400000);
-    return items.filter((v) => new Date(v.measured_at) >= cutoff);
-  }, [vitalsData, timeRange]);
+  const filteredVitals = useMemo(() => vitalsData?.items || [], [vitalsData]);
 
   const sortedVitals = useMemo(() =>
     filteredVitals.slice().sort((a, b) => new Date(a.measured_at).getTime() - new Date(b.measured_at).getTime()),
