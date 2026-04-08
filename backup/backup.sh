@@ -20,11 +20,16 @@ pg_dump \
     --format=custom \
     --compress=9 \
     | openssl enc -aes-256-cbc -salt -pbkdf2 \
-        -pass "pass:${BACKUP_ENCRYPTION_KEY}" \
+        -pass "env:BACKUP_ENCRYPTION_KEY" \
         -out "${DB_BACKUP_FILE}"
 
 # Generate HMAC for integrity verification (authenticated encryption)
-openssl dgst -sha256 -hmac "${BACKUP_ENCRYPTION_KEY}" \
+# NOTE: We derive a separate HMAC key from the encryption key to avoid
+# reusing the same secret for both encryption and authentication.
+# A future improvement would be to use a dedicated HMAC secret or switch
+# to an AEAD cipher (e.g. aes-256-gcm) that provides built-in authentication.
+HMAC_KEY=$(echo -n "${BACKUP_ENCRYPTION_KEY}" | openssl dgst -sha256 | awk '{print $2}')
+openssl dgst -sha256 -hmac "${HMAC_KEY}" \
     -out "${DB_BACKUP_FILE}.hmac" "${DB_BACKUP_FILE}"
 
 DB_SIZE=$(stat -c %s "${DB_BACKUP_FILE}" 2>/dev/null || stat -f %z "${DB_BACKUP_FILE}")
@@ -39,10 +44,10 @@ if [ -d "${UPLOADS_DIR}" ] && [ "$(ls -A ${UPLOADS_DIR} 2>/dev/null)" ]; then
     echo "[$(date -Iseconds)] Backing up uploaded files..."
     tar -czf - -C "${UPLOADS_DIR}" . \
         | openssl enc -aes-256-cbc -salt -pbkdf2 \
-            -pass "pass:${BACKUP_ENCRYPTION_KEY}" \
+            -pass "env:BACKUP_ENCRYPTION_KEY" \
             -out "${FILES_BACKUP_FILE}"
     # Generate HMAC for integrity verification (authenticated encryption)
-    openssl dgst -sha256 -hmac "${BACKUP_ENCRYPTION_KEY}" \
+    openssl dgst -sha256 -hmac "${HMAC_KEY}" \
         -out "${FILES_BACKUP_FILE}.hmac" "${FILES_BACKUP_FILE}"
     FILES_SIZE=$(stat -c %s "${FILES_BACKUP_FILE}" 2>/dev/null || stat -f %z "${FILES_BACKUP_FILE}")
     FILES_CHECKSUM=$(sha256sum "${FILES_BACKUP_FILE}" | cut -d' ' -f1)

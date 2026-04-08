@@ -30,13 +30,17 @@ START_TIME=$(date +%s%3N 2>/dev/null || echo 0)
 echo "[$(date -Iseconds)] Verifying: ${LATEST} (${BACKUP_SIZE} bytes)"
 
 # 2. Decrypt the backup
-DECRYPTED="/tmp/verify_backup.sql"
+DECRYPTED=$(mktemp /tmp/verify_backup_XXXXXX.sql)
+trap 'rm -f "${DECRYPTED}"' EXIT
+
 if ! openssl enc -aes-256-cbc -d -salt -pbkdf2 \
-    -pass "pass:${BACKUP_ENCRYPTION_KEY}" \
+    -pass "env:BACKUP_ENCRYPTION_KEY" \
     -in "${LATEST}" \
     -out "${DECRYPTED}" 2>/dev/null; then
     echo "[$(date -Iseconds)] ERROR: Decryption failed"
-    record_result "failed" "" "" "Decryption failed"
+    PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" \
+        -c "INSERT INTO backup_verification_log (id, verified_at, backup_filename, backup_size_bytes, backup_created_at, status, error_message, duration_ms)
+            VALUES (gen_random_uuid(), NOW(), '$(basename "${LATEST}")', ${BACKUP_SIZE}, to_timestamp(${BACKUP_DATE}), 'failed', 'Decryption failed', 0);" 2>/dev/null || true
     exit 1
 fi
 
