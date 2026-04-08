@@ -447,15 +447,21 @@ class _ListTab extends ConsumerWidget {
                 ]),
               );
             }
-            return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-              itemCount: labs.length,
-              itemBuilder: (_, i) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _LabCard(
-                  result: labs[i],
-                  onEdit: () => onEdit(labs[i]),
-                  profileId: profileId,
+            return RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(_labsProvider(profileId));
+                ref.invalidate(_trendsProvider(profileId));
+              },
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                itemCount: labs.length,
+                itemBuilder: (_, i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _LabCard(
+                    result: labs[i],
+                    onEdit: () => onEdit(labs[i]),
+                    profileId: profileId,
+                  ),
                 ),
               ),
             );
@@ -678,17 +684,23 @@ class _TrendsTab extends ConsumerWidget {
                         tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
               );
             }
-            return GridView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 1.0,
+            return RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(_labsProvider(profileId));
+                ref.invalidate(_trendsProvider(profileId));
+              },
+              child: GridView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 1.0,
+                ),
+                itemCount: trends.length,
+                itemBuilder: (_, i) =>
+                    _TrendCard(trend: trends[i], range: range),
               ),
-              itemCount: trends.length,
-              itemBuilder: (_, i) =>
-                  _TrendCard(trend: trends[i], range: range),
             );
           },
         );

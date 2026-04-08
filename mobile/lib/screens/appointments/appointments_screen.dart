@@ -565,14 +565,19 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                         ]),
                   );
                 }
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
-                  itemCount: list.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _AppointmentCard(
-                    appointment: list[i],
-                    onDelete: () => _delete(list[i].id),
-                    onTap: () => _showFormSheet(existing: list[i]),
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(_appointmentsProvider(widget.profileId));
+                  },
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                    itemCount: list.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) => _AppointmentCard(
+                      appointment: list[i],
+                      onDelete: () => _delete(list[i].id),
+                      onTap: () => _showFormSheet(existing: list[i]),
+                    ),
                   ),
                 );
               },

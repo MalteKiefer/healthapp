@@ -352,14 +352,19 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               ]),
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) => _ContactCard(
-              contact: items[i],
-              onDelete: () => _delete(items[i].id),
-              onTap: () => _showFormSheet(existing: items[i]),
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(_contactsProvider(widget.profileId));
+            },
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, i) => _ContactCard(
+                contact: items[i],
+                onDelete: () => _delete(items[i].id),
+                onTap: () => _showFormSheet(existing: items[i]),
+              ),
             ),
           );
         },

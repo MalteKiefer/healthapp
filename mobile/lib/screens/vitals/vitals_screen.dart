@@ -456,7 +456,11 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
         ),
         data: (vitals) {
           final filtered = _filtered(vitals);
-          return CustomScrollView(
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(_vitalsProvider(widget.profileId));
+            },
+            child: CustomScrollView(
             slivers: [
               // Metric chips
               SliverToBoxAdapter(
@@ -546,6 +550,7 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                 ),
               const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
             ],
+          ),
           );
         },
       ),
