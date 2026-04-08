@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
+import { deriveAuthHash } from '../crypto';
 import { useAuthStore } from '../store/auth';
 
 // ---- Types ----
@@ -139,10 +140,11 @@ export function Onboarding() {
 
     setLoading(true);
     try {
+      const authHash = await deriveAuthHash(data.passphrase, data.email);
       const res = await api.post<RegisterResponse>('/api/v1/auth/register', {
         email: data.email,
         display_name: data.displayName,
-        auth_hash: data.passphrase,
+        auth_hash: authHash,
       });
       update('userId', res.user_id);
       update('authSalt', res.auth_salt);
