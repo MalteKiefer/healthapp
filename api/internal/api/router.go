@@ -189,6 +189,10 @@ func (s *Server) setupRoutes() {
 
 	// Public endpoints — no auth required
 	s.Router.Get("/health", s.handleHealth)
+	s.Router.With(
+		middleware.JWTAuth(s.TokenService),
+		middleware.RequireAdmin,
+	).Get("/health/detail", s.handleHealthDetail)
 
 	// API v1
 	s.Router.Route("/api/v1", func(r chi.Router) {
@@ -558,9 +562,33 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(httpStatus)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]string{
+		"status": status,
+	}); err != nil {
+		s.Logger.Error("failed to encode health response", zap.Error(err))
+	}
+}
+
+func (s *Server) handleHealthDetail(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	dbOK := s.DB.Ping(ctx) == nil
+	redisOK := s.Redis.Ping(ctx).Err() == nil
+
+	status := "ok"
+	httpStatus := http.StatusOK
+	if !dbOK || !redisOK {
+		status = "degraded"
+		httpStatus = http.StatusServiceUnavailable
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(httpStatus)
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":   status,
 		"database": dbOK,
 		"redis":    redisOK,
-	})
+	}); err != nil {
+		s.Logger.Error("failed to encode health detail response", zap.Error(err))
+	}
 }
