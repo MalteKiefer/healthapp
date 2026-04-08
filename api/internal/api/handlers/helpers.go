@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/healthvault/healthvault/internal/crypto"
@@ -26,7 +27,9 @@ func ClaimsFromContext(ctx context.Context) (*crypto.Claims, bool) {
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("writeJSON: failed to encode response: %v", err)
+	}
 }
 
 func errorResponse(code string) map[string]string {

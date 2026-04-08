@@ -18,13 +18,14 @@ import (
 
 // AdminHandler handles admin panel endpoints.
 type AdminHandler struct {
-	db     *pgxpool.Pool
-	rdb    *redis.Client
-	logger *zap.Logger
+	db      *pgxpool.Pool
+	rdb     *redis.Client
+	logger  *zap.Logger
+	version string
 }
 
-func NewAdminHandler(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger) *AdminHandler {
-	return &AdminHandler{db: db, rdb: rdb, logger: logger}
+func NewAdminHandler(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, version string) *AdminHandler {
+	return &AdminHandler{db: db, rdb: rdb, logger: logger, version: version}
 }
 
 // ── Response Types ──────────────────────────────────────────────────
@@ -382,7 +383,7 @@ func (h *AdminHandler) HandleGetSystem(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"database":          dbInfo,
 		"redis":             redisInfo,
-		"version":           "1.0.0",
+		"version":           h.version,
 		"registration_mode": regMode,
 	})
 }
@@ -462,9 +463,9 @@ func (h *AdminHandler) HandleGetAuditLog(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-// HandleGetSettings updates instance settings key-value pairs.
+// HandleUpdateSettings updates instance settings key-value pairs.
 // PATCH /admin/settings
-func (h *AdminHandler) HandleGetSettings(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) HandleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	claims, ok := ClaimsFromContext(r.Context())
 	if !ok {
 		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))

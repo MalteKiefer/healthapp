@@ -62,7 +62,7 @@ type Server struct {
 }
 
 // NewServer creates a configured HTTP server with all routes.
-func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *config.Config, ts *crypto.TokenService) *Server {
+func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *config.Config, ts *crypto.TokenService, version string) *Server {
 	userRepo := postgres.NewUserRepo(db)
 	profileRepo := postgres.NewProfileRepo(db)
 	vitalRepo := postgres.NewVitalRepo(db)
@@ -111,7 +111,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	labHandler := handlers.NewLabHandler(labRepo, profileRepo, logger)
 	emergencyHandler := handlers.NewEmergencyHandler(db, logger)
 	searchHandler := handlers.NewSearchHandler(db, logger)
-	adminHandler := handlers.NewAdminHandler(db, rdb, logger)
+	adminHandler := handlers.NewAdminHandler(db, rdb, logger, version)
 	totpHandler := handlers.NewTOTPHandler(userRepo, logger, totpEncKey)
 	exportHandler := handlers.NewExportHandler(db, logger)
 	thresholdHandler := handlers.NewThresholdHandler(db, profileRepo, logger)
@@ -224,8 +224,8 @@ func (s *Server) setupRoutes() {
 		// Protected routes — JWT required
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.JWTAuth(s.TokenService))
-			r.Use(middleware.ConsentCheck(s.DB, s.Redis))
 			r.Use(middleware.SessionTimeout(s.Redis, s.Config.Instance.SessionTimeout))
+			r.Use(middleware.ConsentCheck(s.DB, s.Redis))
 			r.Use(middleware.AuditWrites(middleware.NewAuditWriter(s.DB, s.Logger)))
 
 			// Logout (requires authenticated user)
@@ -239,7 +239,7 @@ func (s *Server) setupRoutes() {
 				r.Get("/setup", s.TOTPHandler.HandleSetup)
 				r.Post("/enable", s.TOTPHandler.HandleEnable)
 				r.Post("/disable", s.TOTPHandler.HandleDisable)
-				r.Get("/recovery-codes", s.TOTPHandler.HandleRegenerateRecoveryCodes)
+				r.Post("/recovery-codes", s.TOTPHandler.HandleRegenerateRecoveryCodes)
 			})
 
 			// Users
@@ -512,7 +512,7 @@ func (s *Server) setupRoutes() {
 				r.Get("/backups", s.AdminHandler.HandleGetBackups)
 				r.Post("/backups/trigger", s.AdminHandler.HandleTriggerBackup)
 				r.Get("/audit-log", s.AdminHandler.HandleGetAuditLog)
-				r.Patch("/settings", s.AdminHandler.HandleGetSettings)
+				r.Patch("/settings", s.AdminHandler.HandleUpdateSettings)
 
 				// Admin legal/consent
 				r.Get("/legal/documents", s.LegalHandler.HandleListDocuments)

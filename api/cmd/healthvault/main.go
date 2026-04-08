@@ -139,7 +139,7 @@ func run() error {
 	logger.Info("JWT token service initialized")
 
 	// HTTP server
-	srv := api.NewServer(db, rdb, logger, cfg, ts)
+	srv := api.NewServer(db, rdb, logger, cfg, ts, Version)
 
 	httpServer := &http.Server{
 		Addr:         cfg.Server.ListenAddr(),
