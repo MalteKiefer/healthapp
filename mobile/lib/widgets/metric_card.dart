@@ -41,7 +41,7 @@ class MetricCard extends StatelessWidget {
                   ),
                 ],
                 const Spacer(),
-                if (trend != null) _TrendIcon(trend: trend!, cs: cs),
+                if (trend != null) _TrendIcon(trend: trend!),
               ],
             ),
           ],
@@ -53,12 +53,12 @@ class MetricCard extends StatelessWidget {
 
 class _TrendIcon extends StatelessWidget {
   final MetricTrend trend;
-  final ColorScheme cs;
 
-  const _TrendIcon({required this.trend, required this.cs});
+  const _TrendIcon({required this.trend});
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final (icon, color) = switch (trend) {
       MetricTrend.up => (Icons.trending_up_rounded, cs.error),
       MetricTrend.down => (Icons.trending_down_rounded, cs.tertiary),

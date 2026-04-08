@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 class HealthCard extends StatelessWidget {
+  final String id;
   final String title;
   final String? subtitle;
   final Widget? trailing;
@@ -9,6 +10,7 @@ class HealthCard extends StatelessWidget {
 
   const HealthCard({
     super.key,
+    required this.id,
     required this.title,
     this.subtitle,
     this.trailing,
@@ -30,7 +32,7 @@ class HealthCard extends StatelessWidget {
 
     if (onDismiss != null) {
       card = Dismissible(
-        key: ValueKey(title),
+        key: ValueKey(id),
         direction: DismissDirection.endToStart,
         background: Container(
           alignment: Alignment.centerRight,

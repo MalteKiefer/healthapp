@@ -6,7 +6,7 @@ Future<T?> showAddSheet<T>({
   required BuildContext context,
   required String title,
   required Widget content,
-  String confirmLabel = 'Add',
+  required String confirmLabel,
   VoidCallback? onConfirm,
 }) {
   return showModalBottomSheet<T>(
@@ -53,7 +53,7 @@ class AddDialog extends StatelessWidget {
     super.key,
     required this.title,
     required this.content,
-    this.confirmLabel = 'Add',
+    required this.confirmLabel,
     this.onConfirm,
   });
 

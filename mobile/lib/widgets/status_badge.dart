@@ -48,8 +48,8 @@ class StatusBadge extends StatelessWidget {
       ),
       child: Text(
         label ?? defaultLabel,
-        style: TextStyle(
-            fontSize: 11, color: fg, fontWeight: FontWeight.w600),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: fg, fontWeight: FontWeight.w600),
       ),
     );
   }
