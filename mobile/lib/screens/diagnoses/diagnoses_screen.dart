@@ -4,6 +4,9 @@ import 'package:intl/intl.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
+import '../../widgets/delete_confirm_dialog.dart';
+import '../../widgets/error_widget.dart';
+import '../../widgets/loading_widget.dart';
 
 // -- Provider -----------------------------------------------------------------
 
@@ -31,27 +34,12 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
   bool _activeOnly = true;
 
   Future<void> _delete(String id) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(T.tr('diagnoses.delete')),
-        content: Text(T.tr('diagnoses.delete_body')),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(T.tr('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(T.tr('common.delete')),
-          ),
-        ],
-      ),
+    final confirmed = await showDeleteConfirmDialog(
+      context,
+      titleKey: 'diagnoses.delete',
+      bodyKey: 'diagnoses.delete_body',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     try {
       await ref
           .read(apiClientProvider)
@@ -320,19 +308,11 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
           ),
           Expanded(
             child: asyncVal.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.error_outline, size: 48, color: cs.error),
-                  const SizedBox(height: 12),
-                  Text(T.tr('diagnoses.failed'), style: tt.bodyLarge),
-                  const SizedBox(height: 12),
-                  FilledButton.tonal(
-                    onPressed: () => ref
-                        .invalidate(_diagnosesProvider(widget.profileId)),
-                    child: Text(T.tr('common.retry')),
-                  ),
-                ]),
+              loading: () => const LoadingWidget(),
+              error: (e, _) => AppErrorWidget(
+                message: T.tr('diagnoses.failed'),
+                onRetry: () =>
+                    ref.invalidate(_diagnosesProvider(widget.profileId)),
               ),
               data: (items) {
                 final list = _activeOnly

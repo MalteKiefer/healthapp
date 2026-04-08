@@ -6,6 +6,9 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/vital.dart';
 import '../../providers/providers.dart';
+import '../../widgets/delete_confirm_dialog.dart';
+import '../../widgets/error_widget.dart';
+import '../../widgets/loading_widget.dart';
 
 // -- Providers ----------------------------------------------------------------
 
@@ -361,27 +364,12 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
   // -- Delete -----------------------------------------------------------------
 
   Future<void> _delete(String vitalId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(T.tr('vitals.delete')),
-        content: Text(T.tr('vitals.delete_body')),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(T.tr('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(T.tr('common.delete')),
-          ),
-        ],
-      ),
+    final confirmed = await showDeleteConfirmDialog(
+      context,
+      titleKey: 'vitals.delete',
+      bodyKey: 'vitals.delete_body',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     try {
       final api = ref.read(apiClientProvider);
       await api
@@ -453,19 +441,10 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
         child: const Icon(Icons.add),
       ),
       body: vitalsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.error_outline, size: 48, color: cs.error),
-            const SizedBox(height: 12),
-            Text(T.tr('vitals.failed'), style: tt.bodyLarge),
-            const SizedBox(height: 12),
-            FilledButton.tonal(
-              onPressed: () =>
-                  ref.invalidate(_vitalsProvider(widget.profileId)),
-              child: Text(T.tr('common.retry')),
-            ),
-          ]),
+        loading: () => const LoadingWidget(),
+        error: (e, _) => AppErrorWidget(
+          message: T.tr('vitals.failed'),
+          onRetry: () => ref.invalidate(_vitalsProvider(widget.profileId)),
         ),
         data: (vitals) {
           final filtered = _filtered(vitals);
