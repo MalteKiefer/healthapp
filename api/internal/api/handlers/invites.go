@@ -13,6 +13,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// truncateToken safely returns a prefix of the token for logging.
+func truncateToken(token string) string {
+	if len(token) > 8 {
+		return token[:8] + "..."
+	}
+	return token
+}
+
 // InviteHandler handles admin invite management endpoints.
 type InviteHandler struct {
 	db     *pgxpool.Pool
@@ -158,7 +166,7 @@ func (h *InviteHandler) HandleCreateInvite(w http.ResponseWriter, r *http.Reques
 	}
 
 	h.logger.Info("invite token created",
-		zap.String("token_prefix", token[:8]+"..."),
+		zap.String("token_prefix", truncateToken(token)),
 		zap.String("created_by", claims.UserID.String()),
 	)
 
@@ -189,6 +197,10 @@ func (h *InviteHandler) HandleDeleteInvite(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, http.StatusBadRequest, errorResponse("token_required"))
 		return
 	}
+	if len(token) != 64 {
+		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_token_format"))
+		return
+	}
 
 	result, err := h.db.Exec(r.Context(),
 		`DELETE FROM registration_invites WHERE token = $1`, token)
@@ -204,7 +216,7 @@ func (h *InviteHandler) HandleDeleteInvite(w http.ResponseWriter, r *http.Reques
 	}
 
 	h.logger.Info("invite token deleted",
-		zap.String("token_prefix", token[:8]+"..."),
+		zap.String("token_prefix", truncateToken(token)),
 		zap.String("deleted_by", claims.UserID.String()),
 	)
 
