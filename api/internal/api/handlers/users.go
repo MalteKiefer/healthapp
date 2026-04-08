@@ -431,6 +431,11 @@ func (h *UserHandler) HandleChangePassphrase(w http.ResponseWriter, r *http.Requ
 		h.logger.Error("revoke all sessions after passphrase change", zap.Error(err))
 	}
 
+	// Deny the current access token so it cannot be used for its remaining lifetime
+	if err := h.tokenService.DenyToken(r.Context(), claims.ID, time.Until(claims.ExpiresAt.Time)); err != nil {
+		h.logger.Error("deny current token after passphrase change", zap.Error(err))
+	}
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": "passphrase_changed"})
 }
 
