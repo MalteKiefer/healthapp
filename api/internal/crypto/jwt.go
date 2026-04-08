@@ -172,7 +172,7 @@ func (ts *TokenService) VerifyToken(ctx context.Context, tokenStr string) (*Clai
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return ts.publicKey, nil
-	}, jwt.WithIssuers("healthvault"))
+	}, jwt.WithIssuer("healthvault"))
 	if err != nil {
 		return nil, fmt.Errorf("parse token: %w", err)
 	}
