@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -18,13 +20,14 @@ import (
 
 // UserHandler handles user/me endpoints.
 type UserHandler struct {
-	db       *pgxpool.Pool
-	userRepo user.Repository
-	logger   *zap.Logger
+	db        *pgxpool.Pool
+	userRepo  user.Repository
+	logger    *zap.Logger
+	uploadDir string
 }
 
-func NewUserHandler(db *pgxpool.Pool, repo user.Repository, logger *zap.Logger) *UserHandler {
-	return &UserHandler{db: db, userRepo: repo, logger: logger}
+func NewUserHandler(db *pgxpool.Pool, repo user.Repository, logger *zap.Logger, uploadDir string) *UserHandler {
+	return &UserHandler{db: db, userRepo: repo, logger: logger, uploadDir: uploadDir}
 }
 
 // HandleGetMe returns the authenticated user's profile (without sensitive fields).
@@ -144,10 +147,70 @@ func (h *UserHandler) HandleDeleteMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Collect document storage paths and profile IDs before cascade-deleting the user.
+	var storagePaths []string
+	rows, err := h.db.Query(r.Context(),
+		`SELECT d.storage_path FROM documents d
+		 JOIN profiles p ON p.id = d.profile_id
+		 WHERE p.owner_user_id = $1 AND d.storage_path IS NOT NULL AND d.storage_path != ''`,
+		claims.UserID,
+	)
+	if err != nil {
+		h.logger.Error("query document paths for cleanup", zap.Error(err))
+		// Non-fatal: proceed with account deletion even if we can't enumerate files.
+	} else {
+		defer rows.Close()
+		for rows.Next() {
+			var p string
+			if err := rows.Scan(&p); err == nil {
+				storagePaths = append(storagePaths, p)
+			}
+		}
+	}
+
+	// Collect profile IDs so we can remove per-profile upload directories.
+	var profileIDs []uuid.UUID
+	profileIDRows, err := h.db.Query(r.Context(),
+		`SELECT id FROM profiles WHERE owner_user_id = $1`, claims.UserID,
+	)
+	if err != nil {
+		h.logger.Error("query profile IDs for cleanup", zap.Error(err))
+	} else {
+		defer profileIDRows.Close()
+		for profileIDRows.Next() {
+			var pid uuid.UUID
+			if err := profileIDRows.Scan(&pid); err == nil {
+				profileIDs = append(profileIDs, pid)
+			}
+		}
+	}
+
 	if err := h.userRepo.Delete(r.Context(), claims.UserID); err != nil {
 		h.logger.Error("delete user", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
+	}
+
+	// Best-effort cleanup of physical files. The DB deletion already succeeded,
+	// so we log errors but never fail the HTTP request.
+	for _, sp := range storagePaths {
+		if err := os.Remove(sp); err != nil && !os.IsNotExist(err) {
+			h.logger.Warn("failed to remove document file",
+				zap.String("path", sp), zap.Error(err))
+		}
+	}
+
+	// Remove per-profile upload directories (e.g. /data/uploads/<profileID>/).
+	// os.Remove only deletes empty dirs, which is what we want after individual
+	// files have been removed above. If extra files exist we leave the dir.
+	if h.uploadDir != "" {
+		for _, pid := range profileIDs {
+			dir := filepath.Join(h.uploadDir, pid.String())
+			if err := os.Remove(dir); err != nil && !os.IsNotExist(err) {
+				h.logger.Warn("failed to remove profile upload directory",
+					zap.String("dir", dir), zap.Error(err))
+			}
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
