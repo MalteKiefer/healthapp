@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,6 +15,33 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
+
+// privateCIDRs holds the parsed private/reserved CIDR ranges used by the SSRF
+// filter. Parsed once at init to avoid re-parsing on every request.
+var privateCIDRs []*net.IPNet
+
+func init() {
+	for _, cidr := range []string{
+		// IPv4
+		"0.0.0.0/8",      // unspecified
+		"10.0.0.0/8",     // RFC 1918
+		"100.64.0.0/10",  // CGNAT/shared address space (RFC 6598)
+		"127.0.0.0/8",    // loopback
+		"169.254.0.0/16", // link-local / cloud metadata (AWS, GCP, Azure)
+		"172.16.0.0/12",  // RFC 1918
+		"192.168.0.0/16", // RFC 1918
+		// IPv6
+		"::1/128",   // loopback
+		"fc00::/7",  // unique local
+		"fe80::/10", // link-local
+	} {
+		_, ipNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			log.Fatalf("webhooks: invalid CIDR %q: %v", cidr, err)
+		}
+		privateCIDRs = append(privateCIDRs, ipNet)
+	}
+}
 
 // WebhookHandler handles admin webhook management endpoints.
 type WebhookHandler struct {
@@ -85,27 +113,9 @@ func isPrivateOrLocalhost(rawURL string) error {
 		return fmt.Errorf("no addresses found for %s", hostname)
 	}
 
-	privateCIDRs := []string{
-		// IPv4
-		"10.0.0.0/8",
-		"172.16.0.0/12",
-		"192.168.0.0/16",
-		"127.0.0.0/8",
-		// IPv6
-		"::1/128",   // loopback
-		"fc00::/7",  // unique local
-		"fe80::/10", // link-local
-	}
-
-	privateNets := make([]*net.IPNet, 0, len(privateCIDRs))
-	for _, cidr := range privateCIDRs {
-		_, ipNet, _ := net.ParseCIDR(cidr)
-		privateNets = append(privateNets, ipNet)
-	}
-
 	for _, ip := range ips {
 		private := false
-		for _, pn := range privateNets {
+		for _, pn := range privateCIDRs {
 			if pn.Contains(ip) {
 				private = true
 				break
