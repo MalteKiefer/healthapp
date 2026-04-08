@@ -2,7 +2,7 @@ services:
   proxy:
     build: ./proxy
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     volumes:
       - ./proxy/Caddyfile.dev:/etc/caddy/Caddyfile:ro,z
 
@@ -16,7 +16,7 @@ services:
       - ./web/index.html:/app/index.html:z
       - ./web/vite.config.ts:/app/vite.config.ts:z
     ports:
-      - "5173:5173"
+      - "127.0.0.1:5173:5173"
     environment:
       - VITE_API_URL=http://localhost:8081
     networks:
@@ -32,8 +32,8 @@ services:
       - DB_SSLMODE=disable
       - INSTANCE_HOSTNAME=localhost
     ports:
-      - "8081:8080"
+      - "127.0.0.1:8081:8080"
 
   db:
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
