@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ApiException implements Exception {
   final int statusCode;
@@ -15,7 +17,8 @@ class ApiException implements Exception {
 
 class ApiClient {
   late final Dio _dio;
-  final CookieJar _cookieJar = CookieJar();
+  PersistCookieJar? _cookieJar;
+  bool _cookieJarInitialized = false;
   String _baseUrl = '';
 
   String get baseUrl => _baseUrl;
@@ -26,10 +29,21 @@ class ApiClient {
       receiveTimeout: const Duration(seconds: 30),
       headers: {'Content-Type': 'application/json'},
     ));
-    _dio.interceptors.add(CookieManager(_cookieJar));
+  }
+
+  /// Initialises the persistent cookie jar (once) so that session cookies
+  /// survive app restarts. Must be called before the first network request.
+  Future<void> _ensureCookieJar() async {
+    if (_cookieJarInitialized) return;
+    final dir = await getApplicationDocumentsDirectory();
+    final cookiesPath = '${dir.path}${Platform.pathSeparator}.cookies';
+    _cookieJar = PersistCookieJar(storage: FileStorage(cookiesPath));
+    _dio.interceptors.add(CookieManager(_cookieJar!));
+    _cookieJarInitialized = true;
   }
 
   Future<void> setBaseUrl(String url) async {
+    await _ensureCookieJar();
     var cleaned = url.trim().replaceAll(RegExp(r'/+$'), '');
     if (!cleaned.startsWith('http')) {
       cleaned = cleaned.contains('localhost') || cleaned.contains('10.0.2.2')
