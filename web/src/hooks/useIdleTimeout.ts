@@ -5,7 +5,7 @@ import { clearAllKeys } from '../crypto';
 import { useAuthStore } from '../store/auth';
 
 const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
-const EVENTS = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+const EVENTS = ['mousedown', 'keydown', 'scroll', 'touchstart', 'pointerdown'];
 
 /**
  * useIdleTimeout — clears encryption keys and logs out after inactivity.
@@ -38,11 +38,17 @@ export function useIdleTimeout() {
       window.addEventListener(event, resetTimer, { passive: true });
     }
 
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') resetTimer();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       for (const event of EVENTS) {
         window.removeEventListener(event, resetTimer);
       }
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [isAuthenticated, resetTimer]);
 }
