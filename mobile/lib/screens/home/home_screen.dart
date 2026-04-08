@@ -354,7 +354,7 @@ class _RecentVitals extends ConsumerWidget {
         final items = <_VitalSummaryItem>[];
         if (latest.systolic != null && latest.diastolic != null) {
           items.add(_VitalSummaryItem(
-            label: 'Blood Pressure',
+            label: T.tr('vitals.bp'),
             value: '${latest.systolic!.toInt()}/${latest.diastolic!.toInt()}',
             unit: 'mmHg',
             icon: Icons.favorite,
@@ -363,7 +363,7 @@ class _RecentVitals extends ConsumerWidget {
         }
         if (latest.pulse != null) {
           items.add(_VitalSummaryItem(
-            label: 'Pulse',
+            label: T.tr('vitals.pulse'),
             value: '${latest.pulse!.toInt()}',
             unit: 'bpm',
             icon: Icons.timeline,
@@ -372,7 +372,7 @@ class _RecentVitals extends ConsumerWidget {
         }
         if (latest.weight != null) {
           items.add(_VitalSummaryItem(
-            label: 'Weight',
+            label: T.tr('vitals.weight'),
             value: latest.weight!.toStringAsFixed(1),
             unit: 'kg',
             icon: Icons.monitor_weight_outlined,
@@ -381,7 +381,7 @@ class _RecentVitals extends ConsumerWidget {
         }
         if (latest.temperature != null) {
           items.add(_VitalSummaryItem(
-            label: 'Temperature',
+            label: T.tr('vitals.temperature'),
             value: latest.temperature!.toStringAsFixed(1),
             unit: '\u00b0C',
             icon: Icons.thermostat,
@@ -390,7 +390,7 @@ class _RecentVitals extends ConsumerWidget {
         }
         if (latest.oxygenSaturation != null) {
           items.add(_VitalSummaryItem(
-            label: 'SpO2',
+            label: T.tr('vitals.spo2'),
             value: '${latest.oxygenSaturation!.toInt()}',
             unit: '%',
             icon: Icons.air,
@@ -399,7 +399,7 @@ class _RecentVitals extends ConsumerWidget {
         }
         if (latest.bloodGlucose != null) {
           items.add(_VitalSummaryItem(
-            label: 'Glucose',
+            label: T.tr('vitals.blood_glucose'),
             value: '${latest.bloodGlucose!.toInt()}',
             unit: 'mg/dL',
             icon: Icons.water_drop_outlined,

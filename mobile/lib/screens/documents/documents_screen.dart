@@ -314,7 +314,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler beim Laden: $e')));
+            .showSnackBar(SnackBar(content: Text('${T.tr('common.error')}: $e')));
       }
       return;
     }
@@ -345,20 +345,24 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   Future<void> _downloadPdf(Document doc) async {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('PDF wird heruntergeladen...')),
+      SnackBar(content: Text(T.tr('doc.downloading'))),
     );
     try {
-      await ref.read(apiClientProvider).getBytes(
+      final bytes = await ref.read(apiClientProvider).getBytes(
             '/api/v1/profiles/${widget.profileId}/documents/${doc.id}/download',
           );
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/${doc.filename}');
+      await file.writeAsBytes(bytes);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${doc.filename} heruntergeladen')),
+        SnackBar(content: Text('${doc.filename} ${T.tr('doc.downloaded')}')),
       );
+      await Share.shareXFiles([XFile(file.path)], text: doc.filename);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler beim Laden: $e')));
+            .showSnackBar(SnackBar(content: Text('${T.tr('common.error')}: $e')));
       }
     }
   }
@@ -373,18 +377,18 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (doc.category != null)
-              Text('Kategorie: ${_categoryLabel(doc.category)}'),
-            if (doc.mimeType != null) Text('Typ: ${doc.mimeType}'),
+              Text('${T.tr('doc.category_label')} ${_categoryLabel(doc.category)}'),
+            if (doc.mimeType != null) Text('${T.tr('doc.type_label')} ${doc.mimeType}'),
             if (doc.fileSize != null)
-              Text('Groesse: ${_formatFileSize(doc.fileSize)}'),
-            if (doc.uploadedAt != null) Text('Hochgeladen: ${doc.uploadedAt}'),
+              Text('${T.tr('doc.size_label')} ${_formatFileSize(doc.fileSize)}'),
+            if (doc.uploadedAt != null) Text('${T.tr('doc.uploaded_at_label')} ${doc.uploadedAt}'),
             if (doc.notes != null) ...[
               const SizedBox(height: 8),
-              Text('Notizen: ${doc.notes}'),
+              Text('${T.tr('doc.notes_label')} ${doc.notes}'),
             ],
             if (doc.tags != null && doc.tags!.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text('Tags: ${doc.tags}'),
+              Text('${T.tr('doc.tags_label')} ${doc.tags}'),
             ],
           ],
         ),
