@@ -23,7 +23,8 @@ export function OCRUpload({ profileId, onLabValuesDetected, onVitalsDetected }: 
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
-    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+    const valid = await validateFileMagicBytes(file);
+    if (!valid) {
       setError(t('ocr.invalid_file'));
       return;
     }
@@ -86,8 +87,14 @@ export function OCRUpload({ profileId, onLabValuesDetected, onVitalsDetected }: 
           marker: lv.marker,
           value: lv.value,
           unit: lv.unit,
-          reference_low: lv.referenceRange ? parseFloat(lv.referenceRange.split('-')[0]) : undefined,
-          reference_high: lv.referenceRange ? parseFloat(lv.referenceRange.split('-')[1]) : undefined,
+          reference_low: (() => {
+            const parts = lv.referenceRange?.split(/[\u2013\u2014\-]/).map(s => parseFloat(s.trim()));
+            return parts?.[0] != null && !isNaN(parts[0]) ? parts[0] : undefined;
+          })(),
+          reference_high: (() => {
+            const parts = lv.referenceRange?.split(/[\u2013\u2014\-]/).map(s => parseFloat(s.trim()));
+            return parts?.[1] != null && !isNaN(parts[1]) ? parts[1] : undefined;
+          })(),
         })),
       });
       setSaved(true);
@@ -208,6 +215,18 @@ export function OCRUpload({ profileId, onLabValuesDetected, onVitalsDetected }: 
       )}
     </div>
   );
+}
+
+async function validateFileMagicBytes(file: File): Promise<boolean> {
+  const buffer = await file.slice(0, 8).arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  // JPEG: FF D8 FF
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return true;
+  // PNG: 89 50 4E 47
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return true;
+  // PDF: 25 50 44 46 (%PDF)
+  if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) return true;
+  return false;
 }
 
 async function autoRotateImage(file: File): Promise<string> {
