@@ -44,7 +44,7 @@ const CONTENT_FIELDS: readonly (keyof Vital)[] = [
 const migratePath = (v: Vital) =>
   `/api/v1/profiles/${v.profile_id}/vitals/${v.id}/migrate-content`;
 
-async function decryptOrPassthrough(profileId: string, raw: Vital): Promise<Vital> {
+async function decryptOrPassthrough(_profileId: string, raw: Vital): Promise<Vital> {
   return decryptEntity(raw, ENTITY, CONTENT_FIELDS, migratePath);
 }
 
