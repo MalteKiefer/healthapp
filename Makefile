@@ -1,4 +1,4 @@
-.PHONY: build test lint dev up down clean migrate deploy
+.PHONY: build test lint dev up down clean migrate deploy mobile-test mobile-build-release
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
@@ -51,6 +51,15 @@ migrate-down:
 
 migrate-status:
 	docker compose exec api healthvault migrate status
+
+# ── Mobile ─────────────────────────────────────────────────────────
+
+mobile-test:
+	cd mobile && flutter test --coverage
+
+mobile-build-release:
+	cd mobile && flutter build apk --release --obfuscate --split-debug-info=build/symbols
+	cd mobile && flutter build appbundle --release --obfuscate --split-debug-info=build/symbols
 
 # ── Utilities ──────────────────────────────────────────────────────
 
