@@ -122,7 +122,7 @@ class _HealthVaultAppState extends ConsumerState<HealthVaultApp> {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
-      routerConfig: appRouter,
+      routerConfig: ref.watch(appRouterProvider),
       debugShowCheckedModeBanner: false,
       locale: Locale(lang),
       supportedLocales: const [Locale('de'), Locale('en')],
