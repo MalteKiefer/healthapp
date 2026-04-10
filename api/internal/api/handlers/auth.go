@@ -278,6 +278,38 @@ func (h *AuthHandler) deterministicSalt(email, purpose string) string {
 	return hex.EncodeToString(mac.Sum(nil))[:32]
 }
 
+// GetAuthSalt returns the PBKDF2 auth_salt for a given email. For unknown
+// users it returns a deterministic pseudo-salt derived from the server
+// secret (HMAC-SHA256 keyed with totpEncKey) to defeat email enumeration.
+//
+// GET /api/v1/auth/salt?email=user@example.com → 200 {"salt": "<hex>"}
+func (h *AuthHandler) GetAuthSalt(w http.ResponseWriter, r *http.Request) {
+	email := strings.TrimSpace(r.URL.Query().Get("email"))
+	if email == "" {
+		writeJSON(w, http.StatusBadRequest, errorResponse("email_required"))
+		return
+	}
+	// Normalise like the rest of the auth flow.
+	if addr, err := mail.ParseAddress(email); err == nil {
+		email = strings.ToLower(addr.Address)
+	} else {
+		email = strings.ToLower(email)
+	}
+
+	var salt string
+	u, err := h.userRepo.GetByEmail(r.Context(), email)
+	if err == nil && u != nil && u.AuthSalt != "" {
+		salt = u.AuthSalt
+	} else {
+		// Deterministic pseudo-salt: HMAC-SHA256(serverSecret, email)[:16] (hex-encoded).
+		mac := hmac.New(sha256.New, h.totpEncKey)
+		mac.Write([]byte(email))
+		salt = hex.EncodeToString(mac.Sum(nil)[:16])
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"salt": salt})
+}
+
 // HandleRegisterComplete handles Step 2: creates the user account.
 func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 	mode := h.registrationMode(r.Context())

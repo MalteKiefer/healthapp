@@ -220,6 +220,12 @@ func (s *Server) setupRoutes() {
 
 			r.Get("/policy", s.AuthHandler.HandleGetPolicy)
 
+			// Per-user PBKDF2 salt lookup (or deterministic pseudo-salt for
+			// unknown emails). Rate-limited identically to login.
+			r.With(rl.Limit(middleware.RateLimitConfig{
+				Requests: 10, Window: 5 * time.Minute, BlockDuration: 10 * time.Minute,
+			})).Get("/salt", s.AuthHandler.GetAuthSalt)
+
 			r.With(rl.Limit(middleware.RateLimitConfig{
 				Requests: 3, Window: time.Hour, BlockDuration: 2 * time.Hour,
 			})).Post("/recovery", s.AuthHandler.HandleRecovery)
