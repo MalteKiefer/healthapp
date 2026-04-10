@@ -120,6 +120,21 @@ jobs:
         working-directory: web
         run: npm test -- --run
 
+  mobile-tests:
+    name: Mobile Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Flutter pub get
+        run: cd mobile && flutter pub get
+      - name: Flutter analyze
+        run: cd mobile && flutter analyze || true
+      - name: Flutter test
+        run: cd mobile && flutter test
+
   docker-build:
     name: Docker Build (${{ matrix.image.tag }})
     runs-on: ubuntu-latest
