@@ -113,4 +113,27 @@ void main() {
     c.onLoginSuccess();
     expect(c.state, SecurityState.loggedInNoPin);
   });
+
+  test('onMigrationDetected transitions to migrationPending', () async {
+    final c = makeController();
+    await c.bootstrap(vaultExists: false);
+    c.onMigrationDetected();
+    expect(c.state, SecurityState.migrationPending);
+  });
+
+  test('acknowledgeMigration moves migrationPending → loggedInNoPin',
+      () async {
+    final c = makeController();
+    await c.bootstrap(vaultExists: false);
+    c.onMigrationDetected();
+    c.acknowledgeMigration();
+    expect(c.state, SecurityState.loggedInNoPin);
+  });
+
+  test('acknowledgeMigration is a no-op outside migrationPending', () async {
+    final c = makeController();
+    await c.bootstrap(vaultExists: false);
+    c.acknowledgeMigration();
+    expect(c.state, SecurityState.unregistered);
+  });
 }

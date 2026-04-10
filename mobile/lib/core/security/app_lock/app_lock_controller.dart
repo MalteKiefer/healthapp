@@ -90,6 +90,24 @@ class AppLockController extends StateNotifier<SecurityState> {
   void onLoginSuccess() {
     state = SecurityState.loggedInNoPin;
   }
+
+  /// Called from bootstrap when legacy `flutter_secure_storage`
+  /// credentials from a pre-vault installation are detected but no
+  /// encrypted vault exists yet. Transitions to
+  /// [SecurityState.migrationPending] so the router surfaces the
+  /// migration screen.
+  void onMigrationDetected() {
+    state = SecurityState.migrationPending;
+  }
+
+  /// Called from the migration screen once the user has acknowledged the
+  /// upgrade notice. Moves into [SecurityState.loggedInNoPin] so the
+  /// router forwards to the regular PIN setup flow.
+  void acknowledgeMigration() {
+    if (state == SecurityState.migrationPending) {
+      state = SecurityState.loggedInNoPin;
+    }
+  }
 }
 
 /// Stub provider — overridden in `main.dart` once a real [PinService]

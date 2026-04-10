@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:healthapp/core/security/app_lock/app_lock_controller.dart';
 import 'package:healthapp/core/security/security_state.dart';
 import 'package:healthapp/screens/security/lock_screen.dart';
+import 'package:healthapp/screens/security/migration_screen.dart';
 import 'package:healthapp/screens/security/setup_pin_screen.dart';
 import '../../providers/providers.dart';
 import '../../screens/login/login_screen.dart';
@@ -38,8 +39,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // --- Security-state gate (runs before auth logic) ---
       final securityState = ref.read(appLockControllerProvider);
 
-      if (securityState == SecurityState.loggedInNoPin ||
-          securityState == SecurityState.migrationPending) {
+      if (securityState == SecurityState.migrationPending) {
+        return path == '/migrate' ? null : '/migrate';
+      }
+      if (securityState == SecurityState.loggedInNoPin) {
         return path == '/setup-pin' ? null : '/setup-pin';
       }
       if (securityState == SecurityState.locked ||
@@ -91,6 +94,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/setup-pin',
         builder: (_, __) => const SetupPinScreen(),
+      ),
+      GoRoute(
+        path: '/migrate',
+        builder: (_, __) => const MigrationScreen(),
       ),
       GoRoute(
         path: '/lock',

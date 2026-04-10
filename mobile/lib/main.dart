@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/auth/auth_service.dart';
@@ -45,7 +46,20 @@ Future<void> main() async {
   final pinService = PinService(vault: vault);
   final authService = AuthService(vault: vault);
   final controller = AppLockController(pinService: pinService);
-  await controller.bootstrap(vaultExists: vaultFile.existsSync());
+  final vaultExists = vaultFile.existsSync();
+  await controller.bootstrap(vaultExists: vaultExists);
+
+  // Detect pre-vault (pre-refactor) credentials that the old static
+  // `AuthService` wrote directly into `flutter_secure_storage`. If any
+  // legacy key is still present on the device but no encrypted vault
+  // exists yet, we route the user through the migration screen before
+  // forcing a fresh PIN setup + re-login.
+  if (!vaultExists) {
+    final hasLegacyCreds = await _probeLegacyCredentials();
+    if (hasLegacyCreds) {
+      controller.onMigrationDetected();
+    }
+  }
 
   final lifecycle = SecurityLifecycleObserver(controller);
   WidgetsBinding.instance.addObserver(lifecycle);
@@ -59,6 +73,34 @@ Future<void> main() async {
     ],
     child: const HealthVaultApp(),
   ));
+}
+
+/// Returns true when any of the pre-vault `flutter_secure_storage`
+/// credential keys still exist on the device. Wrapped in try/catch so a
+/// missing backing store on a fresh install never breaks startup.
+Future<bool> _probeLegacyCredentials() async {
+  const storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
+  );
+  const legacyKeys = <String>[
+    'auth_email',
+    'auth_hash',
+    'auth_server_url',
+  ];
+  for (final key in legacyKeys) {
+    try {
+      final value = await storage.read(key: key);
+      if (value != null) return true;
+    } catch (_) {
+      // Secure storage unavailable (e.g. fresh install, platform quirk) —
+      // treat as "no legacy creds" and continue.
+      return false;
+    }
+  }
+  return false;
 }
 
 class HealthVaultApp extends ConsumerStatefulWidget {
