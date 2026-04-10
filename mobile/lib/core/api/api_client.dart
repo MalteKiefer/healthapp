@@ -1,11 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
-import 'package:cookie_jar/cookie_jar.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
+import 'package:healthapp/core/security/tls/tofu_pinning_interceptor.dart';
 
 class ApiException implements Exception {
   final int statusCode;
@@ -17,8 +16,8 @@ class ApiException implements Exception {
 
 class ApiClient {
   late final Dio _dio;
-  PersistCookieJar? _cookieJar;
-  bool _cookieJarInitialized = false;
+  CookieJar? _cookieJar;
+  TofuPinningInterceptor? _tofuInterceptor;
   String _baseUrl = '';
 
   String get baseUrl => _baseUrl;
@@ -29,21 +28,50 @@ class ApiClient {
       receiveTimeout: const Duration(seconds: 30),
       headers: {'Content-Type': 'application/json'},
     ));
+    // Cookie jar and TOFU interceptor are installed by the security layer
+    // after the vault is unlocked — see main.dart bootstrap.
   }
 
-  /// Initialises the persistent cookie jar (once) so that session cookies
-  /// survive app restarts. Must be called before the first network request.
-  Future<void> _ensureCookieJar() async {
-    if (_cookieJarInitialized) return;
-    final dir = await getApplicationDocumentsDirectory();
-    final cookiesPath = '${dir.path}${Platform.pathSeparator}.cookies';
-    _cookieJar = PersistCookieJar(storage: FileStorage(cookiesPath));
-    _dio.interceptors.add(CookieManager(_cookieJar!));
-    _cookieJarInitialized = true;
+  /// Installs a vault-backed (or test) cookie jar and rebuilds the
+  /// interceptor chain. Safe to call multiple times.
+  void setCookieJar(CookieJar jar) {
+    _cookieJar = jar;
+    _rebuildInterceptors();
+  }
+
+  /// Installs the TOFU pinning interceptor and rebuilds the interceptor
+  /// chain. Safe to call multiple times.
+  void setTofuInterceptor(TofuPinningInterceptor interceptor) {
+    _tofuInterceptor = interceptor;
+    _rebuildInterceptors();
+  }
+
+  void _rebuildInterceptors() {
+    _dio.interceptors.clear();
+    if (_cookieJar != null) {
+      _dio.interceptors.add(CookieManager(_cookieJar!));
+    }
+    if (_tofuInterceptor != null) {
+      _dio.interceptors.add(_tofuInterceptor!);
+    }
+  }
+
+  List<String> _resolveBaseUrlCandidates(String cleaned) {
+    final isLocal =
+        cleaned.contains('localhost') || cleaned.contains('10.0.2.2');
+    const bool allowInsecureLocal = bool.fromEnvironment(
+      'HEALTHVAULT_ALLOW_INSECURE_LOCAL',
+      defaultValue: false,
+    );
+    return <String>[
+      cleaned,
+      '$cleaned:3101',
+      if (kDebugMode && allowInsecureLocal && isLocal)
+        '${cleaned.replaceFirst('https://', 'http://')}:3101',
+    ];
   }
 
   Future<void> setBaseUrl(String url) async {
-    await _ensureCookieJar();
     var cleaned = url.trim().replaceAll(RegExp(r'/+$'), '');
     if (!cleaned.startsWith('http')) {
       cleaned = cleaned.contains('localhost') || cleaned.contains('10.0.2.2')
@@ -52,14 +80,8 @@ class ApiClient {
     }
     cleaned = cleaned.replaceAll(RegExp(r'/api(/v1)?$'), '');
 
-    // Try to discover the working URL — never downgrade to HTTP in production
-    final bool isLocal = cleaned.contains('localhost') || cleaned.contains('10.0.2.2');
-    final candidates = <String>[
-      cleaned,
-      '$cleaned:3101',
-      if (kDebugMode && isLocal)
-        '${cleaned.replaceFirst('https://', 'http://')}:3101',
-    ];
+    // Try to discover the working URL — never downgrade to HTTP in production.
+    final candidates = _resolveBaseUrlCandidates(cleaned);
     for (final candidate in candidates) {
       try {
         final res = await _dio.get('$candidate/health');
