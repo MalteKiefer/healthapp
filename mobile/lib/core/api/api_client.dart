@@ -5,6 +5,7 @@ import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/foundation.dart';
+import 'package:healthapp/core/cache/ttl_memory_cache.dart';
 import 'package:healthapp/core/security/tls/tofu_pinning_interceptor.dart';
 
 class ApiException implements Exception {
@@ -103,6 +104,29 @@ class ApiClient {
     _checkResponse(res);
     return fromJson != null ? fromJson(res.data) : res.data as T;
   }
+
+  /// Returns a cached GET response if one is available and not expired;
+  /// otherwise performs the request and caches the result.
+  ///
+  /// Cache is opt-in per call site — existing `get<T>` is unchanged.
+  Future<T> getCached<T>(
+    String path, {
+    Duration ttl = const Duration(minutes: 5),
+  }) async {
+    final key = 'GET:$path';
+    final cached = TtlMemoryCache.instance.get<T>(key);
+    if (cached != null) return cached;
+    final fresh = await get<T>(path);
+    TtlMemoryCache.instance.put<T>(key, fresh, ttl);
+    return fresh;
+  }
+
+  /// Invalidate the cached entry for a specific path.
+  void invalidateCache(String path) =>
+      TtlMemoryCache.instance.invalidate('GET:$path');
+
+  /// Clear the entire cache. Call on logout/wipe/profile switch.
+  void clearCache() => TtlMemoryCache.instance.clear();
 
   Future<T> post<T>(String path, {dynamic body, T Function(dynamic)? fromJson}) async {
     final res = await _dio.post('$_baseUrl$path', data: body);
