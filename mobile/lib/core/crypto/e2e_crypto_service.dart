@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:uuid/uuid.dart';
 
 import '../api/api_client.dart';
+import 'base64_util.dart';
 import 'content_crypto.dart';
 import 'content_fields.dart';
 import 'grant_crypto.dart';
@@ -113,7 +113,7 @@ class E2eCryptoService {
   /// Helper to turn a base64 P-256 uncompressed public key (65 bytes,
   /// leading 0x04) into raw bytes. Throws on malformed input.
   static Uint8List _decodePublicKeyRaw(String base64PublicKey) {
-    final raw = base64Decode(base64PublicKey);
+    final raw = base64DecodeTolerant(base64PublicKey);
     if (raw.length != 65 || raw[0] != 0x04) {
       throw const FormatException('invalid P-256 public key bytes');
     }

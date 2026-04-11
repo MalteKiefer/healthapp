@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
+import 'base64_util.dart';
+
 /// Personal Encryption Key (PEK) derivation.
 ///
 /// Mirrors the web client's `derivePEK` in `web/src/crypto/keys.ts`, which
@@ -28,7 +30,7 @@ class PekCrypto {
     String passphrase,
     String pekSaltBase64,
   ) async {
-    final salt = base64Decode(pekSaltBase64);
+    final salt = base64DecodeTolerant(pekSaltBase64);
 
     final pbkdf2 = Pbkdf2(
       macAlgorithm: Hmac.sha256(),

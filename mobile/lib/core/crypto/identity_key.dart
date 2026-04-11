@@ -1,9 +1,10 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:pointycastle/asn1.dart';
 import 'package:pointycastle/ecc/curves/secp256r1.dart';
+
+import 'base64_util.dart';
 
 /// Holds the raw material of a P-256 identity key pair.
 ///
@@ -38,7 +39,7 @@ class IdentityKey {
     String identityPrivkeyEncBase64,
     Uint8List pek,
   ) async {
-    final combined = base64Decode(identityPrivkeyEncBase64);
+    final combined = base64DecodeTolerant(identityPrivkeyEncBase64);
     if (combined.length < 12 + 16) {
       throw const FormatException(
         'identity_privkey_enc too short: expected iv(12)||ct||tag(16)',
@@ -71,7 +72,7 @@ class IdentityKey {
   /// leading 0x04) into a 64-byte X||Y form suitable for cryptography's
   /// SimplePublicKey. Throws FormatException on malformed input.
   static Uint8List parsePublicKeyRaw(String publicKeyBase64) {
-    final bytes = base64Decode(publicKeyBase64);
+    final bytes = base64DecodeTolerant(publicKeyBase64);
     if (bytes.length != 65) {
       throw FormatException(
         'Public key must be 65 bytes (uncompressed 0x04||X||Y), got ${bytes.length}',

@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
+import 'base64_util.dart';
+
 /// Profile content encryption primitive — AES-256-GCM with AAD bound to
 /// (profileId, entityType, rowId) to prevent row/profile swap attacks.
 ///
@@ -37,7 +39,7 @@ class ContentCrypto {
     required String entityType,
     required String rowId,
   }) async {
-    final combined = base64Decode(contentEncBase64);
+    final combined = base64DecodeTolerant(contentEncBase64);
     if (combined.length < _ivLength + _tagLength) {
       throw StateError('content_enc too short');
     }

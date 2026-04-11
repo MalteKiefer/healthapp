@@ -8,6 +8,8 @@ import 'package:pointycastle/ecc/curves/prime256v1.dart'
     show ECCurve_prime256v1;
 import 'package:pointycastle/ecc/ecdh.dart';
 
+import 'base64_util.dart';
+
 /// Grant unwrap primitive: ECDH(P-256) + HKDF(SHA-256) + AES-GCM
 /// unwrap of a 32-byte Profile Key.
 ///
@@ -95,7 +97,7 @@ class GrantCrypto {
 
     // Step 3: AES-256-GCM decrypt the wrapped blob.
     // Wire format: base64(iv(12) || ciphertext || tag(16)).
-    final blob = base64Decode(wrappedKeyBase64);
+    final blob = base64DecodeTolerant(wrappedKeyBase64);
     if (blob.length < 12 + 16) {
       throw StateError('wrapped key blob too short');
     }
