@@ -25,6 +25,19 @@ import '../../screens/tasks/tasks_screen.dart';
 import '../../screens/documents/documents_screen.dart';
 import '../../screens/about/about_screen.dart';
 import '../../screens/settings/settings_screen.dart';
+import '../../screens/appointments/upcoming_appointments_screen.dart';
+import '../../screens/labs/lab_trends_screen.dart';
+import '../../screens/medications/adherence_screen.dart';
+import '../../screens/notifications/notification_preferences_screen.dart';
+import '../../screens/notifications/notifications_screen.dart';
+import '../../screens/profiles/profile_edit_screen.dart';
+import '../../screens/profiles/profile_list_screen.dart';
+import '../../screens/search/search_screen.dart';
+import '../../screens/security/two_factor_setup_screen.dart';
+import '../../screens/symptoms/symptom_chart_screen.dart';
+import '../../screens/tasks/open_tasks_screen.dart';
+import '../../screens/vaccinations/vaccination_due_screen.dart';
+import '../../screens/vitals/vital_thresholds_screen.dart';
 
 /// Riverpod-provided GoRouter so the `redirect` callback can read other
 /// providers (AppLockController, AuthService, ...).
@@ -181,6 +194,66 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/documents/:profileId',
             builder: (_, state) =>
                 DocumentsScreen(profileId: state.pathParameters['profileId']!),
+          ),
+
+          // --- Sprint 2 feature-parity routes ---
+          GoRoute(
+            path: '/profiles',
+            builder: (_, __) => const ProfileListScreen(),
+          ),
+          GoRoute(
+            path: '/profiles/new',
+            builder: (_, __) => const ProfileEditScreen(),
+          ),
+          GoRoute(
+            path: '/search',
+            builder: (_, __) => const SearchScreen(),
+          ),
+          GoRoute(
+            path: '/notifications',
+            builder: (_, __) => const NotificationsScreen(),
+          ),
+          GoRoute(
+            path: '/notifications/preferences',
+            builder: (_, __) => const NotificationPreferencesScreen(),
+          ),
+          GoRoute(
+            path: '/2fa/setup',
+            builder: (_, __) => const TwoFactorSetupScreen(),
+          ),
+          GoRoute(
+            path: '/vitals/:profileId/thresholds',
+            builder: (_, state) => VitalThresholdsScreen(
+                profileId: state.pathParameters['profileId']!),
+          ),
+          GoRoute(
+            path: '/labs/:profileId/trends',
+            builder: (_, state) => LabTrendsScreen(
+                profileId: state.pathParameters['profileId']!),
+          ),
+          GoRoute(
+            path: '/medications/:profileId/adherence',
+            builder: (_, state) => AdherenceScreen(
+                profileId: state.pathParameters['profileId']!),
+          ),
+          GoRoute(
+            path: '/vaccinations/:profileId/due',
+            builder: (_, state) => VaccinationDueScreen(
+                profileId: state.pathParameters['profileId']!),
+          ),
+          GoRoute(
+            path: '/appointments/:profileId/upcoming',
+            builder: (_, state) => UpcomingAppointmentsScreen(
+                profileId: state.pathParameters['profileId']!),
+          ),
+          GoRoute(
+            path: '/tasks/:profileId/open',
+            builder: (_, state) => OpenTasksScreen(
+                profileId: state.pathParameters['profileId']!),
+          ),
+          GoRoute(
+            path: '/symptoms/:profileId/chart',
+            builder: (_, __) => const SymptomChartScreen(),
           ),
         ],
       ),
