@@ -4,6 +4,17 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/translations.dart';
 import '../../providers/providers.dart';
 
+class _NavItem {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+  });
+}
+
 class AppShell extends ConsumerWidget {
   final Widget child;
   const AppShell({super.key, required this.child});
@@ -37,51 +48,90 @@ class AppShell extends ConsumerWidget {
       currentIndex = 4;
     }
 
+    final items = <_NavItem>[
+      _NavItem(
+        icon: Icons.home_outlined,
+        selectedIcon: Icons.home,
+        label: T.tr('nav.home'),
+      ),
+      _NavItem(
+        icon: Icons.favorite_outline,
+        selectedIcon: Icons.favorite,
+        label: T.tr('nav.vitals'),
+      ),
+      _NavItem(
+        icon: Icons.science_outlined,
+        selectedIcon: Icons.science,
+        label: T.tr('nav.labs'),
+      ),
+      _NavItem(
+        icon: Icons.medication_outlined,
+        selectedIcon: Icons.medication,
+        label: T.tr('nav.meds'),
+      ),
+      _NavItem(
+        icon: Icons.more_horiz,
+        selectedIcon: Icons.more_horiz,
+        label: T.tr('nav.more'),
+      ),
+    ];
+
+    void onSelected(int i) {
+      final pid = profile?.id ?? '';
+      switch (i) {
+        case 0:
+          context.go('/home');
+        case 1:
+          context.go('/vitals/$pid');
+        case 2:
+          context.go('/labs/$pid');
+        case 3:
+          context.go('/medications/$pid');
+        case 4:
+          context.go('/more');
+      }
+    }
+
+    final isWide = MediaQuery.of(context).size.width >= 600;
+
+    if (isWide) {
+      return Scaffold(
+        body: SafeArea(
+          child: Row(
+            children: [
+              NavigationRail(
+                selectedIndex: currentIndex,
+                onDestinationSelected: onSelected,
+                labelType: NavigationRailLabelType.all,
+                destinations: [
+                  for (final item in items)
+                    NavigationRailDestination(
+                      icon: Icon(item.icon),
+                      selectedIcon: Icon(item.selectedIcon),
+                      label: Text(item.label),
+                    ),
+                ],
+              ),
+              const VerticalDivider(thickness: 1, width: 1),
+              Expanded(child: child),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,
-        onDestinationSelected: (i) {
-          final pid = profile?.id ?? '';
-          switch (i) {
-            case 0:
-              context.go('/home');
-            case 1:
-              context.go('/vitals/$pid');
-            case 2:
-              context.go('/labs/$pid');
-            case 3:
-              context.go('/medications/$pid');
-            case 4:
-              context.go('/more');
-          }
-        },
+        onDestinationSelected: onSelected,
         destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
-            label: T.tr('nav.home'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.favorite_outline),
-            selectedIcon: const Icon(Icons.favorite),
-            label: T.tr('nav.vitals'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.science_outlined),
-            selectedIcon: const Icon(Icons.science),
-            label: T.tr('nav.labs'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.medication_outlined),
-            selectedIcon: const Icon(Icons.medication),
-            label: T.tr('nav.meds'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.more_horiz),
-            selectedIcon: const Icon(Icons.more_horiz),
-            label: T.tr('nav.more'),
-          ),
+          for (final item in items)
+            NavigationDestination(
+              icon: Icon(item.icon),
+              selectedIcon: Icon(item.selectedIcon),
+              label: item.label,
+            ),
         ],
       ),
     );
