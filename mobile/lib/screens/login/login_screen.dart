@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/crypto/auth_crypto.dart';
 import '../../core/i18n/translations.dart';
@@ -10,15 +11,17 @@ import '../../core/security/app_lock/app_lock_controller.dart';
 import '../../models/auth.dart';
 import '../../providers/providers.dart';
 
-// Top-level function for compute() - must not be a closure
+// Top-level function for compute() - must not be a closure.
+// `password` is intentionally mutable so the calling isolate can null it
+// out immediately after the derivation completes (memory hygiene).
 class _HashParams {
-  final String password;
+  String? password;
   final Uint8List salt;
   _HashParams(this.password, this.salt);
 }
 
 String _deriveHashWithSalt(_HashParams p) =>
-    AuthCrypto.deriveAuthHashWithSalt(p.password, p.salt);
+    AuthCrypto.deriveAuthHashWithSalt(p.password!, p.salt);
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -67,7 +70,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final api = ref.read(apiClientProvider);
       await api.setBaseUrl(_serverCtrl.text);
 
-      final password = _passwordCtrl.text;
       final email = _emailCtrl.text;
 
       // v2: fetch PBKDF2 salt from server (falls back to SHA256(email)
@@ -78,24 +80,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         },
         email: email,
       );
-      final authHash = await compute(
-        _deriveHashWithSalt,
-        _HashParams(password, saltBytes),
-      );
+
+      // Memory hygiene: build params, hand off to compute(), then null
+      // out the password reference so it can be GC'd ASAP.
+      final hashParams = _HashParams(_passwordCtrl.text, saltBytes);
+      final authHash = await compute(_deriveHashWithSalt, hashParams);
+      hashParams.password = null;
 
       await api.post<Map<String, dynamic>>(
         '/api/v1/auth/login',
-        body:
-            LoginRequest(email: _emailCtrl.text, authHash: authHash).toJson(),
+        body: LoginRequest(email: email, authHash: authHash).toJson(),
       );
 
       await ref.read(authServiceProvider).saveCredentials(
             StoredCredentials(
-              email: _emailCtrl.text,
+              email: email,
               authHash: authHash,
               serverUrl: api.baseUrl,
             ),
           );
+
+      // Memory hygiene: wipe the password field once login succeeded.
+      _passwordCtrl.clear();
 
       // Transition security state; the router redirect takes over and
       // sends the user to /setup-pin (or /home if PIN already exists).
@@ -104,7 +110,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = apiErrorMessage(e);
       });
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -170,6 +176,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   obscureText: _obscurePassword,
+                  // Security hardening: block clipboard / selection menu so
+                  // the password can never be copied out of the field.
+                  enableInteractiveSelection: false,
+                  contextMenuBuilder: (context, editableTextState) =>
+                      const SizedBox.shrink(),
                   textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 14),
