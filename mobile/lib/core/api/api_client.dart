@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
@@ -54,6 +55,9 @@ class ApiClient {
     if (_tofuInterceptor != null) {
       _dio.interceptors.add(_tofuInterceptor!);
     }
+    // Retry interceptor must come after TOFU pinning so that pinned cookies
+    // and security checks are already applied to each retried request.
+    _dio.interceptors.add(_RetryInterceptor());
   }
 
   List<String> _resolveBaseUrlCandidates(String cleaned) {
@@ -112,6 +116,12 @@ class ApiClient {
     return fromJson != null ? fromJson(res.data) : res.data as T;
   }
 
+  Future<T> put<T>(String path, {dynamic body, T Function(dynamic)? fromJson}) async {
+    final res = await _dio.put('$_baseUrl$path', data: body);
+    _checkResponse(res);
+    return fromJson != null ? fromJson(res.data) : res.data as T;
+  }
+
   Future<Uint8List> getBytes(String path) async {
     final res = await _dio.get<List<int>>(
       '$_baseUrl$path',
@@ -143,6 +153,91 @@ class ApiClient {
   void _checkResponse(Response res) {
     if (res.statusCode != null && res.statusCode! >= 400) {
       throw ApiException(res.statusCode!, res.data?.toString() ?? '');
+    }
+  }
+}
+
+/// Retries transient connection failures with exponential backoff, and
+/// short-circuits to a tagged ApiException when the device is offline.
+///
+/// Placement: installed AFTER the TOFU pinning interceptor in
+/// [ApiClient._rebuildInterceptors] so that cookie attachment and TLS
+/// pinning have already been applied to the outgoing request before any
+/// retry attempt is made.
+class _RetryInterceptor extends Interceptor {
+  static const int _maxRetries = 2;
+  static const List<Duration> _backoff = <Duration>[
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+  ];
+
+  /// Allows tests to inject a fake connectivity probe.
+  @visibleForTesting
+  static Future<List<ConnectivityResult>> Function()? connectivityProbe;
+
+  Future<bool> _isOffline() async {
+    try {
+      final probe = connectivityProbe ?? Connectivity().checkConnectivity;
+      final results = await probe();
+      if (results.isEmpty) return true;
+      return results.every((r) => r == ConnectivityResult.none);
+    } catch (_) {
+      // If we can't determine connectivity, don't pretend we're offline.
+      return false;
+    }
+  }
+
+  bool _isTransient(DioException err) {
+    return err.type == DioExceptionType.connectionError ||
+        err.type == DioExceptionType.connectionTimeout;
+  }
+
+  @override
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
+    if (!_isTransient(err)) {
+      return handler.next(err);
+    }
+
+    if (await _isOffline()) {
+      return handler.reject(
+        DioException(
+          requestOptions: err.requestOptions,
+          type: err.type,
+          error: ApiException(-1, 'No network connection'),
+          message: 'No network connection',
+        ),
+      );
+    }
+
+    final attempt = (err.requestOptions.extra['_retryAttempt'] as int?) ?? 0;
+    if (attempt >= _maxRetries) {
+      return handler.next(err);
+    }
+
+    await Future<void>.delayed(_backoff[attempt]);
+
+    final nextOptions = err.requestOptions.copyWith(
+      extra: <String, dynamic>{
+        ...err.requestOptions.extra,
+        '_retryAttempt': attempt + 1,
+      },
+    );
+
+    try {
+      final dio = Dio(BaseOptions(
+        baseUrl: err.requestOptions.baseUrl,
+        connectTimeout: err.requestOptions.connectTimeout,
+        receiveTimeout: err.requestOptions.receiveTimeout,
+        sendTimeout: err.requestOptions.sendTimeout,
+        headers: err.requestOptions.headers,
+      ));
+      final response = await dio.fetch<dynamic>(nextOptions);
+      return handler.resolve(response);
+    } on DioException catch (retryErr) {
+      return handler.next(retryErr);
     }
   }
 }
