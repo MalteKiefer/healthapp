@@ -46,7 +46,10 @@ Future<void> main() async {
   );
   final pinService = PinService(vault: vault);
   final authService = AuthService(vault: vault);
-  final controller = AppLockController(pinService: pinService);
+  final controller = AppLockController(
+    pinService: pinService,
+    authService: authService,
+  );
   final vaultExists = vaultFile.existsSync();
   await controller.bootstrap(vaultExists: vaultExists);
 

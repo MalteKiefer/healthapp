@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:healthapp/core/auth/auth_service.dart';
 import 'package:healthapp/core/security/app_lock/app_lock_controller.dart';
 import 'package:healthapp/core/security/key_management/dek_service.dart';
 import 'package:healthapp/core/security/key_management/kek_service.dart';
@@ -112,6 +113,43 @@ void main() {
     await c.bootstrap(vaultExists: false);
     c.onLoginSuccess();
     expect(c.state, SecurityState.loggedInNoPin);
+  });
+
+  test(
+      'onLoginSuccess stashes credentials and setupPin persists them into vault',
+      () async {
+    final vault = EncryptedVault(
+      file: File('${tempDir.path}/vault.enc'),
+      kek: KekService.fastForTests(),
+      dek: DekService(),
+    );
+    final pin = PinService(vault: vault, now: now);
+    final authService = AuthService(vault: vault);
+    final c = AppLockController(
+      pinService: pin,
+      authService: authService,
+      now: now,
+    );
+
+    await c.bootstrap(vaultExists: false);
+    c.onLoginSuccess(StoredCredentials(
+      email: 'alice@example.com',
+      authHash: 'hash-abc',
+      serverUrl: 'https://example.com',
+    ));
+    expect(c.state, SecurityState.loggedInNoPin);
+
+    // At this point the vault does NOT exist yet. Saving credentials
+    // directly would throw "Vault is locked" — that was the bug.
+    await c.setupPin('123456');
+    expect(c.state, SecurityState.unlocked);
+
+    // The pending credentials must now be readable from the vault.
+    final stored = await authService.loadCredentials();
+    expect(stored, isNotNull);
+    expect(stored!.email, 'alice@example.com');
+    expect(stored.authHash, 'hash-abc');
+    expect(stored.serverUrl, 'https://example.com');
   });
 
   test('onMigrationDetected transitions to migrationPending', () async {

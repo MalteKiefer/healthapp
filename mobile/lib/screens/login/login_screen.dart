@@ -92,21 +92,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         body: LoginRequest(email: email, authHash: authHash).toJson(),
       );
 
-      await ref.read(authServiceProvider).saveCredentials(
-            StoredCredentials(
-              email: email,
-              authHash: authHash,
-              serverUrl: api.baseUrl,
-            ),
-          );
-
       // Memory hygiene: wipe the password field once login succeeded.
       _passwordCtrl.clear();
+
+      // Build the credentials bundle but do NOT write it to the vault
+      // yet — on a fresh install the vault does not exist until
+      // SetupPinScreen creates it via PinService.setupPin. Stash the
+      // credentials inside AppLockController; they will be persisted
+      // automatically once the vault is unlocked.
+      final credentials = StoredCredentials(
+        email: email,
+        authHash: authHash,
+        serverUrl: api.baseUrl,
+      );
 
       // Transition security state; the router redirect takes over and
       // sends the user to /setup-pin (or /home if PIN already exists).
       if (mounted) {
-        ref.read(appLockControllerProvider.notifier).onLoginSuccess();
+        ref
+            .read(appLockControllerProvider.notifier)
+            .onLoginSuccess(credentials);
       }
     } catch (e) {
       setState(() {

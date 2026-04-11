@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:healthapp/core/auth/auth_service.dart';
 import 'package:healthapp/core/security/pin/pin_service.dart';
 import 'package:healthapp/core/security/security_state.dart';
 
@@ -6,6 +7,7 @@ import 'package:healthapp/core/security/security_state.dart';
 class AppLockController extends StateNotifier<SecurityState> {
   AppLockController({
     required this.pinService,
+    this.authService,
     DateTime Function()? now,
     this.backgroundTimeout = const Duration(minutes: 5),
     this.absoluteSessionTimeout = const Duration(hours: 24),
@@ -13,12 +15,23 @@ class AppLockController extends StateNotifier<SecurityState> {
         super(SecurityState.unregistered);
 
   final PinService pinService;
+
+  /// Optional: when provided, [setupPin] persists any credentials
+  /// stashed via [onLoginSuccess] into the vault after it is created.
+  /// Tests can omit this and handle persistence themselves.
+  final AuthService? authService;
+
   final DateTime Function() _now;
   final Duration backgroundTimeout;
   final Duration absoluteSessionTimeout;
 
   DateTime? _sessionStartAt;
   DateTime? _backgroundedAt;
+
+  /// Credentials captured from a successful server login, waiting for
+  /// the vault to exist (i.e. waiting for [setupPin]) before they can
+  /// be encrypted and persisted. Null when no login is pending.
+  StoredCredentials? _pendingCredentials;
 
   Future<void> bootstrap({required bool vaultExists}) async {
     state = vaultExists ? SecurityState.locked : SecurityState.unregistered;
@@ -27,6 +40,13 @@ class AppLockController extends StateNotifier<SecurityState> {
   Future<void> setupPin(String pin) async {
     state = SecurityState.unlocking;
     await pinService.setupPin(pin);
+    // Vault is now created and unlocked — flush any pending login
+    // credentials into it before announcing the unlocked state.
+    final pending = _pendingCredentials;
+    if (pending != null && authService != null) {
+      await authService!.saveCredentials(pending);
+      _pendingCredentials = null;
+    }
     _sessionStartAt = _now();
     state = SecurityState.unlocked;
   }
@@ -87,7 +107,16 @@ class AppLockController extends StateNotifier<SecurityState> {
   /// Called after a successful server login when no vault/PIN exists yet.
   /// The router observes [SecurityState.loggedInNoPin] and forces the
   /// user through the PIN setup flow.
-  void onLoginSuccess() {
+  ///
+  /// When [credentials] is provided, they are stashed in memory and
+  /// automatically persisted into the encrypted vault during
+  /// [setupPin] — after the vault has been created and unlocked.
+  /// This avoids the "vault is locked" error that would occur if the
+  /// login screen tried to write credentials before the PIN exists.
+  void onLoginSuccess([StoredCredentials? credentials]) {
+    if (credentials != null) {
+      _pendingCredentials = credentials;
+    }
     state = SecurityState.loggedInNoPin;
   }
 
