@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../api/api_client.dart';
@@ -85,7 +84,10 @@ class E2eCryptoService {
     if (cached != null) return cached;
     final priv = cache.identityPrivateScalar;
     final userId = cache.currentUserId;
-    if (priv == null || userId == null) return null;
+    if (priv == null || userId == null) {
+      debugPrint('[e2e] ensureProfileKey($profileId): identity not unlocked');
+      return null;
+    }
 
     try {
       final grant = await _api.get<Map<String, dynamic>>(
@@ -105,19 +107,37 @@ class E2eCryptoService {
       cache.putProfileKey(profileId, profileKey);
       return profileKey;
     } on ApiException catch (e) {
-      if (e.statusCode == 404) return null;
-      rethrow;
+      if (e.statusCode == 404) {
+        debugPrint('[e2e] ensureProfileKey($profileId): 404 no grant');
+        return null;
+      }
+      debugPrint('[e2e] ensureProfileKey($profileId): api ${e.statusCode} $e');
+      return null;
+    } catch (e, st) {
+      debugPrint('[e2e] ensureProfileKey($profileId): $e\n$st');
+      return null;
     }
   }
 
-  /// Helper to turn a base64 P-256 uncompressed public key (65 bytes,
-  /// leading 0x04) into raw bytes. Throws on malformed input.
+  /// Helper to turn a base64 P-256 public key into the raw 65-byte
+  /// uncompressed form (0x04 || X || Y). Accepts both the 65-byte
+  /// uncompressed representation and a bare 64-byte X||Y (some older
+  /// encoders omit the leading 0x04). Throws on anything else.
   static Uint8List _decodePublicKeyRaw(String base64PublicKey) {
     final raw = base64DecodeTolerant(base64PublicKey);
-    if (raw.length != 65 || raw[0] != 0x04) {
-      throw const FormatException('invalid P-256 public key bytes');
+    if (raw.length == 65 && raw[0] == 0x04) {
+      return raw;
     }
-    return raw;
+    if (raw.length == 64) {
+      final out = Uint8List(65);
+      out[0] = 0x04;
+      out.setRange(1, 65, raw);
+      return out;
+    }
+    throw FormatException(
+      'invalid P-256 public key bytes (len=${raw.length}, '
+      'first=${raw.isNotEmpty ? raw[0].toRadixString(16) : "-"})',
+    );
   }
 
   /// Decrypts a single row's `content_enc` field and merges the decrypted
@@ -133,7 +153,13 @@ class E2eCryptoService {
   }) async {
     final contentEnc = row['content_enc'] as String?;
     if (contentEnc == null || contentEnc.isEmpty) return row;
-    final profileKey = await ensureProfileKey(profileId);
+    Uint8List? profileKey;
+    try {
+      profileKey = await ensureProfileKey(profileId);
+    } catch (e) {
+      debugPrint('[e2e] decryptRow($entityType): key unavailable: $e');
+      return row;
+    }
     if (profileKey == null) return row;
     final rowId = row['id']?.toString() ?? '';
     if (rowId.isEmpty) return row;
