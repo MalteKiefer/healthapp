@@ -4,6 +4,7 @@ import UIKit
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private let keystoreHandler = KeystoreHandler()
+  private let passkeyHandler = PasskeyHandler()
 
   override func application(
     _ application: UIApplication,
@@ -16,6 +17,14 @@ import UIKit
       )
       channel.setMethodCallHandler { [weak self] call, result in
         self?.keystoreHandler.handle(call, result: result)
+      }
+
+      let passkeyChannel = FlutterMethodChannel(
+        name: PasskeyHandler.channelName,
+        binaryMessenger: controller.binaryMessenger
+      )
+      passkeyChannel.setMethodCallHandler { [weak self] call, result in
+        self?.passkeyHandler.handle(call, result: result)
       }
     }
 

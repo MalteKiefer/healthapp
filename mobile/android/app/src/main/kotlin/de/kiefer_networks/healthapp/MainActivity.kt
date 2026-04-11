@@ -21,5 +21,9 @@ class MainActivity : FlutterFragmentActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             KeystoreHandler.CHANNEL,
         ).setMethodCallHandler(KeystoreHandler(this))
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            PasskeyHandler.CHANNEL,
+        ).setMethodCallHandler(PasskeyHandler())
     }
 }
