@@ -1,14 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/i18n/translations.dart';
 
-class AboutScreen extends StatelessWidget {
+class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
+
+  @override
+  State<AboutScreen> createState() => _AboutScreenState();
+}
+
+class _AboutScreenState extends State<AboutScreen> {
+  PackageInfo? _info;
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _info = info);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final versionString =
+        _info == null ? '—' : '${_info!.version}+${_info!.buildNumber}';
 
     final features = [
       ('vitals', Icons.favorite_outline),
@@ -59,7 +77,7 @@ class AboutScreen extends StatelessWidget {
           const SizedBox(height: 4),
           Center(
             child: Text(
-              '${T.tr('about.version')} 1.0.0',
+              '${T.tr('about.version')} $versionString',
               style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
             ),
           ),

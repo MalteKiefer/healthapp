@@ -50,6 +50,9 @@ dependencies:
   share_plus: ^10.1.4
   path_provider: ^2.1.5
 
+  # App info
+  package_info_plus: ^8.0.0
+
   # File Picker
   file_picker: ^8.3.7
 
