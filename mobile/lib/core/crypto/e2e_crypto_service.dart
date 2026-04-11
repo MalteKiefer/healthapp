@@ -1,12 +1,41 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:uuid/uuid.dart';
+
 import '../api/api_client.dart';
 import 'content_crypto.dart';
+import 'content_fields.dart';
 import 'grant_crypto.dart';
 import 'identity_key.dart';
 import 'key_cache.dart';
 import 'pek.dart';
+
+const _uuid = Uuid();
+
+/// Result of [E2eCryptoService.encryptForWrite]: the row id to use
+/// (client-generated for inserts), the `content_enc` blob to send, and
+/// the structural (non-content) fields that remain plaintext.
+class EncryptedWrite {
+  EncryptedWrite({
+    required this.id,
+    required this.contentEnc,
+    required this.structural,
+  });
+
+  final String id;
+  final String? contentEnc;
+  final Map<String, dynamic> structural;
+
+  /// Build the JSON body for a POST/PATCH call: spreads the structural
+  /// fields, always includes `id`, and adds `content_enc` when a blob
+  /// was produced.
+  Map<String, dynamic> toBody() => <String, dynamic>{
+        ...structural,
+        'id': id,
+        if (contentEnc != null) 'content_enc': contentEnc,
+      };
+}
 
 /// End-to-end crypto facade: orchestrates PEK → identity → profile keys →
 /// content decryption. Depends on an [ApiClient] for fetching grants.
@@ -162,6 +191,68 @@ class E2eCryptoService {
       profileId: profileId,
       entityType: entityType,
       rowId: rowId,
+    );
+  }
+
+  /// Build the wire body for a create/update call: splits the plaintext
+  /// `body` into a structural half (non-content fields) and an encrypted
+  /// `content_enc` blob built from the content fields declared in
+  /// [kContentFields] for this `entityType`.
+  ///
+  /// - For inserts, pass `existingId: null` and a fresh UUID v4 will be
+  ///   generated on the client so the AAD can bind the row identity
+  ///   before the server sees it.
+  /// - For updates, pass the existing row id.
+  ///
+  /// Returns an [EncryptedWrite]. If the profile key is unavailable
+  /// (e.g. user not yet unlocked) the returned `contentEnc` will be null
+  /// and all fields will stay in the structural half — matching the web
+  /// client's "best-effort" behavior for legacy-mode writes.
+  Future<EncryptedWrite> encryptForWrite({
+    required String profileId,
+    required String entityType,
+    required Map<String, dynamic> body,
+    String? existingId,
+  }) async {
+    final fields = kContentFields[entityType];
+    if (fields == null) {
+      throw ArgumentError(
+        'encryptForWrite: no content field list for entity "$entityType"',
+      );
+    }
+    final id = existingId ?? _uuid.v4();
+
+    // Split body into content vs structural halves.
+    final content = <String, dynamic>{};
+    final structural = <String, dynamic>{};
+    body.forEach((k, v) {
+      if (k == 'id' || k == 'content_enc') return;
+      if (fields.contains(k)) {
+        if (v != null) content[k] = v;
+      } else {
+        structural[k] = v;
+      }
+    });
+
+    String? contentEnc;
+    if (content.isNotEmpty) {
+      contentEnc = await encryptContentFor(
+        content: content,
+        profileId: profileId,
+        entityType: entityType,
+        rowId: id,
+      );
+      // If the profile key wasn't available, fall back to sending the
+      // plaintext columns so the write still succeeds on legacy servers.
+      if (contentEnc == null) {
+        structural.addAll(content);
+      }
+    }
+
+    return EncryptedWrite(
+      id: id,
+      contentEnc: contentEnc,
+      structural: structural,
     );
   }
 
