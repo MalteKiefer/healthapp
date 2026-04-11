@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_error_messages.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/crypto/auth_crypto.dart';
+// ignore: unused_import
+import '../../core/crypto/e2e_crypto_service.dart';
 import '../../core/i18n/translations.dart';
 import '../../core/security/app_lock/app_lock_controller.dart';
 import '../../models/auth.dart';
@@ -88,12 +90,55 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final authHash = await compute(_deriveHashWithSalt, hashParams);
       hashParams.password = null;
 
-      await api.post<Map<String, dynamic>>(
+      final loginJson = await api.post<Map<String, dynamic>>(
         '/api/v1/auth/login',
         body: LoginRequest(email: email, authHash: authHash).toJson(),
       );
+      final loginResp = LoginResponse.fromJson(loginJson);
 
-      // Memory hygiene: wipe the password field once login succeeded.
+      if (loginResp.requiresTotp) {
+        // TODO: navigate to TwoFactorChallengeScreen with
+        // loginResp.userId + loginResp.challengeToken. For now, surface a
+        // SnackBar so the caller is aware that 2FA is required, and abort
+        // the login-success path (do NOT attempt to unlock keys yet — the
+        // server has not yet released the PEK salt / encrypted privkeys
+        // for a 2FA-protected account until the challenge is answered).
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('2FA required')),
+          );
+        }
+        return;
+      }
+
+      // Unlock encryption keys BEFORE wiping the password. This derives the
+      // PEK, decrypts the identity private key, and warms the in-memory
+      // key cache so subsequent API calls can decrypt ciphertext.
+      if (loginResp.pekSalt != null && loginResp.identityPrivkeyEnc != null) {
+        try {
+          await ref.read(e2eCryptoServiceProvider).unlockWithPassword(
+                passphrase: _passwordCtrl.text,
+                pekSaltBase64: loginResp.pekSalt!,
+                identityPrivkeyEnc: loginResp.identityPrivkeyEnc!,
+                userId: loginResp.userId,
+                // We don't currently have the identity public key from the
+                // login response; parallel work will plumb it through.
+                identityPubkeyBase64: '',
+              );
+        } catch (e) {
+          // Wipe the password regardless of success/failure.
+          _passwordCtrl.clear();
+          setState(() {
+            _error =
+                'Could not unlock your encryption keys — please try again '
+                '(${apiErrorMessage(e)})';
+            _loading = false;
+          });
+          return;
+        }
+      }
+
+      // Memory hygiene: wipe the password field once login + unlock succeeded.
       _passwordCtrl.clear();
 
       // Build the credentials bundle but do NOT write it to the vault

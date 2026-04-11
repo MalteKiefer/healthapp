@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api/api_client.dart';
 import '../core/auth/auth_service.dart';
+import '../core/crypto/e2e_crypto_service.dart';
 import '../models/profile.dart';
 
 // Re-export the app-lock controller provider so callers can import it from
@@ -10,6 +11,10 @@ export '../core/security/app_lock/app_lock_controller.dart'
     show appLockControllerProvider;
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
+
+final e2eCryptoServiceProvider = Provider<E2eCryptoService>((ref) {
+  return E2eCryptoService(ref.watch(apiClientProvider));
+});
 
 /// Provides the app-wide [AuthService] bound to the encrypted vault.
 ///
