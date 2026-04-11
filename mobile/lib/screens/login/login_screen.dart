@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/api/api_error_messages.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/crypto/auth_crypto.dart';
@@ -106,12 +107,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         serverUrl: api.baseUrl,
       );
 
-      // Transition security state; the router redirect takes over and
-      // sends the user to /setup-pin (or /home if PIN already exists).
+      // Transition security state; then explicitly navigate so GoRouter
+      // re-runs its redirect with the new state (state-change alone does
+      // not trigger redirect — only navigation events do, unless a
+      // refreshListenable is wired up). Pushing /home forces the redirect
+      // which will route to /setup-pin when the state is loggedInNoPin.
       if (mounted) {
         ref
             .read(appLockControllerProvider.notifier)
             .onLoginSuccess(credentials);
+        if (mounted) context.go('/home');
       }
     } catch (e) {
       setState(() {

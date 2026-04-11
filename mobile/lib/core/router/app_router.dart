@@ -54,8 +54,21 @@ import 'transitions.dart';
 ///
 /// main.dart should wire this up via `routerConfig: ref.watch(appRouterProvider)`.
 final appRouterProvider = Provider<GoRouter>((ref) {
+  // Bridge Riverpod state changes to GoRouter's redirect re-evaluation.
+  // Without this, flipping `appLockControllerProvider` (e.g. after login,
+  // on a background-timer lock, on a wipe-after-10-fails) would not cause
+  // the router to re-run its redirect logic — redirects are only
+  // evaluated on navigation events by default.
+  final refresh = ValueNotifier<int>(0);
+  ref.listen<SecurityState>(
+    appLockControllerProvider,
+    (_, __) => refresh.value++,
+  );
+  ref.onDispose(refresh.dispose);
+
   return GoRouter(
     initialLocation: '/splash',
+    refreshListenable: refresh,
     redirect: (context, state) async {
       // Deep-link path allowlist: only routes defined in this router are
       // safe to open from external sources. Anything else redirects to /home
