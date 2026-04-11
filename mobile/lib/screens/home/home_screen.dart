@@ -17,33 +17,48 @@ final _vitalsProvider =
     FutureProvider.family<List<Vital>, String>((ref, profileId) async {
   if (profileId.isEmpty) return [];
   final api = ref.read(apiClientProvider);
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final data =
       await api.get<Map<String, dynamic>>('/api/v1/profiles/$profileId/vitals');
-  return (data['items'] as List)
-      .map((v) => Vital.fromJson(v as Map<String, dynamic>))
-      .toList();
+  final rawItems = (data['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: profileId,
+    entityType: 'vitals',
+  );
+  return decrypted.map(Vital.fromJson).toList();
 });
 
 final _medicationsProvider =
     FutureProvider.family<List<Medication>, String>((ref, profileId) async {
   if (profileId.isEmpty) return [];
   final api = ref.read(apiClientProvider);
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final data = await api
       .get<Map<String, dynamic>>('/api/v1/profiles/$profileId/medications');
-  return (data['items'] as List)
-      .map((m) => Medication.fromJson(m as Map<String, dynamic>))
-      .toList();
+  final rawItems = (data['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: profileId,
+    entityType: 'medications',
+  );
+  return decrypted.map(Medication.fromJson).toList();
 });
 
 final _appointmentsProvider =
     FutureProvider.family<List<Appointment>, String>((ref, profileId) async {
   if (profileId.isEmpty) return [];
   final api = ref.read(apiClientProvider);
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final data = await api.get<Map<String, dynamic>>(
       '/api/v1/profiles/$profileId/appointments');
-  return (data['items'] as List)
-      .map((a) => Appointment.fromJson(a as Map<String, dynamic>))
-      .toList();
+  final rawItems = (data['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: profileId,
+    entityType: 'appointments',
+  );
+  return decrypted.map(Appointment.fromJson).toList();
 });
 
 // -- Screen -------------------------------------------------------------------
