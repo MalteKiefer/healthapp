@@ -25,6 +25,15 @@ import '../../screens/tasks/tasks_screen.dart';
 import '../../screens/documents/documents_screen.dart';
 import '../../screens/about/about_screen.dart';
 import '../../screens/settings/settings_screen.dart';
+import '../../screens/activity/activity_log_screen.dart';
+import '../../screens/calendar/calendar_feeds_screen.dart';
+import '../../screens/documents/document_bulk_upload_screen.dart';
+import '../../screens/documents/document_search_screen.dart';
+import '../../screens/emergency/emergency_access_screen.dart';
+import '../../screens/export/export_schedules_screen.dart';
+import '../../screens/export/export_screen.dart';
+import '../../screens/sessions/sessions_screen.dart';
+import '../../screens/shares/doctor_shares_screen.dart';
 import '../../screens/appointments/upcoming_appointments_screen.dart';
 import '../../screens/labs/lab_trends_screen.dart';
 import '../../screens/medications/adherence_screen.dart';
@@ -254,6 +263,48 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/symptoms/:profileId/chart',
             builder: (_, __) => const SymptomChartScreen(),
+          ),
+
+          // --- Sprint 3 feature-parity routes ---
+          GoRoute(
+            path: '/shares/:profileId',
+            builder: (_, state) => DoctorSharesScreen(
+                profileId: state.pathParameters['profileId']!),
+          ),
+          GoRoute(
+            path: '/calendar-feeds',
+            builder: (_, __) => const CalendarFeedsScreen(),
+          ),
+          GoRoute(
+            path: '/emergency/:profileId',
+            builder: (_, state) => EmergencyAccessScreen(
+                profileId: state.pathParameters['profileId']!),
+          ),
+          GoRoute(
+            path: '/export/:profileId',
+            builder: (_, __) => const ExportScreen(),
+          ),
+          GoRoute(
+            path: '/export/schedules',
+            builder: (_, __) => const ExportSchedulesScreen(),
+          ),
+          GoRoute(
+            path: '/activity/:profileId',
+            builder: (_, __) => const ActivityLogScreen(),
+          ),
+          GoRoute(
+            path: '/documents/:profileId/bulk',
+            builder: (_, state) => DocumentBulkUploadScreen(
+                profileId: state.pathParameters['profileId']!),
+          ),
+          GoRoute(
+            path: '/documents/:profileId/search',
+            builder: (_, state) => DocumentSearchScreen(
+                profileId: state.pathParameters['profileId']!),
+          ),
+          GoRoute(
+            path: '/sessions',
+            builder: (_, __) => const SessionsScreen(),
           ),
         ],
       ),
