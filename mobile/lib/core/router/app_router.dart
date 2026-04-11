@@ -56,6 +56,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/splash',
     redirect: (context, state) async {
+      // Deep-link path allowlist: only routes defined in this router are
+      // safe to open from external sources. Anything else redirects to /home
+      // (or /login when unauthenticated — that's handled by the gates below).
+      const allowedPathPrefixes = <String>{
+        '/splash', '/login', '/setup-pin', '/migrate', '/lock',
+        '/home', '/vitals', '/labs', '/medications', '/more', '/about',
+        '/settings', '/allergies', '/appointments', '/diagnoses',
+        '/vaccinations', '/contacts', '/diary', '/symptoms', '/tasks',
+        '/documents', '/profiles', '/search', '/notifications', '/2fa',
+        '/shares', '/calendar-feeds', '/emergency', '/export', '/activity',
+        '/sessions',
+      };
+      final incomingPath = state.matchedLocation;
+      final isAllowed = allowedPathPrefixes.any(
+        (p) => incomingPath == p || incomingPath.startsWith('$p/'),
+      );
+      if (!isAllowed) {
+        return '/home';
+      }
+
       final path = state.matchedLocation;
 
       // --- Security-state gate (runs before auth logic) ---
