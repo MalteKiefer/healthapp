@@ -6,13 +6,14 @@ import '../../models/search_result.dart';
 import '../../providers/providers.dart';
 import '../../providers/search_provider.dart';
 
-/// Sprint 2 global search screen.
+/// Global search screen (Sprint 4 client-side rewrite).
 ///
 /// Top-level screen that lets the user search across every health domain
 /// (medications, labs, vitals, appointments, tasks, diary, contacts,
-/// diagnoses, allergies, symptoms, vaccinations, documents). Results are
-/// fetched from `GET /api/v1/search?q=...` via [searchProvider], which
-/// debounces keystrokes by 400ms.
+/// diagnoses, allergies, symptoms, vaccinations, documents). The legacy
+/// `GET /api/v1/search` endpoint was retired (410 Gone), so [searchProvider]
+/// now fetches each domain list for the currently selected profile and
+/// filters them in memory. Keystrokes are still debounced by 400ms.
 ///
 /// Tapping a row routes the user to the relevant profile-scoped route.
 /// If the result itself carries no `profile_id`, we fall back to the
@@ -120,6 +121,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                   ),
                 ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 14,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Search happens locally on your device',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                  ),
+                ],
               ),
             ),
           ],
