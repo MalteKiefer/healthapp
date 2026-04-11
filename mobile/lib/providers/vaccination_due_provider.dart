@@ -39,12 +39,17 @@ Future<List<Vaccination>> vaccinationDue(
   String profileId,
 ) async {
   final api = ref.read(apiClientProvider);
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final data = await api.get<Map<String, dynamic>>(
     '/api/v1/profiles/$profileId/vaccinations/due',
   );
-  final items = (data['items'] as List? ?? const [])
-      .whereType<Map<String, dynamic>>()
-      .map((raw) {
+  final rawItems = (data['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: profileId,
+    entityType: 'vaccinations',
+  );
+  final items = decrypted.map((raw) {
     // The /due endpoint may return `vaccine_name` (web shape) while the
     // existing mobile model expects `vaccine`. Normalize before parsing.
     final normalized = Map<String, dynamic>.from(raw);

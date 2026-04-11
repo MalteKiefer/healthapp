@@ -17,11 +17,16 @@ import '../../providers/providers.dart';
 final _documentsProvider =
     FutureProvider.family<List<Document>, String>((ref, profileId) async {
   final api = ref.read(apiClientProvider);
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final data = await api
       .get<Map<String, dynamic>>('/api/v1/profiles/$profileId/documents');
-  return (data['items'] as List)
-      .map((e) => Document.fromJson(e as Map<String, dynamic>))
-      .toList();
+  final rawItems = (data['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: profileId,
+    entityType: 'documents',
+  );
+  return decrypted.map(Document.fromJson).toList();
 });
 
 // -- Category translation -----------------------------------------------------

@@ -13,12 +13,17 @@ import '../../providers/providers.dart';
 
 final _labsProvider =
     FutureProvider.family<List<LabResult>, String>((ref, id) async {
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final d = await ref
       .read(apiClientProvider)
       .get<Map<String, dynamic>>('/api/v1/profiles/$id/labs');
-  return (d['items'] as List)
-      .map((e) => LabResult.fromJson(e as Map<String, dynamic>))
-      .toList();
+  final rawItems = (d['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: id,
+    entityType: 'labs',
+  );
+  return decrypted.map(LabResult.fromJson).toList();
 });
 
 final _trendsProvider =

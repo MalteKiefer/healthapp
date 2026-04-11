@@ -9,13 +9,17 @@ import 'providers.dart';
 final upcomingAppointmentsProvider =
     FutureProvider.family<List<Appointment>, String>((ref, profileId) async {
   final api = ref.read(apiClientProvider);
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final data = await api.get<Map<String, dynamic>>(
     '/api/v1/profiles/$profileId/appointments/upcoming',
   );
-  final items = (data['items'] as List?) ?? const [];
-  return items
-      .map((e) => Appointment.fromJson(e as Map<String, dynamic>))
-      .toList();
+  final rawItems = (data['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: profileId,
+    entityType: 'appointments',
+  );
+  return decrypted.map(Appointment.fromJson).toList();
 });
 
 /// State of the appointment completion action.

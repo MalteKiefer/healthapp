@@ -12,11 +12,16 @@ import '../../providers/providers.dart';
 final _allergiesProvider =
     FutureProvider.family<List<Allergy>, String>((ref, profileId) async {
   final api = ref.read(apiClientProvider);
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final data = await api
       .get<Map<String, dynamic>>('/api/v1/profiles/$profileId/allergies');
-  return (data['items'] as List)
-      .map((e) => Allergy.fromJson(e as Map<String, dynamic>))
-      .toList();
+  final rawItems = (data['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: profileId,
+    entityType: 'allergies',
+  );
+  return decrypted.map(Allergy.fromJson).toList();
 });
 
 // -- Screen -------------------------------------------------------------------

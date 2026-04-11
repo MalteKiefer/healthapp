@@ -24,14 +24,17 @@ class MedicationIntakeKey {
 final medicationIntakeListProvider = FutureProvider.family<
     List<MedicationIntake>, MedicationIntakeKey>((ref, key) async {
   final api = ref.read(apiClientProvider);
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final data = await api.get<Map<String, dynamic>>(
     '/api/v1/profiles/${key.profileId}/medications/${key.medicationId}/intake',
   );
-  final items = (data['items'] as List?) ?? const [];
-  return items
-      .whereType<Map>()
-      .map((m) => MedicationIntake.fromJson(m.cast<String, dynamic>()))
-      .toList();
+  final rawItems = (data['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: key.profileId,
+    entityType: 'medication_intakes',
+  );
+  return decrypted.map(MedicationIntake.fromJson).toList();
 });
 
 /// Public state for the intake mutation controller.

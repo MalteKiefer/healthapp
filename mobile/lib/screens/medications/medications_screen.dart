@@ -15,11 +15,16 @@ import '../../widgets/loading_widget.dart';
 final medicationsProvider =
     FutureProvider.family<List<Medication>, String>((ref, profileId) async {
   final api = ref.read(apiClientProvider);
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final data = await api
       .get<Map<String, dynamic>>('/api/v1/profiles/$profileId/medications');
-  return (data['items'] as List)
-      .map((m) => Medication.fromJson(m as Map<String, dynamic>))
-      .toList();
+  final rawItems = (data['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: profileId,
+    entityType: 'medications',
+  );
+  return decrypted.map(Medication.fromJson).toList();
 });
 
 // -- Screen -------------------------------------------------------------------

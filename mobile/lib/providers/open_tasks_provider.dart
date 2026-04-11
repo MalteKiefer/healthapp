@@ -19,10 +19,14 @@ part 'open_tasks_provider.g.dart';
 @riverpod
 Future<List<Task>> openTasks(OpenTasksRef ref, String profileId) async {
   final api = ref.read(apiClientProvider);
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final data = await api
       .get<Map<String, dynamic>>('/api/v1/profiles/$profileId/tasks/open');
-  final items = (data['items'] as List?) ?? const [];
-  return items
-      .map((e) => Task.fromJson(e as Map<String, dynamic>))
-      .toList();
+  final rawItems = (data['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: profileId,
+    entityType: 'tasks',
+  );
+  return decrypted.map(Task.fromJson).toList();
 }

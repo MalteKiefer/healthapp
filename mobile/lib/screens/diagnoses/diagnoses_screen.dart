@@ -14,11 +14,16 @@ import '../../widgets/loading_widget.dart';
 final _diagnosesProvider =
     FutureProvider.family<List<Diagnosis>, String>((ref, profileId) async {
   final api = ref.read(apiClientProvider);
+  final crypto = ref.watch(e2eCryptoServiceProvider);
   final data = await api
       .get<Map<String, dynamic>>('/api/v1/profiles/$profileId/diagnoses');
-  return (data['items'] as List)
-      .map((e) => Diagnosis.fromJson(e as Map<String, dynamic>))
-      .toList();
+  final rawItems = (data['items'] as List?) ?? const [];
+  final decrypted = await crypto.decryptRows(
+    rows: rawItems,
+    profileId: profileId,
+    entityType: 'diagnoses',
+  );
+  return decrypted.map(Diagnosis.fromJson).toList();
 });
 
 // -- Screen -------------------------------------------------------------------
