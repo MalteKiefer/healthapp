@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../core/theme/spacing.dart';
 import '../../models/vital_thresholds.dart';
@@ -238,7 +239,7 @@ class _VitalThresholdsScreenState
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '$e',
+                  apiErrorMessage(e),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: scheme.onSurfaceVariant),
                 ),

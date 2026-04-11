@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../core/theme/spacing.dart';
 import '../../models/notification.dart';
@@ -75,7 +76,7 @@ class _NotificationPreferencesScreenState
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  err.toString(),
+                  apiErrorMessage(err),
                   textAlign: TextAlign.center,
                   style: Theme.of(context)
                       .textTheme

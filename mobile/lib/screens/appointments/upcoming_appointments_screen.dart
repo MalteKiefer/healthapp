@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/api/api_error_messages.dart';
 import '../../core/theme/spacing.dart';
 import '../../models/common.dart';
 import '../../providers/appointment_extras_provider.dart';
@@ -36,7 +37,7 @@ class UpcomingAppointmentsScreen extends ConsumerWidget {
         child: upcomingAsync.when(
           loading: () => const SkeletonList(count: 5),
           error: (e, _) => _ErrorView(
-            message: e.toString(),
+            message: apiErrorMessage(e),
             onRetry: () =>
                 ref.invalidate(upcomingAppointmentsProvider(profileId)),
           ),

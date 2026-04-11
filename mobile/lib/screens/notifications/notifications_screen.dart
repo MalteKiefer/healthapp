@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../core/theme/spacing.dart';
 import '../../models/notification.dart';
@@ -71,7 +72,7 @@ class NotificationsScreen extends ConsumerWidget {
         child: asyncList.when(
           loading: () => const SkeletonList(count: 5),
           error: (err, _) => _ErrorView(
-            message: err.toString(),
+            message: apiErrorMessage(err),
             onRetry: () => ref.invalidate(notificationsProvider),
           ),
           data: (result) {

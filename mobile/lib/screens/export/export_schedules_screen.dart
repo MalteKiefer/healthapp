@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../core/theme/spacing.dart';
 import '../../models/export_schedule.dart';
@@ -59,7 +60,7 @@ class ExportSchedulesScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.sm),
               Center(
                 child: Text(
-                  err.toString(),
+                  apiErrorMessage(err),
                   textAlign: TextAlign.center,
                   style: Theme.of(context)
                       .textTheme

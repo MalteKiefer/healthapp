@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/vital.dart';
 import '../../providers/providers.dart';
@@ -335,7 +336,7 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                       }
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text('Error: $e'),
+                          content: Text(apiErrorMessage(e)),
                           behavior: SnackBarBehavior.floating,
                         ));
                       }
@@ -436,7 +437,7 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
+          content: Text(apiErrorMessage(e)),
           behavior: SnackBarBehavior.floating,
         ));
       }

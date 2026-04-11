@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/profile.dart';
 import '../../models/vital.dart';
@@ -188,7 +189,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 16),
               Text(T.tr('home.failed_profiles'), style: tt.titleMedium),
               const SizedBox(height: 8),
-              Text(e.toString(),
+              Text(apiErrorMessage(e),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: cs.onSurfaceVariant)),
               const SizedBox(height: 24),
