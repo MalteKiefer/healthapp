@@ -1,44 +1,63 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:io';
+
+import 'package:healthapp/core/security/secure_store/encrypted_vault.dart';
+import 'package:path_provider/path_provider.dart';
+
+class StoredCredentials {
+  StoredCredentials({
+    required this.email,
+    required this.authHash,
+    required this.serverUrl,
+  });
+
+  final String email;
+  final String authHash;
+  final String serverUrl;
+}
 
 class AuthService {
-  static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
-  );
-  static const _keyEmail = 'auth_email';
-  static const _keyAuthHash = 'auth_hash';
-  static const _keyServerUrl = 'auth_server_url';
+  AuthService({required this.vault});
 
-  static Future<void> saveCredentials({
-    required String email,
-    required String authHash,
-    required String serverUrl,
-  }) async {
-    await Future.wait([
-      _storage.write(key: _keyEmail, value: email),
-      _storage.write(key: _keyAuthHash, value: authHash),
-      _storage.write(key: _keyServerUrl, value: serverUrl),
-    ]);
+  final EncryptedVault vault;
+
+  static const _kEmail = 'auth.email.v1';
+  static const _kHash = 'auth.hash.v1';
+  static const _kServerUrl = 'auth.server_url.v1';
+
+  Future<void> saveCredentials(StoredCredentials c) async {
+    await vault.putString(_kEmail, c.email);
+    await vault.putString(_kHash, c.authHash);
+    await vault.putString(_kServerUrl, c.serverUrl);
+    await vault.flush();
   }
 
-  static Future<({String email, String authHash, String serverUrl})?> loadCredentials() async {
-    final results = await Future.wait([
-      _storage.read(key: _keyEmail),
-      _storage.read(key: _keyAuthHash),
-      _storage.read(key: _keyServerUrl),
-    ]);
-    final email = results[0];
-    final authHash = results[1];
-    final serverUrl = results[2];
-    if (email == null || authHash == null || serverUrl == null) return null;
-    return (email: email, authHash: authHash, serverUrl: serverUrl);
+  Future<StoredCredentials?> loadCredentials() async {
+    final e = await vault.getString(_kEmail);
+    final h = await vault.getString(_kHash);
+    final u = await vault.getString(_kServerUrl);
+    if (e == null || h == null || u == null) return null;
+    return StoredCredentials(email: e, authHash: h, serverUrl: u);
   }
 
-  static Future<void> clearCredentials() async {
-    await Future.wait([
-      _storage.delete(key: _keyEmail),
-      _storage.delete(key: _keyAuthHash),
-      _storage.delete(key: _keyServerUrl),
-    ]);
+  /// Delete stored credentials plus temp-dir cached documents.
+  /// The full wipe (vault deletion, keystore cleanup) is handled by
+  /// PinService.wipe() — this method only clears mid-session data.
+  Future<void> clearCredentials() async {
+    await vault.delete(_kEmail);
+    await vault.delete(_kHash);
+    await vault.delete(_kServerUrl);
+    await vault.flush();
+    try {
+      final tmp = await getTemporaryDirectory();
+      if (tmp.existsSync()) {
+        for (final f in tmp.listSync()) {
+          if (f is File) {
+            try {
+              f.deleteSync();
+            } catch (_) {}
+          }
+        }
+      }
+    } catch (_) {}
   }
 }

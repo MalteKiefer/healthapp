@@ -90,6 +90,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 	r.Post("/api/v1/auth/register/complete", authHandler.HandleRegisterComplete)
 	r.Post("/api/v1/auth/login", authHandler.HandleLogin)
 	r.Post("/api/v1/auth/refresh", authHandler.HandleRefresh)
+	r.Get("/api/v1/auth/salt", authHandler.GetAuthSalt)
 
 	// Logout requires claims in context (via JWTAuth middleware)
 	r.With(middleware.JWTAuth(ts)).Post("/api/v1/auth/logout", authHandler.HandleLogout)

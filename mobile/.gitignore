@@ -1,3 +1,9 @@
+# Un-ignore Flutter's lib/ and test/ dirs which conflict with a global "lib/" rule
+!lib/
+!lib/**
+!test/
+!test/**
+
 # Miscellaneous
 *.class
 *.log

@@ -1,7 +1,7 @@
 name: healthapp
 description: "HealthVault - Self-hosted health data platform"
 publish_to: 'none'
-version: 1.0.0+1
+version: 0.0.1+1
 
 environment:
   sdk: ^3.11.4
@@ -37,6 +37,11 @@ dependencies:
   # Storage
   shared_preferences: ^2.5.3
   flutter_secure_storage: ^9.2.4
+
+  # Security / Crypto
+  local_auth: ^2.3.0
+  cryptography: ^2.7.0
+  connectivity_plus: ^6.0.0
 
   # URL Launcher
   url_launcher: ^6.3.1
