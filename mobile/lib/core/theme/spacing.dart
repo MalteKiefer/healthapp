@@ -1,0 +1,13 @@
+/// Sprint 5 spacing tokens — M3 4dp baseline.
+///
+/// Use these in place of magic numbers in EdgeInsets / SizedBox.
+class AppSpacing {
+  AppSpacing._();
+
+  static const double xs = 4.0;
+  static const double sm = 8.0;
+  static const double md = 16.0;
+  static const double lg = 24.0;
+  static const double xl = 32.0;
+  static const double xxl = 48.0;
+}
