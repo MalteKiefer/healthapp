@@ -9,6 +9,7 @@ import '../../models/vital.dart';
 import '../../models/medication.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
+import '../../widgets/skeletons.dart';
 
 // -- Providers ----------------------------------------------------------------
 
@@ -180,7 +181,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
       body: profilesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonList(count: 3),
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
@@ -193,14 +194,104 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(color: cs.onSurfaceVariant)),
               const SizedBox(height: 24),
-              FilledButton.tonal(
+              FilledButton(
                 onPressed: () => ref.invalidate(profilesProvider('')),
                 child: Text(T.tr('common.retry')),
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                icon: const Icon(Icons.logout),
+                label: const Text('Log out'),
+                onPressed: () async {
+                  await ref.read(authServiceProvider).clearCredentials();
+                  if (!context.mounted) return;
+                  context.go('/login');
+                },
               ),
             ]),
           ),
         ),
-        data: (_) => RefreshIndicator(
+        data: (profiles) {
+          // Empty state: no profiles at all — prompt creation.
+          if (profiles.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.person_add_alt_1,
+                            size: 48, color: cs.primary),
+                        const SizedBox(height: 16),
+                        Text(
+                          T.tr('home.welcome_title').isNotEmpty &&
+                                  T.tr('home.welcome_title') !=
+                                      'home.welcome_title'
+                              ? T.tr('home.welcome_title')
+                              : 'Welcome to HealthVault',
+                          style: tt.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Create your first profile to start tracking health data.',
+                          textAlign: TextAlign.center,
+                          style: tt.bodyMedium
+                              ?.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton.icon(
+                          icon: const Icon(Icons.add),
+                          label: const Text('Create profile'),
+                          onPressed: () => context.go('/profiles/new'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+          // Profiles exist but none is selected yet — render minimal
+          // scaffold prompting the user to pick one via the AppBar selector.
+          if (selected == null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.account_circle_outlined,
+                        size: 48, color: cs.outline),
+                    const SizedBox(height: 16),
+                    Text(
+                      T.tr('home.select_profile'),
+                      style: tt.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Select or create a profile to continue.',
+                      textAlign: TextAlign.center,
+                      style: tt.bodyMedium
+                          ?.copyWith(color: cs.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.tonalIcon(
+                      icon: const Icon(Icons.add),
+                      label: const Text('Create profile'),
+                      onPressed: () => context.go('/profiles/new'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          return RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(profilesProvider(''));
             if (pid.isNotEmpty) {
@@ -355,7 +446,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             ],
           ),
-        ),
+          );
+        },
       ),
     );
   }

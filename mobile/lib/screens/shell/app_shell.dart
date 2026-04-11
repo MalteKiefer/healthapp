@@ -48,36 +48,69 @@ class AppShell extends ConsumerWidget {
       currentIndex = 4;
     }
 
-    final items = <_NavItem>[
-      _NavItem(
-        icon: Icons.home_outlined,
-        selectedIcon: Icons.home,
-        label: T.tr('nav.home'),
-      ),
-      _NavItem(
-        icon: Icons.favorite_outline,
-        selectedIcon: Icons.favorite,
-        label: T.tr('nav.vitals'),
-      ),
-      _NavItem(
-        icon: Icons.science_outlined,
-        selectedIcon: Icons.science,
-        label: T.tr('nav.labs'),
-      ),
-      _NavItem(
-        icon: Icons.medication_outlined,
-        selectedIcon: Icons.medication,
-        label: T.tr('nav.meds'),
-      ),
-      _NavItem(
-        icon: Icons.more_horiz,
-        selectedIcon: Icons.more_horiz,
-        label: T.tr('nav.more'),
-      ),
-    ];
+    // When no profile is selected, profile-scoped destinations like
+    // /vitals/:profileId would resolve to /vitals/ and 404. Fall back to a
+    // minimal Home + More nav set until a profile exists and is selected.
+    final hasProfile = profile != null;
+
+    final items = hasProfile
+        ? <_NavItem>[
+            _NavItem(
+              icon: Icons.home_outlined,
+              selectedIcon: Icons.home,
+              label: T.tr('nav.home'),
+            ),
+            _NavItem(
+              icon: Icons.favorite_outline,
+              selectedIcon: Icons.favorite,
+              label: T.tr('nav.vitals'),
+            ),
+            _NavItem(
+              icon: Icons.science_outlined,
+              selectedIcon: Icons.science,
+              label: T.tr('nav.labs'),
+            ),
+            _NavItem(
+              icon: Icons.medication_outlined,
+              selectedIcon: Icons.medication,
+              label: T.tr('nav.meds'),
+            ),
+            _NavItem(
+              icon: Icons.more_horiz,
+              selectedIcon: Icons.more_horiz,
+              label: T.tr('nav.more'),
+            ),
+          ]
+        : <_NavItem>[
+            _NavItem(
+              icon: Icons.home_outlined,
+              selectedIcon: Icons.home,
+              label: T.tr('nav.home'),
+            ),
+            _NavItem(
+              icon: Icons.more_horiz,
+              selectedIcon: Icons.more_horiz,
+              label: T.tr('nav.more'),
+            ),
+          ];
+
+    // Collapse current-index into the reduced destination set when no
+    // profile is selected (index 0 = Home, 1 = More).
+    if (!hasProfile) {
+      currentIndex = location.startsWith('/more') ? 1 : 0;
+    }
 
     void onSelected(int i) {
-      final pid = profile?.id ?? '';
+      if (!hasProfile) {
+        switch (i) {
+          case 0:
+            context.go('/home');
+          case 1:
+            context.go('/more');
+        }
+        return;
+      }
+      final pid = profile.id;
       switch (i) {
         case 0:
           context.go('/home');
