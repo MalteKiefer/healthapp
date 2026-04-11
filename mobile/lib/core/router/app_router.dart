@@ -47,6 +47,7 @@ import '../../screens/symptoms/symptom_chart_screen.dart';
 import '../../screens/tasks/open_tasks_screen.dart';
 import '../../screens/vaccinations/vaccination_due_screen.dart';
 import '../../screens/vitals/vital_thresholds_screen.dart';
+import 'transitions.dart';
 
 /// Riverpod-provided GoRouter so the `redirect` callback can read other
 /// providers (AppLockController, AuthService, ...).
@@ -135,15 +136,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/setup-pin',
-        builder: (_, __) => const SetupPinScreen(),
+        pageBuilder: (_, state) =>
+            AppTransitions.fade(child: const SetupPinScreen()),
       ),
       GoRoute(
         path: '/migrate',
-        builder: (_, __) => const MigrationScreen(),
+        pageBuilder: (_, state) =>
+            AppTransitions.fade(child: const MigrationScreen()),
       ),
       GoRoute(
         path: '/lock',
-        builder: (_, __) => const LockScreen(),
+        pageBuilder: (_, state) =>
+            AppTransitions.fade(child: const LockScreen()),
       ),
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
@@ -228,27 +232,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // --- Sprint 2 feature-parity routes ---
           GoRoute(
             path: '/profiles',
-            builder: (_, __) => const ProfileListScreen(),
+            pageBuilder: (_, state) =>
+                AppTransitions.slideX(child: const ProfileListScreen()),
           ),
           GoRoute(
             path: '/profiles/new',
-            builder: (_, __) => const ProfileEditScreen(),
+            pageBuilder: (_, state) =>
+                AppTransitions.slideX(child: const ProfileEditScreen()),
           ),
           GoRoute(
             path: '/search',
-            builder: (_, __) => const SearchScreen(),
+            pageBuilder: (_, state) =>
+                AppTransitions.slideX(child: const SearchScreen()),
           ),
           GoRoute(
             path: '/notifications',
-            builder: (_, __) => const NotificationsScreen(),
+            pageBuilder: (_, state) =>
+                AppTransitions.slideX(child: const NotificationsScreen()),
           ),
           GoRoute(
             path: '/notifications/preferences',
-            builder: (_, __) => const NotificationPreferencesScreen(),
+            pageBuilder: (_, state) => AppTransitions.slideX(
+                child: const NotificationPreferencesScreen()),
           ),
           GoRoute(
             path: '/2fa/setup',
-            builder: (_, __) => const TwoFactorSetupScreen(),
+            pageBuilder: (_, state) =>
+                AppTransitions.slideX(child: const TwoFactorSetupScreen()),
           ),
           GoRoute(
             path: '/vitals/:profileId/thresholds',
@@ -288,43 +298,52 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // --- Sprint 3 feature-parity routes ---
           GoRoute(
             path: '/shares/:profileId',
-            builder: (_, state) => DoctorSharesScreen(
-                profileId: state.pathParameters['profileId']!),
+            pageBuilder: (_, state) => AppTransitions.slideX(
+                child: DoctorSharesScreen(
+                    profileId: state.pathParameters['profileId']!)),
           ),
           GoRoute(
             path: '/calendar-feeds',
-            builder: (_, __) => const CalendarFeedsScreen(),
+            pageBuilder: (_, state) =>
+                AppTransitions.slideX(child: const CalendarFeedsScreen()),
           ),
           GoRoute(
             path: '/emergency/:profileId',
-            builder: (_, state) => EmergencyAccessScreen(
-                profileId: state.pathParameters['profileId']!),
+            pageBuilder: (_, state) => AppTransitions.slideX(
+                child: EmergencyAccessScreen(
+                    profileId: state.pathParameters['profileId']!)),
           ),
           GoRoute(
             path: '/export/:profileId',
-            builder: (_, __) => const ExportScreen(),
+            pageBuilder: (_, state) =>
+                AppTransitions.slideX(child: const ExportScreen()),
           ),
           GoRoute(
             path: '/export/schedules',
-            builder: (_, __) => const ExportSchedulesScreen(),
+            pageBuilder: (_, state) =>
+                AppTransitions.slideX(child: const ExportSchedulesScreen()),
           ),
           GoRoute(
             path: '/activity/:profileId',
-            builder: (_, __) => const ActivityLogScreen(),
+            pageBuilder: (_, state) =>
+                AppTransitions.slideX(child: const ActivityLogScreen()),
           ),
           GoRoute(
             path: '/documents/:profileId/bulk',
-            builder: (_, state) => DocumentBulkUploadScreen(
-                profileId: state.pathParameters['profileId']!),
+            pageBuilder: (_, state) => AppTransitions.slideX(
+                child: DocumentBulkUploadScreen(
+                    profileId: state.pathParameters['profileId']!)),
           ),
           GoRoute(
             path: '/documents/:profileId/search',
-            builder: (_, state) => DocumentSearchScreen(
-                profileId: state.pathParameters['profileId']!),
+            pageBuilder: (_, state) => AppTransitions.slideX(
+                child: DocumentSearchScreen(
+                    profileId: state.pathParameters['profileId']!)),
           ),
           GoRoute(
             path: '/sessions',
-            builder: (_, __) => const SessionsScreen(),
+            pageBuilder: (_, state) =>
+                AppTransitions.slideX(child: const SessionsScreen()),
           ),
         ],
       ),
