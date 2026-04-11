@@ -96,7 +96,7 @@ jobs:
             echo "storePassword=${STORE_PASSWORD}"
             echo "keyPassword=${KEY_PASSWORD}"
             echo "keyAlias=${KEY_ALIAS}"
-            echo "storeFile=app/keystore.jks"
+            echo "storeFile=keystore.jks"
           } > android/key.properties
 
       - name: Build APK
