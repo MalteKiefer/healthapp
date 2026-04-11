@@ -2,8 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_error_messages.dart';
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/user_session.dart';
 import '../../providers/sessions_provider.dart';
+import '../../widgets/skeletons.dart';
+
+/// Returns the localized string for [key], or [fallback] when the
+/// translations table has no entry (in which case `T.tr` echoes the
+/// key back unchanged).
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Sprint 3: Session management screen.
 ///
@@ -28,7 +39,7 @@ class SessionsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Active Sessions'),
+        title: Text(_trOr('sessions.title', 'Active Sessions')),
         actions: [
           IconButton(
             tooltip: 'Refresh',
@@ -39,8 +50,7 @@ class SessionsScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: sessionsAsync.when(
-          loading: () =>
-              const Center(child: CircularProgressIndicator()),
+          loading: () => const SkeletonList(count: 4),
           error: (err, _) => _ErrorView(
             message: apiErrorMessage(err),
             onRetry: () => ref.invalidate(sessionsListProvider),
@@ -49,7 +59,7 @@ class SessionsScreen extends ConsumerWidget {
             if (sessions.isEmpty) {
               return Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Text(
                     'No active sessions found.',
                     style: tt.bodyLarge
@@ -68,7 +78,9 @@ class SessionsScreen extends ConsumerWidget {
               },
               child: ListView.separated(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.sm + AppSpacing.xs,
+                ),
                 itemCount: sessions.length + 1,
                 separatorBuilder: (_, _) =>
                     Divider(height: 1, color: cs.outlineVariant),
@@ -108,7 +120,7 @@ class SessionsScreen extends ConsumerWidget {
       message:
           'The device using this session will be signed out the next '
           'time it contacts the server.',
-      actionLabel: 'Revoke session',
+      actionLabel: _trOr('sessions.revoke', 'Revoke session'),
     );
     if (confirmed != true) return;
     try {
@@ -139,7 +151,7 @@ class SessionsScreen extends ConsumerWidget {
       message:
           'Every device except this one will be signed out. You will '
           'remain signed in here.',
-      actionLabel: 'Revoke all others',
+      actionLabel: _trOr('sessions.revoke_all', 'Revoke all others'),
     );
     if (confirmed != true) return;
     try {
@@ -177,7 +189,12 @@ class SessionsScreen extends ConsumerWidget {
         final tt = Theme.of(ctx).textTheme;
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -185,7 +202,7 @@ class SessionsScreen extends ConsumerWidget {
                 Row(
                   children: [
                     Icon(Icons.warning_amber_rounded, color: cs.error),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpacing.sm + AppSpacing.xs),
                     Expanded(
                       child: Text(
                         title,
@@ -194,13 +211,13 @@ class SessionsScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
                 Text(
                   message,
                   style:
                       tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.lg),
                 FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: cs.errorContainer,
@@ -209,7 +226,7 @@ class SessionsScreen extends ConsumerWidget {
                   onPressed: () => Navigator.of(ctx).pop(true),
                   child: Text(actionLabel),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(false),
                   child: const Text('Cancel'),
@@ -239,7 +256,12 @@ class _RevokeAllHeader extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -248,20 +270,22 @@ class _RevokeAllHeader extends StatelessWidget {
             'account. Revoke any session you no longer recognise.',
             style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
           FilledButton.tonalIcon(
             onPressed: enabled ? onRevokeAll : null,
             icon: busy
                 ? SizedBox(
-                    width: 16,
-                    height: 16,
+                    width: AppSpacing.md,
+                    height: AppSpacing.md,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: cs.onSecondaryContainer,
                     ),
                   )
                 : const Icon(Icons.logout),
-            label: const Text('Revoke all other sessions'),
+            label: Text(
+              _trOr('sessions.revoke_all', 'Revoke all other sessions'),
+            ),
           ),
         ],
       ),
@@ -292,8 +316,10 @@ class _SessionTile extends StatelessWidget {
             : 'Unknown device');
 
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       leading: CircleAvatar(
         backgroundColor: session.isCurrent
             ? cs.primaryContainer
@@ -315,18 +341,19 @@ class _SessionTile extends StatelessWidget {
             ),
           ),
           if (session.isCurrent) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             _CurrentBadge(),
           ],
         ],
       ),
       subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.only(top: AppSpacing.xs),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Last active: ${_formatTimestamp(session.lastSeenAt)}',
+              '${_trOr('sessions.last_seen', 'Last active')}: '
+              '${_formatTimestamp(session.lastSeenAt)}',
               style:
                   tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
             ),
@@ -352,14 +379,14 @@ class _SessionTile extends StatelessWidget {
         style: TextButton.styleFrom(foregroundColor: cs.error),
         child: revoking
             ? SizedBox(
-                width: 16,
-                height: 16,
+                width: AppSpacing.md,
+                height: AppSpacing.md,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: cs.error,
                 ),
               )
-            : const Text('Revoke'),
+            : Text(_trOr('sessions.revoke', 'Revoke')),
       ),
     );
   }
@@ -386,13 +413,16 @@ class _CurrentBadge extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 2,
+      ),
       decoration: BoxDecoration(
         color: cs.primaryContainer,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        'This device',
+        _trOr('sessions.current', 'This device'),
         style: tt.labelSmall?.copyWith(
           color: cs.onPrimaryContainer,
           fontWeight: FontWeight.w600,
@@ -414,18 +444,18 @@ class _ErrorView extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, size: 48, color: cs.error),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             Text(
               message,
               style: tt.bodyLarge,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             FilledButton.tonal(
               onPressed: onRetry,
               child: const Text('Retry'),

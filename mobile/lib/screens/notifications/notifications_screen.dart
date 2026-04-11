@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/notification.dart';
 import '../../providers/notifications_provider.dart';
+import '../../widgets/skeletons.dart';
 import 'notification_preferences_screen.dart';
+
+/// Returns the translation for [key] if present, otherwise [fallback].
+/// `T.tr` returns the key itself when no entry is found, so we use that
+/// sentinel to detect missing keys and fall back to the English literal.
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Full list view of all in-app notifications for the authenticated user.
 ///
@@ -25,7 +36,7 @@ class NotificationsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(_trOr('notifications.title', 'Notifications')),
         actions: [
           asyncList.maybeWhen(
             data: (result) => result.unreadCount > 0
@@ -34,7 +45,7 @@ class NotificationsScreen extends ConsumerWidget {
                         .read(notificationsControllerProvider.notifier)
                         .markAllRead(),
                     child: Text(
-                      'Mark all read',
+                      _trOr('notifications.mark_all_read', 'Mark all read'),
                       style: TextStyle(color: colors.onSurface),
                     ),
                   )
@@ -42,7 +53,7 @@ class NotificationsScreen extends ConsumerWidget {
             orElse: () => const SizedBox.shrink(),
           ),
           IconButton(
-            tooltip: 'Preferences',
+            tooltip: _trOr('notifications.preferences', 'Preferences'),
             icon: const Icon(Icons.tune),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
@@ -58,7 +69,7 @@ class NotificationsScreen extends ConsumerWidget {
           await ref.read(notificationsProvider.future);
         },
         child: asyncList.when(
-          loading: () => const _LoadingView(),
+          loading: () => const SkeletonList(count: 5),
           error: (err, _) => _ErrorView(
             message: err.toString(),
             onRetry: () => ref.invalidate(notificationsProvider),
@@ -69,7 +80,7 @@ class NotificationsScreen extends ConsumerWidget {
             }
             return ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               itemCount: result.items.length,
               separatorBuilder: (_, _) => Divider(
                 height: 1,
@@ -98,7 +109,7 @@ class NotificationsScreen extends ConsumerWidget {
   Widget _swipeBg(ColorScheme colors, {required bool alignLeft}) {
     return Container(
       color: colors.errorContainer,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       alignment: alignLeft ? Alignment.centerLeft : Alignment.centerRight,
       child: Icon(Icons.delete_outline, color: colors.onErrorContainer),
     );
@@ -142,7 +153,7 @@ class _NotificationTile extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (notification.body.isNotEmpty) ...[
-            const SizedBox(height: 2),
+            const SizedBox(height: AppSpacing.xs / 2),
             Text(
               notification.body,
               maxLines: 2,
@@ -150,7 +161,7 @@ class _NotificationTile extends ConsumerWidget {
               style: text.bodySmall?.copyWith(color: colors.onSurfaceVariant),
             ),
           ],
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             _formatRelative(notification.createdAt),
             style: text.bodySmall?.copyWith(color: colors.outline),
@@ -213,18 +224,6 @@ class _NotificationTile extends ConsumerWidget {
 
 // -- Status views -------------------------------------------------------------
 
-class _LoadingView extends StatelessWidget {
-  const _LoadingView();
-  @override
-  Widget build(BuildContext context) => ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: 120),
-          Center(child: CircularProgressIndicator()),
-        ],
-      );
-}
-
 class _EmptyView extends StatelessWidget {
   const _EmptyView();
   @override
@@ -235,17 +234,17 @@ class _EmptyView extends StatelessWidget {
       children: [
         const SizedBox(height: 120),
         Icon(Icons.notifications_none, size: 64, color: colors.outline),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
         Center(
           child: Text(
-            'No notifications',
+            _trOr('notifications.empty', 'No notifications'),
             style: Theme.of(context)
                 .textTheme
                 .titleMedium
                 ?.copyWith(color: colors.onSurfaceVariant),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Center(
           child: Text(
             'You are all caught up.',
@@ -270,18 +269,18 @@ class _ErrorView extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         const SizedBox(height: 80),
         Icon(Icons.error_outline, size: 48, color: colors.error),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
         Center(
           child: Text(
             'Failed to load notifications',
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Center(
           child: Text(
             message,
@@ -292,7 +291,7 @@ class _ErrorView extends StatelessWidget {
                 ?.copyWith(color: colors.onSurfaceVariant),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         Center(
           child: FilledButton.tonal(
             onPressed: onRetry,

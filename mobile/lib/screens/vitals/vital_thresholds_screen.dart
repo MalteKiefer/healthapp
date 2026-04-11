@@ -2,8 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/vital_thresholds.dart';
 import '../../providers/vital_thresholds_provider.dart';
+import '../../widgets/skeletons.dart';
+
+/// Returns the translation for [key] if present, otherwise [fallback].
+/// `T.tr` returns the key itself when no entry is found, so we use that
+/// sentinel to detect missing keys and fall back to the English literal.
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Configuration screen for per-profile vital thresholds.
 ///
@@ -206,29 +217,32 @@ class _VitalThresholdsScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vital thresholds'),
+        title: Text(_trOr('vitals.thresholds.title', 'Vital thresholds')),
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: SkeletonCard(height: 320),
+        ),
         error: (e, _) => Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.error_outline, color: scheme.error, size: 48),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
                 Text(
                   'Could not load thresholds',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   '$e',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: scheme.onSurfaceVariant),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.md),
                 FilledButton.tonal(
                   onPressed: () => ref.invalidate(
                     vitalThresholdsProvider(widget.profileId),
@@ -257,17 +271,22 @@ class _VitalThresholdsScreenState
     return Form(
       key: _formKey,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.xl,
+        ),
         children: [
           Card(
             color: scheme.surfaceContainerHighest,
             elevation: 0,
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpacing.sm + AppSpacing.xs),
               child: Row(
                 children: [
                   Icon(Icons.info_outline, color: scheme.primary),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: AppSpacing.sm + 2),
                   Expanded(
                     child: Text(
                       'Define normal low/high ranges for each metric. '
@@ -279,7 +298,7 @@ class _VitalThresholdsScreenState
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
           for (final m in _metrics) ...[
             _MetricCard(
               metric: m,
@@ -287,9 +306,9 @@ class _VitalThresholdsScreenState
               highController: _controllers[m.highKey]!,
               validator: (low, high) => _validatePair(m, low, high),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.sm + 2),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           FilledButton.icon(
             onPressed: saveState.saving ? null : _onSave,
             icon: saveState.saving
@@ -398,7 +417,12 @@ class _MetricCard extends StatelessWidget {
       ),
       color: scheme.surface,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.sm + 6,
+          AppSpacing.sm + AppSpacing.xs,
+          AppSpacing.sm + 6,
+          AppSpacing.sm + AppSpacing.xs,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -416,7 +440,7 @@ class _MetricCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -425,9 +449,9 @@ class _MetricCard extends StatelessWidget {
                     controller: lowController,
                     keyboardType: keyboard,
                     inputFormatters: inputFormatters,
-                    decoration: const InputDecoration(
-                      labelText: 'Low',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: _trOr('vitals.thresholds.low', 'Low'),
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                     // Field-level validator delegates to the shared
@@ -436,15 +460,15 @@ class _MetricCard extends StatelessWidget {
                         validator(lowController.text, highController.text),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: AppSpacing.sm + 2),
                 Expanded(
                   child: TextFormField(
                     controller: highController,
                     keyboardType: keyboard,
                     inputFormatters: inputFormatters,
-                    decoration: const InputDecoration(
-                      labelText: 'High',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: _trOr('vitals.thresholds.high', 'High'),
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                     validator: (_) => null,

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/common.dart';
 import '../../providers/vaccination_due_provider.dart';
+import '../../widgets/skeletons.dart';
 
 /// Shows vaccinations that are overdue or coming due soon.
 ///
@@ -32,7 +35,7 @@ class VaccinationDueScreen extends ConsumerWidget {
           await ref.read(vaccinationDueProvider(profileId).future);
         },
         child: asyncVal.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const SkeletonList(count: 4),
           error: (err, _) => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
@@ -41,16 +44,16 @@ class VaccinationDueScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     Icon(Icons.error_outline, color: cs.error, size: 40),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
-                      'Failed to load due vaccinations',
+                      T.tr('vaccinations.failed'),
                       style: tt.bodyLarge,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     TextButton(
                       onPressed: () => ref
                           .invalidate(vaccinationDueProvider(profileId)),
-                      child: const Text('Retry'),
+                      child: Text(T.tr('common.retry')),
                     ),
                   ],
                 ),
@@ -94,12 +97,12 @@ class VaccinationDueScreen extends ConsumerWidget {
                       children: [
                         Icon(Icons.verified,
                             color: cs.tertiary, size: 48),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
                         Text(
-                          'No vaccinations due',
+                          T.tr('vaccinations.no_data'),
                           style: tt.titleMedium,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppSpacing.xs),
                         Text(
                           "You're all caught up.",
                           style: tt.bodyMedium
@@ -114,11 +117,11 @@ class VaccinationDueScreen extends ConsumerWidget {
 
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               children: [
                 if (overdue.isNotEmpty) ...[
                   _SectionHeader(
-                    label: 'Overdue',
+                    label: T.tr('status.overdue'),
                     color: cs.error,
                     count: overdue.length,
                   ),
@@ -132,7 +135,7 @@ class VaccinationDueScreen extends ConsumerWidget {
                 ],
                 if (dueThisMonth.isNotEmpty) ...[
                   _SectionHeader(
-                    label: 'Due This Month',
+                    label: T.tr('status.upcoming'),
                     color: cs.tertiary,
                     count: dueThisMonth.length,
                   ),
@@ -146,7 +149,7 @@ class VaccinationDueScreen extends ConsumerWidget {
                 ],
                 if (dueLater.isNotEmpty) ...[
                   _SectionHeader(
-                    label: 'Due Later',
+                    label: T.tr('status.scheduled'),
                     color: cs.onSurface,
                     count: dueLater.length,
                   ),
@@ -158,7 +161,7 @@ class VaccinationDueScreen extends ConsumerWidget {
                       now: now,
                     ),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.lg),
               ],
             );
           },
@@ -198,18 +201,23 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
       child: Row(
         children: [
           Container(
-            width: 8,
-            height: 8,
+            width: AppSpacing.sm,
+            height: AppSpacing.sm,
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Text(
             label,
             style: tt.titleSmall?.copyWith(
@@ -217,7 +225,7 @@ class _SectionHeader extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xs + 2),
           Text(
             '($count)',
             style: tt.bodySmall?.copyWith(
@@ -252,7 +260,10 @@ class _DueTile extends StatelessWidget {
     final remaining = _formatRemaining(now, due);
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm + AppSpacing.xs,
+        vertical: AppSpacing.xs,
+      ),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: badgeColor,
@@ -266,7 +277,7 @@ class _DueTile extends StatelessWidget {
           style: tt.titleMedium?.copyWith(color: cs.onSurface),
         ),
         subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
+          padding: const EdgeInsets.only(top: AppSpacing.xs),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -274,7 +285,7 @@ class _DueTile extends StatelessWidget {
                 children: [
                   Icon(Icons.event,
                       size: 14, color: cs.onSurfaceVariant),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Text(
                     'Next due: $formattedDate',
                     style: tt.bodySmall
@@ -287,7 +298,7 @@ class _DueTile extends StatelessWidget {
                 children: [
                   Icon(Icons.schedule,
                       size: 14, color: badgeColor),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Text(
                     remaining,
                     style: tt.bodySmall?.copyWith(

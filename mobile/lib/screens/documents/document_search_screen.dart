@@ -3,8 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_error_messages.dart';
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/common.dart';
 import '../../providers/document_search_provider.dart';
+import '../../widgets/skeletons.dart';
+
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Sprint 3 — OCR-indexed document search screen.
 ///
@@ -62,22 +70,28 @@ class _DocumentSearchScreenState extends ConsumerState<DocumentSearchScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Search documents'),
+        title: Text(_trOr('docs.search', 'Search documents')),
       ),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SearchBar(
               controller: _controller,
-              hintText: 'Search by content, filename, tag...',
+              hintText: _trOr(
+                'docs.search.hint',
+                'Search by content, filename, tag...',
+              ),
               leading: Icon(Icons.search, color: cs.onSurfaceVariant),
               trailing: [
                 if (_controller.text.isNotEmpty)
                   IconButton(
                     icon: const Icon(Icons.close),
-                    tooltip: 'Clear',
+                    tooltip: _trOr('common.clear', 'Clear'),
                     onPressed: () {
                       _controller.clear();
                       ref.read(documentSearchProvider.notifier).clear();
@@ -90,7 +104,7 @@ class _DocumentSearchScreenState extends ConsumerState<DocumentSearchScreen> {
                 setState(() {});
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             Expanded(
               child: async.when(
                 data: (results) => _ResultsList(
@@ -98,11 +112,10 @@ class _DocumentSearchScreenState extends ConsumerState<DocumentSearchScreen> {
                   query: _controller.text,
                   onTap: (doc) => _openDocument(context, doc),
                 ),
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const SkeletonList(count: 4),
                 error: (err, _) => Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     child: Text(
                       apiErrorMessage(err),
                       style: TextStyle(color: cs.error),
@@ -138,7 +151,10 @@ class _ResultsList extends StatelessWidget {
     if (query.trim().isEmpty) {
       return Center(
         child: Text(
-          'Type to search OCR-indexed documents.',
+          _trOr(
+            'docs.search.prompt',
+            'Type to search OCR-indexed documents.',
+          ),
           style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
@@ -146,9 +162,13 @@ class _ResultsList extends StatelessWidget {
     }
 
     if (results.isEmpty) {
+      final template = _trOr(
+        'docs.search.no_results',
+        'No documents match "{query}"',
+      );
       return Center(
         child: Text(
-          'No documents match "$query"',
+          template.replaceAll('{query}', query),
           style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),

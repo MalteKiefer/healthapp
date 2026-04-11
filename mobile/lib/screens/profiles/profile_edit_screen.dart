@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/profile.dart';
 import '../../models/profile_write.dart';
 import '../../providers/profile_management_provider.dart';
+
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Form screen used for both creating a new profile and editing an
 /// existing one. Pass [initial] to edit; pass null to create.
@@ -95,105 +102,118 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       appBar: AppBar(
         backgroundColor: colors.surface,
         foregroundColor: colors.onSurface,
-        title: Text(_isEdit ? 'Edit profile' : 'New profile'),
+        title: Text(_isEdit
+            ? _trOr('profiles.edit', 'Edit profile')
+            : _trOr('profiles.new', 'New profile')),
         actions: [
           IconButton(
             icon: const Icon(Icons.check),
-            tooltip: 'Save',
+            tooltip: _trOr('common.save', 'Save'),
             onPressed: management.isLoading ? null : _submit,
           ),
         ],
       ),
       body: AbsorbPointer(
         absorbing: management.isLoading,
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              TextFormField(
-                controller: _displayNameCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Display name',
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: colors.onSurfaceVariant),
+        child: AutofillGroup(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              children: [
+                TextFormField(
+                  controller: _displayNameCtrl,
+                  autofillHints: const [AutofillHints.name],
+                  textCapitalization: TextCapitalization.words,
+                  decoration: InputDecoration(
+                    labelText:
+                        _trOr('profiles.field_display_name', 'Display name'),
+                    border: const OutlineInputBorder(),
+                    labelStyle: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return _trOr('profiles.display_name_required',
+                          'Display name is required');
+                    }
+                    return null;
+                  },
                 ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Display name is required';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              _DatePickerField(
-                label: 'Date of birth',
-                value: _dateOfBirth,
-                colors: colors,
-                onChanged: (d) => setState(() => _dateOfBirth = d),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _gender,
-                decoration: InputDecoration(
-                  labelText: 'Gender',
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: colors.onSurfaceVariant),
+                const SizedBox(height: AppSpacing.md),
+                _DatePickerField(
+                  label: _trOr('profiles.field_dob', 'Date of birth'),
+                  value: _dateOfBirth,
+                  colors: colors,
+                  onChanged: (d) => setState(() => _dateOfBirth = d),
                 ),
-                items: _genderOptions
-                    .map((g) => DropdownMenuItem(
-                          value: g,
-                          child: Text(_labelForGender(g)),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _gender = v),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _bloodType,
-                decoration: InputDecoration(
-                  labelText: 'Blood type',
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: colors.onSurfaceVariant),
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<String>(
+                  initialValue: _gender,
+                  decoration: InputDecoration(
+                    labelText: _trOr('profiles.field_gender', 'Gender'),
+                    border: const OutlineInputBorder(),
+                    labelStyle: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                  items: _genderOptions
+                      .map((g) => DropdownMenuItem(
+                            value: g,
+                            child: Text(_labelForGender(g)),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => _gender = v),
                 ),
-                items: _bloodTypeOptions
-                    .map((b) => DropdownMenuItem(value: b, child: Text(b)))
-                    .toList(),
-                onChanged: (v) => setState(() => _bloodType = v),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _notesCtrl,
-                maxLines: 5,
-                minLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Notes',
-                  alignLabelWithHint: true,
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: colors.onSurfaceVariant),
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<String>(
+                  initialValue: _bloodType,
+                  decoration: InputDecoration(
+                    labelText:
+                        _trOr('profiles.field_blood_type', 'Blood type'),
+                    border: const OutlineInputBorder(),
+                    labelStyle: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                  items: _bloodTypeOptions
+                      .map((b) =>
+                          DropdownMenuItem(value: b, child: Text(b)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _bloodType = v),
                 ),
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: management.isLoading ? null : _submit,
-                icon: management.isLoading
-                    ? SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colors.onPrimary,
-                        ),
-                      )
-                    : const Icon(Icons.save),
-                label: Text(_isEdit ? 'Save changes' : 'Create profile'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primary,
-                  foregroundColor: colors.onPrimary,
-                  minimumSize: const Size.fromHeight(48),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(
+                  controller: _notesCtrl,
+                  maxLines: 5,
+                  minLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: _trOr('profiles.field_notes', 'Notes'),
+                    alignLabelWithHint: true,
+                    border: const OutlineInputBorder(),
+                    labelStyle: TextStyle(color: colors.onSurfaceVariant),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: AppSpacing.lg),
+                FilledButton.icon(
+                  onPressed: management.isLoading ? null : _submit,
+                  icon: management.isLoading
+                      ? SizedBox(
+                          height: AppSpacing.md,
+                          width: AppSpacing.md,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colors.onPrimary,
+                          ),
+                        )
+                      : const Icon(Icons.save),
+                  label: Text(_isEdit
+                      ? _trOr('profiles.save_changes', 'Save changes')
+                      : _trOr('profiles.create', 'Create profile')),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colors.primary,
+                    foregroundColor: colors.onPrimary,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -203,15 +223,15 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   String _labelForGender(String v) {
     switch (v) {
       case 'female':
-        return 'Female';
+        return _trOr('profiles.gender.female', 'Female');
       case 'male':
-        return 'Male';
+        return _trOr('profiles.gender.male', 'Male');
       case 'intersex':
-        return 'Intersex';
+        return _trOr('profiles.gender.intersex', 'Intersex');
       case 'other':
-        return 'Other';
+        return _trOr('profiles.gender.other', 'Other');
       case 'prefer_not_to_say':
-        return 'Prefer not to say';
+        return _trOr('profiles.gender.prefer_not_to_say', 'Prefer not to say');
       default:
         return v;
     }
@@ -238,7 +258,9 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     if (result != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isEdit ? 'Profile updated' : 'Profile created'),
+          content: Text(_isEdit
+              ? _trOr('profiles.updated', 'Profile updated')
+              : _trOr('profiles.created', 'Profile created')),
         ),
       );
       Navigator.of(context).pop(result);
@@ -262,7 +284,7 @@ class _DatePickerField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = value == null
-        ? 'Not set'
+        ? _trOr('common.not_set', 'Not set')
         : value!.toIso8601String().split('T').first;
 
     return InkWell(

@@ -2,9 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/medication.dart';
 import '../../models/medication_intake.dart';
 import '../../providers/medication_intake_provider.dart';
+import '../../widgets/skeletons.dart';
+
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Displays a medication's intake history and lets the user log a new
 /// intake, edit an existing one, or delete entries.
@@ -204,12 +212,14 @@ class _IntakeLogScreenState extends ConsumerState<IntakeLogScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Intake — ${widget.medication.name}'),
+        title: Text(
+          '${_trOr('meds.intake.title', 'Intake log')} — ${widget.medication.name}',
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: mutation.loading ? null : _logNow,
         icon: const Icon(Icons.check_circle_outline),
-        label: const Text('Log intake now'),
+        label: Text(_trOr('meds.intake.log_now', 'Log intake now')),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -217,11 +227,11 @@ class _IntakeLogScreenState extends ConsumerState<IntakeLogScreen> {
           await ref.read(medicationIntakeListProvider(_key).future);
         },
         child: intakesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const SkeletonList(count: 5),
           error: (e, _) => ListView(
             children: [
               Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Text(
                   'Failed to load intakes: $e',
                   style: TextStyle(color: scheme.error),
@@ -241,17 +251,17 @@ class _IntakeLogScreenState extends ConsumerState<IntakeLogScreen> {
                       color: scheme.outline,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                   Center(
                     child: Text(
                       'No intakes logged yet',
                       style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Center(
                     child: Text(
-                      'Tap "Log intake now" to record your first dose',
+                      'Tap "${_trOr('meds.intake.log_now', 'Log intake now')}" to record your first dose',
                       style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                   ),
@@ -265,9 +275,14 @@ class _IntakeLogScreenState extends ConsumerState<IntakeLogScreen> {
               return tb.compareTo(ta);
             });
             return ListView.separated(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.sm + AppSpacing.xs,
+                AppSpacing.sm + AppSpacing.xs,
+                AppSpacing.sm + AppSpacing.xs,
+                AppSpacing.xxl + AppSpacing.xxl,
+              ),
               itemCount: sorted.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
               itemBuilder: (ctx, i) {
                 final it = sorted[i];
                 final when = it.takenAt ?? it.scheduledAt;

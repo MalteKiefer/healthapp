@@ -6,7 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_error_messages.dart';
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../providers/document_bulk_provider.dart';
+import '../../widgets/skeletons.dart';
+
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Sprint 3 — bulk document upload screen.
 ///
@@ -56,12 +64,19 @@ class _DocumentBulkUploadScreenState
     final text = Theme.of(context).textTheme;
     final state = ref.watch(documentBulkUploadProvider);
 
+    // Show skeleton placeholders while items are still pending
+    // (i.e. picked but not yet uploaded).
+    final hasPendingOnly = state.items.isNotEmpty &&
+        state.successCount == 0 &&
+        state.failedCount == 0 &&
+        !state.inProgress;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bulk upload'),
+        title: Text(_trOr('docs.bulk', 'Bulk upload')),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -73,24 +88,26 @@ class _DocumentBulkUploadScreenState
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _BatchSummary(state: state),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.sm),
                     Expanded(
-                      child: ListView.separated(
-                        itemCount: state.items.length,
-                        separatorBuilder: (_, _) => Divider(
-                          color: cs.outlineVariant,
-                          height: 1,
-                        ),
-                        itemBuilder: (context, i) {
-                          final item = state.items[i];
-                          return _BulkRow(item: item);
-                        },
-                      ),
+                      child: hasPendingOnly
+                          ? const SkeletonList(count: 4)
+                          : ListView.separated(
+                              itemCount: state.items.length,
+                              separatorBuilder: (_, _) => Divider(
+                                color: cs.outlineVariant,
+                                height: 1,
+                              ),
+                              itemBuilder: (context, i) {
+                                final item = state.items[i];
+                                return _BulkRow(item: item);
+                              },
+                            ),
                     ),
                   ],
                 ),
               ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             if (state.finished)
               Row(
                 children: [
@@ -98,10 +115,12 @@ class _DocumentBulkUploadScreenState
                     child: OutlinedButton.icon(
                       onPressed: _pickAndUpload,
                       icon: const Icon(Icons.add),
-                      label: const Text('Upload more'),
+                      label: Text(
+                        _trOr('docs.bulk.upload_more', 'Upload more'),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: () {
@@ -112,7 +131,7 @@ class _DocumentBulkUploadScreenState
                         }
                       },
                       icon: const Icon(Icons.check),
-                      label: const Text('Done'),
+                      label: Text(_trOr('common.done', 'Done')),
                     ),
                   ),
                 ],
@@ -120,8 +139,9 @@ class _DocumentBulkUploadScreenState
             else if (state.inProgress)
               Center(
                 child: Text(
-                  'Uploading ${state.successCount + state.failedCount} '
-                  'of ${state.totalCount}...',
+                  '${_trOr('docs.bulk.uploading', 'Uploading')} '
+                  '${state.successCount + state.failedCount} '
+                  '${_trOr('common.of', 'of')} ${state.totalCount}...',
                   style:
                       text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
                 ),
@@ -151,17 +171,20 @@ class _EmptyPickPrompt extends StatelessWidget {
               size: 64,
               color: cs.onSurfaceVariant,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             Text(
-              'Select multiple files to upload at once.',
+              _trOr(
+                'docs.bulk.prompt',
+                'Select multiple files to upload at once.',
+              ),
               style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.lg),
             FilledButton.icon(
               onPressed: onPick,
               icon: const Icon(Icons.file_upload),
-              label: const Text('Pick files'),
+              label: Text(_trOr('docs.bulk.pick', 'Pick files')),
             ),
           ],
         ),
@@ -189,17 +212,17 @@ class _BatchSummary extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '$done / $total complete',
+              '$done / $total ${_trOr('common.complete', 'complete')}',
               style: text.titleSmall?.copyWith(color: cs.onSurface),
             ),
             if (state.failedCount > 0)
               Text(
-                '${state.failedCount} failed',
+                '${state.failedCount} ${_trOr('common.failed', 'failed')}',
                 style: text.labelMedium?.copyWith(color: cs.error),
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
@@ -287,13 +310,13 @@ class _BulkRow extends StatelessWidget {
   String _statusLabel(BulkUploadStatus s) {
     switch (s) {
       case BulkUploadStatus.pending:
-        return 'Waiting';
+        return _trOr('docs.bulk.status.waiting', 'Waiting');
       case BulkUploadStatus.uploading:
-        return 'Uploading...';
+        return _trOr('docs.bulk.status.uploading', 'Uploading...');
       case BulkUploadStatus.success:
-        return 'Uploaded';
+        return _trOr('docs.bulk.status.uploaded', 'Uploaded');
       case BulkUploadStatus.failed:
-        return 'Failed';
+        return _trOr('docs.bulk.status.failed', 'Failed');
     }
   }
 }

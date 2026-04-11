@@ -3,8 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_error_messages.dart';
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/doctor_share.dart';
 import '../../providers/doctor_shares_provider.dart';
+import '../../widgets/skeletons.dart';
+
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Doctor shares list + create/revoke screen.
 ///
@@ -47,16 +55,17 @@ class DoctorSharesScreen extends ConsumerWidget {
       },
     );
 
+    final sharesTitle = _trOr('shares.title', 'Doctor shares');
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          profileName == null ? 'Doctor shares' : 'Shares · $profileName',
+          profileName == null ? sharesTitle : '$sharesTitle · $profileName',
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openCreateSheet(context, ref),
         icon: const Icon(Icons.add_link),
-        label: const Text('New share'),
+        label: Text(_trOr('shares.add', 'New share')),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -64,7 +73,7 @@ class DoctorSharesScreen extends ConsumerWidget {
           await ref.read(doctorSharesProvider(profileId).future);
         },
         child: asyncList.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const SkeletonList(count: 3),
           error: (err, _) => _ErrorView(
             message: apiErrorMessage(err),
             onRetry: () => ref.invalidate(doctorSharesProvider(profileId)),
@@ -79,10 +88,14 @@ class DoctorSharesScreen extends ConsumerWidget {
 
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               children: [
                 if (active.isNotEmpty) ...[
-                  _SectionHeader(label: 'Active', colors: colors, text: text),
+                  _SectionHeader(
+                    label: _trOr('shares.active', 'Active'),
+                    colors: colors,
+                    text: text,
+                  ),
                   ...active.map(
                     (s) => _ShareTile(
                       share: s,
@@ -93,7 +106,7 @@ class DoctorSharesScreen extends ConsumerWidget {
                 ],
                 if (inactive.isNotEmpty) ...[
                   _SectionHeader(
-                    label: 'Expired / revoked',
+                    label: _trOr('shares.expired', 'Expired / revoked'),
                     colors: colors,
                     text: text,
                   ),
@@ -191,8 +204,11 @@ class _ShareTile extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         color: colors.errorContainer,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Icon(Icons.link_off, color: colors.onErrorContainer),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        child: Tooltip(
+          message: _trOr('shares.revoke', 'Revoke'),
+          child: Icon(Icons.link_off, color: colors.onErrorContainer),
+        ),
       ),
       confirmDismiss: (_) => _confirmRevoke(context),
       onDismissed: (_) async {
@@ -224,7 +240,9 @@ class _ShareTile extends ConsumerWidget {
     await Clipboard.setData(ClipboardData(text: url));
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Share link copied to clipboard')),
+      SnackBar(
+        content: Text(_trOr('shares.copy_link', 'Share link copied to clipboard')),
+      ),
     );
   }
 
@@ -243,7 +261,7 @@ class _ShareTile extends ConsumerWidget {
           ),
           FilledButton.tonal(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Revoke'),
+            child: Text(_trOr('shares.revoke', 'Revoke')),
           ),
         ],
       ),
@@ -295,13 +313,18 @@ class _CreateShareSheetState extends ConsumerState<_CreateShareSheet> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('New doctor share', style: text.titleLarge),
-            const SizedBox(height: 16),
+            Text(_trOr('shares.add', 'New doctor share'), style: text.titleLarge),
+            const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _labelCtrl,
               textInputAction: TextInputAction.next,
@@ -311,10 +334,10 @@ class _CreateShareSheetState extends ConsumerState<_CreateShareSheet> {
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             InkWell(
               onTap: busy ? null : _pickExpiry,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppSpacing.sm),
               child: InputDecorator(
                 decoration: const InputDecoration(
                   labelText: 'Expires on',
@@ -330,9 +353,9 @@ class _CreateShareSheetState extends ConsumerState<_CreateShareSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             Text('Content scope', style: text.labelLarge),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             ..._scope.keys.map(
               (k) => CheckboxListTile(
                 dense: true,
@@ -344,7 +367,7 @@ class _CreateShareSheetState extends ConsumerState<_CreateShareSheet> {
                     : (v) => setState(() => _scope[k] = v ?? false),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             FilledButton.icon(
               onPressed: busy ? null : _submit,
               icon: busy
@@ -357,7 +380,7 @@ class _CreateShareSheetState extends ConsumerState<_CreateShareSheet> {
                       ),
                     )
                   : const Icon(Icons.link),
-              label: Text(busy ? 'Creating…' : 'Create share'),
+              label: Text(busy ? 'Creating…' : _trOr('shares.add', 'Create share')),
             ),
           ],
         ),
@@ -413,8 +436,10 @@ class _CreateShareSheetState extends ConsumerState<_CreateShareSheet> {
       if (result.shareUrl != null) {
         await Clipboard.setData(ClipboardData(text: result.shareUrl!));
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Share created — link copied to clipboard'),
+          SnackBar(
+            content: Text(
+              _trOr('shares.copy_link', 'Share created — link copied to clipboard'),
+            ),
           ),
         );
       } else {
@@ -452,7 +477,12 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm + AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.xs,
+      ),
       child: Text(
         label.toUpperCase(),
         style: text.labelSmall?.copyWith(
@@ -474,23 +504,23 @@ class _EmptyView extends StatelessWidget {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        const SizedBox(height: 96),
+        const SizedBox(height: AppSpacing.xxl * 2),
         Icon(
           Icons.share_outlined,
           size: 56,
           color: colors.onSurfaceVariant,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         Center(
           child: Text(
             'No doctor shares yet',
             style: text.titleMedium?.copyWith(color: colors.onSurfaceVariant),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Center(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: Text(
               'Create a temporary, end-to-end encrypted link to share '
               'selected health records with a doctor.',
@@ -515,16 +545,16 @@ class _ErrorView extends StatelessWidget {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        const SizedBox(height: 96),
+        const SizedBox(height: AppSpacing.xxl * 2),
         Icon(Icons.error_outline, size: 56, color: colors.error),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         Center(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: Text(message, textAlign: TextAlign.center),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         Center(
           child: FilledButton.tonal(
             onPressed: onRetry,

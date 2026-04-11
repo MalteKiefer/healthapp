@@ -2,8 +2,19 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/lab.dart';
 import '../../providers/lab_trends_provider.dart';
+import '../../widgets/skeletons.dart';
+
+/// Returns the translation for [key] if present, otherwise [fallback].
+/// `T.tr` returns the key itself when no entry is found, so we use that
+/// sentinel to detect missing keys and fall back to the English literal.
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Sprint 2: Lab Trends Visualization.
 ///
@@ -29,10 +40,13 @@ class _LabTrendsScreenState extends ConsumerState<LabTrendsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lab Trends'),
+        title: Text(_trOr('labs.trends.title', 'Lab Trends')),
       ),
       body: markersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: SkeletonCard(height: 240),
+        ),
         error: (e, _) => _ErrorView(
           message: 'Failed to load markers: $e',
           onRetry: () =>
@@ -63,7 +77,12 @@ class _LabTrendsScreenState extends ConsumerState<LabTrendsScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                ),
                 child: _MarkerPicker(
                   markers: markers,
                   selected: selected,
@@ -106,9 +125,9 @@ class _MarkerPicker extends StatelessWidget {
     if (markers.length > 12) {
       return DropdownButtonFormField<String>(
         initialValue: selected,
-        decoration: const InputDecoration(
-          labelText: 'Marker',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          labelText: _trOr('labs.trends.marker', 'Marker'),
+          border: const OutlineInputBorder(),
         ),
         items: [
           for (final m in markers)
@@ -125,7 +144,7 @@ class _MarkerPicker extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: markers.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (_, i) {
           final m = markers[i];
           final isSelected = m == selected;
@@ -156,7 +175,10 @@ class _MarkerTrendChart extends ConsumerWidget {
     final trendAsync = ref.watch(singleMarkerTrendProvider(key));
 
     return trendAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: SkeletonCard(height: 240),
+      ),
       error: (e, _) => _ErrorView(
         message: 'Failed to load trend: $e',
         onRetry: () => ref.invalidate(singleMarkerTrendProvider(key)),
@@ -235,7 +257,12 @@ class _LineChartView extends StatelessWidget {
         (trend.unit != null && trend.unit!.isNotEmpty) ? ' ${trend.unit}' : '';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -261,7 +288,7 @@ class _LineChartView extends StatelessWidget {
                     ?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           Expanded(
             child: LineChart(
               LineChartData(
@@ -425,7 +452,7 @@ class _LineChartView extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             '${dates.length} data point${dates.length == 1 ? '' : 's'}',
             style: textTheme.bodySmall
@@ -490,19 +517,19 @@ class _EmptyView extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 48, color: scheme.onSurfaceVariant),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
             Text(
               title,
               textAlign: TextAlign.center,
               style:
                   textTheme.titleMedium?.copyWith(color: scheme.onSurface),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xs + 2),
             Text(
               subtitle,
               textAlign: TextAlign.center,
@@ -527,18 +554,18 @@ class _ErrorView extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, size: 48, color: scheme.error),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
             Text(
               message,
               textAlign: TextAlign.center,
               style: TextStyle(color: scheme.onSurface),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
             FilledButton.tonal(
               onPressed: onRetry,
               child: const Text('Retry'),

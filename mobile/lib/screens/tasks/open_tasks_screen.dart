@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/theme/spacing.dart';
 import '../../models/common.dart';
 import '../../providers/open_tasks_provider.dart';
+import '../../widgets/skeletons.dart';
 
 /// A screen that lists only the open (not-yet-done) tasks for a profile.
 ///
@@ -70,17 +72,17 @@ class _OpenTasksScreenState extends ConsumerState<OpenTasksScreen> {
             Text('Due: $dueLabel'),
             if (task.priority != null && task.priority!.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
                 child: Text('Priority: ${task.priority}'),
               ),
             if (task.status != null && task.status!.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
                 child: Text('Status: ${task.status}'),
               ),
             if (task.description != null && task.description!.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.only(top: AppSpacing.sm + AppSpacing.xs),
                 child: Text(task.description!),
               ),
           ],
@@ -111,17 +113,17 @@ class _OpenTasksScreenState extends ConsumerState<OpenTasksScreen> {
           await ref.read(openTasksProvider(widget.profileId).future);
         },
         child: asyncTasks.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const SkeletonList(count: 5),
           error: (err, _) => ListView(
             children: [
-              const SizedBox(height: 120),
+              const SizedBox(height: AppSpacing.xxl * 2 + AppSpacing.lg),
               Center(
                 child: Text(
                   'Failed to load open tasks',
                   style: tt.bodyLarge?.copyWith(color: cs.error),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
               Center(
                 child: TextButton(
                   onPressed: () =>
@@ -135,7 +137,7 @@ class _OpenTasksScreenState extends ConsumerState<OpenTasksScreen> {
             if (tasks.isEmpty) {
               return ListView(
                 children: [
-                  const SizedBox(height: 160),
+                  const SizedBox(height: AppSpacing.xxl * 3 + AppSpacing.md),
                   Center(
                     child: Text(
                       'No open tasks',
@@ -152,9 +154,9 @@ class _OpenTasksScreenState extends ConsumerState<OpenTasksScreen> {
             final now = DateTime.now();
 
             return ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               itemCount: sorted.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 4),
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
               itemBuilder: (context, index) {
                 final task = sorted[index];
                 final due = _parseDue(task.dueAt);
@@ -171,8 +173,8 @@ class _OpenTasksScreenState extends ConsumerState<OpenTasksScreen> {
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 2,
+                    horizontal: AppSpacing.sm + AppSpacing.xs,
+                    vertical: AppSpacing.xs / 2,
                   ),
                   color: isSelected
                       ? cs.secondaryContainer
@@ -258,7 +260,10 @@ class _PriorityBadge extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm + AppSpacing.xs / 2,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(12),

@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/export_schedule.dart';
 import '../../providers/export_schedules_provider.dart';
 import '../../providers/providers.dart';
+import '../../widgets/skeletons.dart';
+
+/// `T.tr` returns the key itself when no entry is found, so we use that
+/// to fall back to a hard-coded English string when a translation is missing.
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Screen listing every persisted export schedule, with a + action to
 /// create a new one and a swipe / trash icon to delete an existing row.
@@ -18,7 +28,7 @@ class ExportSchedulesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Export schedules'),
+        title: Text(_trOr('export.schedules', 'Export schedules')),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: mutation.busy
@@ -33,20 +43,20 @@ class ExportSchedulesScreen extends ConsumerWidget {
           await ref.read(exportSchedulesProvider.future);
         },
         child: asyncList.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const SkeletonList(count: 3),
           error: (err, _) => ListView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               const SizedBox(height: 80),
               Icon(Icons.error_outline, size: 48, color: colors.error),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
               Center(
                 child: Text(
                   'Failed to load schedules',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Center(
                 child: Text(
                   err.toString(),
@@ -57,7 +67,7 @@ class ExportSchedulesScreen extends ConsumerWidget {
                       ?.copyWith(color: colors.onSurfaceVariant),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               Center(
                 child: FilledButton.tonal(
                   onPressed: () => ref.invalidate(exportSchedulesProvider),
@@ -73,7 +83,7 @@ class ExportSchedulesScreen extends ConsumerWidget {
                 children: [
                   const SizedBox(height: 120),
                   Icon(Icons.schedule, size: 64, color: colors.outline),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
                   Center(
                     child: Text(
                       'No schedules yet',
@@ -83,7 +93,7 @@ class ExportSchedulesScreen extends ConsumerWidget {
                           ?.copyWith(color: colors.onSurfaceVariant),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   Center(
                     child: Text(
                       'Tap the + button to create one.',
@@ -97,7 +107,7 @@ class ExportSchedulesScreen extends ConsumerWidget {
               );
             }
             return ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               itemCount: schedules.length,
               separatorBuilder: (_, _) =>
                   Divider(height: 1, color: colors.outlineVariant),
@@ -253,7 +263,12 @@ class _CreateScheduleSheetState extends ConsumerState<_CreateScheduleSheet> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 8, 20, 20 + bottomInset),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.lg - AppSpacing.xs,
+        AppSpacing.sm,
+        AppSpacing.lg - AppSpacing.xs,
+        (AppSpacing.lg - AppSpacing.xs) + bottomInset,
+      ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -263,9 +278,9 @@ class _CreateScheduleSheetState extends ConsumerState<_CreateScheduleSheet> {
               'New export schedule',
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             Text('Format', style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             SegmentedButton<String>(
               segments: const [
                 ButtonSegment(
@@ -287,7 +302,7 @@ class _CreateScheduleSheetState extends ConsumerState<_CreateScheduleSheet> {
               selected: {_format},
               onSelectionChanged: (s) => setState(() => _format = s.first),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.lg - AppSpacing.xs),
             Row(
               children: [
                 Expanded(
@@ -313,7 +328,7 @@ class _CreateScheduleSheetState extends ConsumerState<_CreateScheduleSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             if (_customCron)
               TextField(
                 controller: _cronController,
@@ -347,9 +362,9 @@ class _CreateScheduleSheetState extends ConsumerState<_CreateScheduleSheet> {
                   });
                 },
               ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.lg - AppSpacing.xs),
             Text('Destination', style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _destinationController,
               decoration: const InputDecoration(
@@ -359,13 +374,13 @@ class _CreateScheduleSheetState extends ConsumerState<_CreateScheduleSheet> {
               ),
             ),
             if (mutation.error != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 mutation.error!,
                 style: TextStyle(color: colors.error),
               ),
             ],
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.lg - AppSpacing.xs),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -375,7 +390,7 @@ class _CreateScheduleSheetState extends ConsumerState<_CreateScheduleSheet> {
                       : () => Navigator.of(context).pop(),
                   child: const Text('Cancel'),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 FilledButton.icon(
                   onPressed: mutation.busy ? null : _submit,
                   icon: mutation.busy

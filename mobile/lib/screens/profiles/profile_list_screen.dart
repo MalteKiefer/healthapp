@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/profile.dart';
 import '../../providers/profile_management_provider.dart';
 import '../../providers/providers.dart';
+import '../../widgets/skeletons.dart';
 import 'profile_edit_screen.dart';
 
 /// Lists all profiles with edit, delete, archive/unarchive actions.
@@ -11,9 +14,17 @@ import 'profile_edit_screen.dart';
 class ProfileListScreen extends ConsumerWidget {
   const ProfileListScreen({super.key});
 
+  /// Returns the translated string for [key], or [fallback] if the key is
+  /// not registered (i.e. `T.tr` returned the key unchanged).
+  String _trOr(String key, String fallback) {
+    final v = T.tr(key);
+    return v == key ? fallback : v;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final listAsync = ref.watch(profilesWithMetaProvider);
     final management = ref.watch(profileManagementProvider);
 
@@ -33,7 +44,7 @@ class ProfileListScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: colors.surface,
       appBar: AppBar(
-        title: const Text('Profiles'),
+        title: Text(_trOr('profiles.title', 'Profiles')),
         backgroundColor: colors.surface,
         foregroundColor: colors.onSurface,
       ),
@@ -45,7 +56,7 @@ class ProfileListScreen extends ConsumerWidget {
               final archived = items.where((p) => p.isArchived).toList();
 
               if (items.isEmpty) {
-                return _EmptyState(colors: colors);
+                return _EmptyState(colors: colors, trOr: _trOr);
               }
 
               return RefreshIndicator(
@@ -54,20 +65,26 @@ class ProfileListScreen extends ConsumerWidget {
                   await ref.read(profilesWithMetaProvider.future);
                 },
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                   children: [
                     if (active.isEmpty)
                       Padding(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(AppSpacing.lg),
                         child: Text(
-                          'No active profiles. Tap + to create one.',
-                          style: TextStyle(color: colors.onSurfaceVariant),
+                          _trOr(
+                            'profiles.no_active',
+                            'No active profiles. Tap + to create one.',
+                          ),
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
                     ...active.map(
                       (p) => _ProfileTile(
                         meta: p,
+                        trOr: _trOr,
                         onEdit: () => _openEdit(context, p.profile),
                         onDelete: () => _confirmDelete(context, ref, p.profile),
                         onArchive: () => ref
@@ -80,6 +97,7 @@ class ProfileListScreen extends ConsumerWidget {
                       _ArchivedSection(
                         colors: colors,
                         archived: archived,
+                        trOr: _trOr,
                         onEdit: (p) => _openEdit(context, p),
                         onDelete: (p) => _confirmDelete(context, ref, p),
                         onUnarchive: (p) => ref
@@ -90,24 +108,31 @@ class ProfileListScreen extends ConsumerWidget {
                 ),
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              child: SkeletonList(count: 5),
+            ),
             error: (e, _) => Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.error_outline,
                         color: colors.error, size: 48),
-                    const SizedBox(height: 12),
-                    Text('Failed to load profiles: $e',
-                        style: TextStyle(color: colors.onSurface),
-                        textAlign: TextAlign.center),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
+                    Text(
+                      '${_trOr('profiles.load_failed', 'Failed to load profiles')}: $e',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colors.onSurface,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
                     FilledButton(
                       onPressed: () =>
                           ref.invalidate(profilesWithMetaProvider),
-                      child: const Text('Retry'),
+                      child: Text(_trOr('common.retry', 'Retry')),
                     ),
                   ],
                 ),
@@ -128,7 +153,7 @@ class ProfileListScreen extends ConsumerWidget {
         backgroundColor: colors.primary,
         foregroundColor: colors.onPrimary,
         icon: const Icon(Icons.person_add),
-        label: const Text('New profile'),
+        label: Text(_trOr('profiles.add', 'New profile')),
       ),
     );
   }
@@ -150,20 +175,23 @@ class ProfileListScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete profile?'),
+        title: Text(_trOr('profiles.delete_confirm', 'Delete profile?')),
         content: Text(
-          'This permanently deletes "${p.displayName}" and all its data. '
-          'This cannot be undone.',
+          _trOr(
+            'profiles.delete_body',
+            'This permanently deletes "${p.displayName}" and all its data. '
+                'This cannot be undone.',
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(_trOr('common.cancel', 'Cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: colors.error),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+            child: Text(_trOr('common.delete', 'Delete')),
           ),
         ],
       ),
@@ -176,6 +204,7 @@ class ProfileListScreen extends ConsumerWidget {
 
 class _ProfileTile extends StatelessWidget {
   final ProfileWithMeta meta;
+  final String Function(String, String) trOr;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback? onArchive;
@@ -183,6 +212,7 @@ class _ProfileTile extends StatelessWidget {
 
   const _ProfileTile({
     required this.meta,
+    required this.trOr,
     required this.onEdit,
     required this.onDelete,
     required this.onArchive,
@@ -192,6 +222,7 @@ class _ProfileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final p = meta.profile;
     final subtitleBits = <String>[
       if (p.dateOfBirth != null && p.dateOfBirth!.isNotEmpty) p.dateOfBirth!,
@@ -201,7 +232,10 @@ class _ProfileTile extends StatelessWidget {
     ];
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm + AppSpacing.xs,
+        vertical: AppSpacing.xs + 2,
+      ),
       color: colors.surfaceContainer,
       child: ListTile(
         leading: CircleAvatar(
@@ -213,13 +247,15 @@ class _ProfileTile extends StatelessWidget {
         ),
         title: Text(
           p.displayName,
-          style: TextStyle(color: colors.onSurface),
+          style: textTheme.titleMedium?.copyWith(color: colors.onSurface),
         ),
         subtitle: subtitleBits.isEmpty
             ? null
             : Text(
                 subtitleBits.join('  •  '),
-                style: TextStyle(color: colors.onSurfaceVariant),
+                style: textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
               ),
         trailing: PopupMenuButton<String>(
           icon: Icon(Icons.more_vert, color: colors.onSurfaceVariant),
@@ -240,13 +276,24 @@ class _ProfileTile extends StatelessWidget {
             }
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'edit', child: Text('Edit')),
+            PopupMenuItem(
+              value: 'edit',
+              child: Text(trOr('common.edit', 'Edit')),
+            ),
             if (onArchive != null)
-              const PopupMenuItem(value: 'archive', child: Text('Archive')),
+              PopupMenuItem(
+                value: 'archive',
+                child: Text(trOr('profiles.archive', 'Archive')),
+              ),
             if (onUnarchive != null)
-              const PopupMenuItem(
-                  value: 'unarchive', child: Text('Unarchive')),
-            const PopupMenuItem(value: 'delete', child: Text('Delete')),
+              PopupMenuItem(
+                value: 'unarchive',
+                child: Text(trOr('profiles.unarchive', 'Unarchive')),
+              ),
+            PopupMenuItem(
+              value: 'delete',
+              child: Text(trOr('common.delete', 'Delete')),
+            ),
           ],
         ),
         onTap: onEdit,
@@ -258,6 +305,7 @@ class _ProfileTile extends StatelessWidget {
 class _ArchivedSection extends StatefulWidget {
   final ColorScheme colors;
   final List<ProfileWithMeta> archived;
+  final String Function(String, String) trOr;
   final void Function(Profile) onEdit;
   final void Function(Profile) onDelete;
   final void Function(Profile) onUnarchive;
@@ -265,6 +313,7 @@ class _ArchivedSection extends StatefulWidget {
   const _ArchivedSection({
     required this.colors,
     required this.archived,
+    required this.trOr,
     required this.onEdit,
     required this.onDelete,
     required this.onUnarchive,
@@ -279,8 +328,9 @@ class _ArchivedSectionState extends State<_ArchivedSection> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -290,17 +340,20 @@ class _ArchivedSectionState extends State<_ArchivedSection> {
               onTap: () => setState(() => _expanded = !_expanded),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm + AppSpacing.xs,
+                ),
                 child: Row(
                   children: [
                     Icon(
                       _expanded ? Icons.expand_less : Icons.expand_more,
                       color: widget.colors.onSurfaceVariant,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     Text(
-                      'Archived (${widget.archived.length})',
-                      style: TextStyle(
+                      '${widget.trOr('profiles.archived_section', 'Archived')} '
+                      '(${widget.archived.length})',
+                      style: textTheme.titleSmall?.copyWith(
                         color: widget.colors.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                       ),
@@ -314,6 +367,7 @@ class _ArchivedSectionState extends State<_ArchivedSection> {
             ...widget.archived.map(
               (p) => _ProfileTile(
                 meta: p,
+                trOr: widget.trOr,
                 onEdit: () => widget.onEdit(p.profile),
                 onDelete: () => widget.onDelete(p.profile),
                 onArchive: null,
@@ -328,31 +382,37 @@ class _ArchivedSectionState extends State<_ArchivedSection> {
 
 class _EmptyState extends StatelessWidget {
   final ColorScheme colors;
+  final String Function(String, String) trOr;
 
-  const _EmptyState({required this.colors});
+  const _EmptyState({required this.colors, required this.trOr});
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.people_outline, size: 64, color: colors.onSurfaceVariant),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             Text(
-              'No profiles yet',
-              style: TextStyle(
+              trOr('profiles.empty_title', 'No profiles yet'),
+              style: textTheme.titleMedium?.copyWith(
                 color: colors.onSurface,
-                fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
-              'Tap the button below to create your first profile.',
-              style: TextStyle(color: colors.onSurfaceVariant),
+              trOr(
+                'profiles.empty_body',
+                'Tap the button below to create your first profile.',
+              ),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
           ],

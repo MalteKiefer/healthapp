@@ -2,10 +2,19 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/export_schedule.dart';
 import '../../providers/export_provider.dart';
 import '../../providers/providers.dart';
 import 'export_schedules_screen.dart';
+
+/// `T.tr` returns the key itself when no entry is found, so we use that
+/// to fall back to a hard-coded English string when a translation is missing.
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Top-level Export screen — three large action cards (FHIR / PDF / ICS)
 /// plus an "Import FHIR bundle" entry point. Each download action streams
@@ -25,10 +34,10 @@ class ExportScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Export'),
+        title: Text(_trOr('export.title', 'Export')),
         actions: [
           IconButton(
-            tooltip: 'Schedules',
+            tooltip: _trOr('export.schedules', 'Schedules'),
             icon: const Icon(Icons.schedule),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
@@ -39,7 +48,7 @@ class ExportScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           if (!hasProfile)
             _InfoBanner(
@@ -49,7 +58,7 @@ class ExportScreen extends ConsumerWidget {
               message: 'Select a profile first to enable exports.',
             ),
           if (state.error != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _InfoBanner(
               icon: Icons.error_outline,
               color: colors.errorContainer,
@@ -59,7 +68,7 @@ class ExportScreen extends ConsumerWidget {
             ),
           ],
           if (state.lastFilename != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _InfoBanner(
               icon: Icons.check_circle_outline,
               color: colors.secondaryContainer,
@@ -68,37 +77,37 @@ class ExportScreen extends ConsumerWidget {
               onClose: () => controller.reset(),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           _ExportActionCard(
             icon: Icons.local_hospital_outlined,
-            title: 'Export FHIR',
+            title: _trOr('export.fhir', 'Export FHIR'),
             description:
                 'Download an HL7 FHIR R4 bundle of every record for this profile.',
             busy: state.busy && state.activeFormat == ExportFormats.fhir,
             disabled: !hasProfile || state.busy,
             onPressed: () => controller.exportFhir(profileId),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
           _ExportActionCard(
             icon: Icons.picture_as_pdf_outlined,
-            title: 'Export PDF',
+            title: _trOr('export.pdf', 'Export PDF'),
             description:
                 'Generate a printable PDF report summarizing the profile.',
             busy: state.busy && state.activeFormat == ExportFormats.pdf,
             disabled: !hasProfile || state.busy,
             onPressed: () => controller.exportPdf(profileId),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
           _ExportActionCard(
             icon: Icons.event_outlined,
-            title: 'Export ICS',
+            title: _trOr('export.ics', 'Export ICS'),
             description:
                 'Download upcoming appointments as an ICS calendar file.',
             busy: state.busy && state.activeFormat == ExportFormats.ics,
             disabled: !hasProfile || state.busy,
             onPressed: () => controller.exportIcs(profileId),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.xl),
           Text(
             'Import',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -106,10 +115,10 @@ class ExportScreen extends ConsumerWidget {
                   fontWeight: FontWeight.w600,
                 ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _ExportActionCard(
             icon: Icons.upload_file_outlined,
-            title: 'Import FHIR bundle',
+            title: _trOr('export.import_fhir', 'Import FHIR bundle'),
             description:
                 'Upload a FHIR JSON bundle and merge its records into this profile.',
             busy: state.busy && state.activeFormat == 'import-fhir',
@@ -189,7 +198,7 @@ class _ExportActionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: disabled ? null : onPressed,
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpacing.lg - AppSpacing.xs),
           child: Row(
             children: [
               Container(
@@ -201,7 +210,7 @@ class _ExportActionCard extends StatelessWidget {
                 ),
                 child: Icon(icon, color: fg, size: 28),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,7 +222,7 @@ class _ExportActionCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       description,
                       style: text.bodySmall?.copyWith(
@@ -223,7 +232,7 @@ class _ExportActionCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               SizedBox(
                 width: 28,
                 height: 28,
@@ -260,7 +269,12 @@ class _InfoBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm + AppSpacing.xs,
+        AppSpacing.sm,
+        AppSpacing.sm + AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(12),
@@ -268,7 +282,7 @@ class _InfoBanner extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon, color: foreground, size: 20),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.sm + AppSpacing.xs),
           Expanded(
             child: Text(
               message,

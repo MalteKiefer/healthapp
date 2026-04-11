@@ -2,9 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/search_result.dart';
 import '../../providers/providers.dart';
 import '../../providers/search_provider.dart';
+import '../../widgets/skeletons.dart';
+
+/// Returns the translation for [key], falling back to [fallback] when the
+/// key is missing (i.e. [T.tr] echoes the key back).
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Global search screen (Sprint 4 client-side rewrite).
 ///
@@ -27,7 +37,7 @@ class SearchScreen extends ConsumerStatefulWidget {
 }
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
-  final SearchController _controller = SearchController();
+  final TextEditingController _controller = TextEditingController();
 
   @override
   void dispose() {
@@ -60,71 +70,103 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final cs = Theme.of(context).colorScheme;
     final async = ref.watch(searchProvider);
 
+    final query = _controller.text;
+    final isLoading = async.isLoading || async.isRefreshing;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Search'),
+        title: Text(_trOr('search.title', 'Search')),
       ),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SearchBar(
+            TextField(
               controller: _controller,
-              hintText: 'Search medications, labs, diagnoses...',
-              leading: Icon(Icons.search, color: cs.onSurfaceVariant),
-              trailing: [
-                if (_controller.text.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    tooltip: 'Clear',
-                    onPressed: () {
-                      _controller.clear();
-                      ref.read(searchProvider.notifier).clear();
-                      setState(() {});
-                    },
-                  ),
-              ],
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.search,
+              // Explicitly disable browser/OS autofill: this is a free-form
+              // search field, never an email/username/password. Setting this
+              // to null prevents the platform from polluting the field with
+              // saved-credential suggestions.
+              autofillHints: null,
+              autofocus: false,
+              decoration: InputDecoration(
+                hintText: _trOr(
+                  'search.hint',
+                  'Search medications, labs, diagnoses...',
+                ),
+                prefixIcon: Icon(Icons.search, color: cs.onSurfaceVariant),
+                suffixIcon: _controller.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close),
+                        tooltip: 'Clear',
+                        onPressed: () {
+                          _controller.clear();
+                          ref.read(searchProvider.notifier).clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: cs.surfaceContainerHigh,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.lg),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm + 2,
+                ),
+              ),
               onChanged: (value) {
                 _onChanged(value);
                 setState(() {});
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             Expanded(
-              child: async.when(
-                data: (results) => _ResultsList(
-                  results: results,
-                  query: _controller.text,
-                  onTap: (r) {
-                    final ok = _navigateTo(context, r);
-                    if (!ok) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Select a profile first to open this result.',
+              child: isLoading && query.trim().isNotEmpty
+                  ? const SkeletonList(count: 5)
+                  : async.when(
+                      data: (results) => _ResultsList(
+                        results: results,
+                        query: query,
+                        onTap: (r) {
+                          final ok = _navigateTo(context, r);
+                          if (!ok) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Select a profile first to open this result.',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      loading: () => const SkeletonList(count: 5),
+                      error: (err, _) => Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: Text(
+                            'Search failed: $err',
+                            style: TextStyle(color: cs.error),
+                            textAlign: TextAlign.center,
                           ),
                         ),
-                      );
-                    }
-                  },
-                ),
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (err, _) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      'Search failed: $err',
-                      style: TextStyle(color: cs.error),
-                      textAlign: TextAlign.center,
+                      ),
                     ),
-                  ),
-                ),
-              ),
             ),
             Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 4),
+              padding: const EdgeInsets.only(
+                top: AppSpacing.sm,
+                bottom: AppSpacing.xs,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -133,12 +175,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     size: 14,
                     color: cs.onSurfaceVariant,
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Search happens locally on your device',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                  const SizedBox(width: AppSpacing.xs + 2),
+                  Flexible(
+                    child: Text(
+                      _trOr(
+                        'search.local_hint',
+                        'Search happens locally on your device',
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                    ),
                   ),
                 ],
               ),
@@ -168,20 +215,30 @@ class _ResultsList extends StatelessWidget {
 
     if (query.trim().isEmpty) {
       return Center(
-        child: Text(
-          'Start typing to search across all your health data.',
-          style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-          textAlign: TextAlign.center,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Text(
+            _trOr(
+              'search.empty_state',
+              'Start typing to search across all your health data.',
+            ),
+            style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
 
     if (results.isEmpty) {
+      final base = _trOr('search.no_results', 'No results');
       return Center(
-        child: Text(
-          'No results for "$query"',
-          style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-          textAlign: TextAlign.center,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Text(
+            '$base "$query"',
+            style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
@@ -209,7 +266,12 @@ class _ResultsList extends StatelessWidget {
         final item = entries[i];
         if (item is SearchResultType) {
           return Padding(
-            padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xs,
+              AppSpacing.md,
+              AppSpacing.xs,
+              AppSpacing.sm,
+            ),
             child: Text(
               item.label,
               style: text.labelLarge?.copyWith(
@@ -223,7 +285,7 @@ class _ResultsList extends StatelessWidget {
         return Card(
           elevation: 0,
           color: cs.surfaceContainerLow,
-          margin: const EdgeInsets.symmetric(vertical: 4),
+          margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: cs.primaryContainer,

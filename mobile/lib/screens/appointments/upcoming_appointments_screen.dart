@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/theme/spacing.dart';
 import '../../models/common.dart';
 import '../../providers/appointment_extras_provider.dart';
+import '../../widgets/skeletons.dart';
 
 /// Lists a profile's upcoming appointments and allows marking them complete.
 class UpcomingAppointmentsScreen extends ConsumerWidget {
@@ -32,7 +34,7 @@ class UpcomingAppointmentsScreen extends ConsumerWidget {
           await ref.read(upcomingAppointmentsProvider(profileId).future);
         },
         child: upcomingAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const SkeletonList(count: 5),
           error: (e, _) => _ErrorView(
             message: e.toString(),
             onRetry: () =>
@@ -43,10 +45,11 @@ class UpcomingAppointmentsScreen extends ConsumerWidget {
               return const _EmptyState();
             }
             return ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.md),
               physics: const AlwaysScrollableScrollPhysics(),
               itemCount: items.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) =>
+                  const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
               itemBuilder: (context, index) {
                 final appt = items[index];
                 return _UpcomingAppointmentTile(
@@ -119,7 +122,12 @@ class _UpcomingAppointmentTile extends ConsumerWidget {
         final colors = Theme.of(ctx).colorScheme;
         final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
         return Padding(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.md + bottomInset,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -130,14 +138,14 @@ class _UpcomingAppointmentTile extends ConsumerWidget {
                       color: colors.onSurface,
                     ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 'Add optional notes about this visit.',
                 style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               TextField(
                 controller: controller,
                 maxLines: 4,
@@ -149,7 +157,7 @@ class _UpcomingAppointmentTile extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -157,7 +165,7 @@ class _UpcomingAppointmentTile extends ConsumerWidget {
                     onPressed: () => Navigator.of(ctx).pop(),
                     child: const Text('Cancel'),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   FilledButton.icon(
                     icon: const Icon(Icons.check),
                     label: const Text('Mark complete'),
@@ -187,14 +195,14 @@ class _UpcomingAppointmentTile extends ConsumerWidget {
         side: BorderSide(color: colors.outlineVariant),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(Icons.event, color: colors.primary),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     appointment.title,
@@ -206,12 +214,12 @@ class _UpcomingAppointmentTile extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
                 Icon(Icons.schedule,
                     size: 16, color: colors.onSurfaceVariant),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xs + 2),
                 Expanded(
                   child: Text(
                     _formatScheduledAt(appointment.scheduledAt),
@@ -223,12 +231,12 @@ class _UpcomingAppointmentTile extends ConsumerWidget {
               ],
             ),
             if ((appointment.location ?? '').isNotEmpty) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               Row(
                 children: [
                   Icon(Icons.place,
                       size: 16, color: colors.onSurfaceVariant),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: AppSpacing.xs + 2),
                   Expanded(
                     child: Text(
                       appointment.location!,
@@ -240,7 +248,7 @@ class _UpcomingAppointmentTile extends ConsumerWidget {
                 ],
               ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
             Align(
               alignment: Alignment.centerRight,
               child: FilledButton.tonalIcon(
@@ -276,13 +284,13 @@ class _EmptyState extends StatelessWidget {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        const SizedBox(height: 96),
+        const SizedBox(height: AppSpacing.xxl * 2),
         Icon(
           Icons.event_available,
           size: 72,
           color: colors.onSurfaceVariant,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         Center(
           child: Text(
             'No upcoming appointments',
@@ -291,7 +299,7 @@ class _EmptyState extends StatelessWidget {
                 ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Center(
           child: Text(
             'You are all caught up.',
@@ -316,11 +324,11 @@ class _ErrorView extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
-        const SizedBox(height: 96),
+        const SizedBox(height: AppSpacing.xxl * 2),
         Icon(Icons.error_outline, size: 64, color: colors.error),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         Center(
           child: Text(
             'Failed to load appointments',
@@ -329,7 +337,7 @@ class _ErrorView extends StatelessWidget {
                 ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Center(
           child: Text(
             message,
@@ -339,7 +347,7 @@ class _ErrorView extends StatelessWidget {
                 ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         Center(
           child: FilledButton.icon(
             onPressed: onRetry,

@@ -2,8 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_error_messages.dart';
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/emergency_access.dart';
 import '../../providers/emergency_access_provider.dart';
+import '../../widgets/skeletons.dart';
+
+/// Returns the translation for [key] if present, otherwise [fallback].
+///
+/// `T.tr` returns the key itself when no entry is found, so we use that
+/// sentinel to detect missing keys and fall back to the English literal.
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Emergency Access screen.
 ///
@@ -26,12 +38,12 @@ class EmergencyAccessScreen extends ConsumerWidget {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Emergency access'),
-          bottom: const TabBar(
+          title: Text(_trOr('emergency.title', 'Emergency access')),
+          bottom: TabBar(
             tabs: [
-              Tab(text: 'Card preview'),
-              Tab(text: 'Access config'),
-              Tab(text: 'Pending requests'),
+              Tab(text: _trOr('emergency.card', 'Card preview')),
+              Tab(text: _trOr('emergency.config', 'Access config')),
+              Tab(text: _trOr('emergency.pending', 'Pending requests')),
             ],
           ),
         ),
@@ -76,7 +88,7 @@ class _CardPreviewTab extends ConsumerWidget {
           onRetry: () => ref.invalidate(emergencyCardProvider(profileId)),
         ),
         data: (card) => ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             _SectionCard(
               title: 'Emergency card',
@@ -89,7 +101,7 @@ class _CardPreviewTab extends ConsumerWidget {
                       'Public URL',
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     SelectableText(
                       card.url!,
                       style: TextStyle(
@@ -97,22 +109,24 @@ class _CardPreviewTab extends ConsumerWidget {
                         color: scheme.primary,
                       ),
                     ),
-                    const Divider(height: 24),
+                    const Divider(height: AppSpacing.lg),
                   ],
                   _Field(label: 'Blood type', value: card.bloodType),
                   _ListField(label: 'Allergies', items: card.allergies),
                   _ListField(label: 'Medications', items: card.medications),
                   _ListField(label: 'Diagnoses', items: card.diagnoses),
                   if (card.contacts.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       'Emergency contacts',
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     ...card.contacts.map(
                       (c) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xs,
+                        ),
                         child: Text(
                           [
                             if ((c.name ?? '').isNotEmpty) c.name,
@@ -125,16 +139,16 @@ class _CardPreviewTab extends ConsumerWidget {
                     ),
                   ],
                   if ((card.message ?? '').isNotEmpty) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       'Message',
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(card.message!),
                   ],
                   if (card.isEmpty && !card.hasUrl) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       'No emergency card data is available yet.',
                       style: TextStyle(color: scheme.onSurfaceVariant),
@@ -246,7 +260,7 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
       data: (cfg) {
         _hydrate(cfg);
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             _SectionCard(
               title: 'Status',
@@ -255,8 +269,8 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
                     ),
                     decoration: BoxDecoration(
                       color: cfg.enabled
@@ -283,7 +297,7 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             _SectionCard(
               title: 'Access type',
               icon: Icons.lock_outline,
@@ -296,7 +310,9 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                             ? null
                             : () => setState(() => _accessType = t),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.xs,
+                          ),
                           child: Row(
                             children: [
                               Icon(
@@ -306,7 +322,7 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                                 size: 20,
                                 color: scheme.primary,
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: Text(EmergencyAccessType.label(t)),
                               ),
@@ -318,7 +334,7 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                     .toList(),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             _SectionCard(
               title: 'Delay (hours)',
               icon: Icons.schedule_outlined,
@@ -332,7 +348,7 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                           color: scheme.onSurfaceVariant,
                         ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Row(
                     children: [
                       Expanded(
@@ -360,7 +376,7 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             _SectionCard(
               title: 'Notify contacts',
               icon: Icons.notifications_outlined,
@@ -374,7 +390,7 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                           color: scheme.onSurfaceVariant,
                         ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   if (_notifyContacts.isEmpty)
                     Text(
                       'No contacts added yet.',
@@ -382,8 +398,8 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                     )
                   else
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
                       children: _notifyContacts
                           .map(
                             (c) => InputChip(
@@ -396,7 +412,7 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                           )
                           .toList(),
                     ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Row(
                     children: [
                       Expanded(
@@ -410,7 +426,7 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                           onSubmitted: (_) => _addContact(),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.sm),
                       FilledButton.tonal(
                         onPressed: mutation.busy ? null : _addContact,
                         child: const Text('Add'),
@@ -420,7 +436,7 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
@@ -437,7 +453,7 @@ class _AccessConfigTabState extends ConsumerState<_AccessConfigTab> {
             ),
             if (mutation.busy)
               const Padding(
-                padding: EdgeInsets.only(top: 16),
+                padding: EdgeInsets.only(top: AppSpacing.md),
                 child: Center(child: CircularProgressIndicator()),
               ),
           ],
@@ -511,7 +527,10 @@ class _PendingRequestsTab extends ConsumerWidget {
             .catchError((_) => const <EmergencyRequest>[]);
       },
       child: pendingAsync.when(
-        loading: () => const _CenteredLoading(),
+        loading: () => const Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: SkeletonList(count: 3),
+        ),
         error: (err, _) => _ErrorView(
           message: apiErrorMessage(err),
           onRetry: () => ref.invalidate(emergencyPendingRequestsProvider),
@@ -529,7 +548,7 @@ class _PendingRequestsTab extends ConsumerWidget {
                         size: 48,
                         color: scheme.onSurfaceVariant,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.sm),
                       Text(
                         'No pending emergency requests.',
                         style: TextStyle(color: scheme.onSurfaceVariant),
@@ -541,15 +560,15 @@ class _PendingRequestsTab extends ConsumerWidget {
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.md),
             itemCount: items.length,
             separatorBuilder: (context, index) =>
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) {
               final req = items[index];
               return Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(AppSpacing.sm),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -573,10 +592,10 @@ class _PendingRequestsTab extends ConsumerWidget {
                           style: TextStyle(color: scheme.onSurfaceVariant),
                         ),
                       if ((req.reason ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: AppSpacing.xs),
                         Text(req.reason!),
                       ],
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.sm),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -585,15 +604,16 @@ class _PendingRequestsTab extends ConsumerWidget {
                                 ? null
                                 : () => handleDeny(req.id),
                             icon: const Icon(Icons.close),
-                            label: const Text('Deny'),
+                            label: Text(_trOr('emergency.deny', 'Deny')),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: AppSpacing.sm),
                           FilledButton.icon(
                             onPressed: mutation.busy
                                 ? null
                                 : () => handleApprove(req.id),
                             icon: const Icon(Icons.check),
-                            label: const Text('Approve'),
+                            label:
+                                Text(_trOr('emergency.approve', 'Approve')),
                           ),
                         ],
                       ),
@@ -629,21 +649,21 @@ class _SectionCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(icon, color: scheme.primary, size: 20),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             child,
           ],
         ),
@@ -661,7 +681,7 @@ class _Field extends StatelessWidget {
   Widget build(BuildContext context) {
     if ((value ?? '').isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -683,7 +703,7 @@ class _ListField extends StatelessWidget {
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -714,18 +734,18 @@ class _ErrorView extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, color: scheme.error, size: 40),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               message,
               textAlign: TextAlign.center,
               style: TextStyle(color: scheme.onSurface),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             FilledButton.tonal(
               onPressed: onRetry,
               child: const Text('Retry'),

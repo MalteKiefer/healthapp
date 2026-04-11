@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/symptom_chart_data.dart';
 import '../../providers/providers.dart';
 import '../../providers/symptom_chart_provider.dart';
+import '../../widgets/skeletons.dart';
 
 /// Shows severity trends over time per symptom.
 ///
@@ -28,7 +31,7 @@ class _SymptomChartScreenState extends ConsumerState<SymptomChartScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Symptom Chart'),
+        title: Text(T.tr('symptoms.title')),
       ),
       body: profile == null
           ? const _CenteredMessage(message: 'No profile selected')
@@ -40,15 +43,20 @@ class _SymptomChartScreenState extends ConsumerState<SymptomChartScreen> {
     final async = ref.watch(symptomChartProvider(profileId));
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Column(
+        children: [
+          SkeletonCard(height: 48),
+          SkeletonCard(height: 240),
+          SkeletonCard(height: 96),
+        ],
+      ),
       error: (err, _) => _CenteredMessage(
-        message: 'Failed to load symptom chart\n$err',
+        message: '${T.tr('symptoms.failed')}\n$err',
       ),
       data: (chart) {
         if (chart.isEmpty) {
-          return const _CenteredMessage(
-            message: 'No symptom data yet.\nStart tracking symptoms to see '
-                'severity trends here.',
+          return _CenteredMessage(
+            message: T.tr('symptoms.no_active'),
           );
         }
 
@@ -69,16 +77,16 @@ class _SymptomChartScreenState extends ConsumerState<SymptomChartScreen> {
             await ref.read(symptomChartProvider(profileId).future);
           },
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.md),
             children: [
               _SymptomFilterChips(
                 names: names,
                 selected: selected,
                 onSelected: (name) => setState(() => _selectedSymptom = name),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               _ChartCard(series: series),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               _SeriesSummary(series: series),
             ],
           ),
@@ -102,8 +110,8 @@ class _SymptomFilterChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
       children: [
         for (final name in names)
           ChoiceChip(
@@ -129,10 +137,10 @@ class _ChartCard extends StatelessWidget {
     if (points.isEmpty) {
       return Card(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Center(
             child: Text(
-              'No data points for ${series.symptomName}',
+              '${T.tr('symptoms.no_active')} (${series.symptomName})',
               style: TextStyle(color: cs.onSurfaceVariant),
             ),
           ),
@@ -151,7 +159,12 @@ class _ChartCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 20, 20, 12),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.sm + AppSpacing.xs,
+          AppSpacing.md + AppSpacing.xs,
+          AppSpacing.lg - AppSpacing.xs,
+          AppSpacing.sm + AppSpacing.xs,
+        ),
         child: SizedBox(
           height: 260,
           child: LineChart(
@@ -201,7 +214,7 @@ class _ChartCard extends StatelessWidget {
                         return const SizedBox.shrink();
                       }
                       return Padding(
-                        padding: const EdgeInsets.only(top: 6),
+                        padding: const EdgeInsets.only(top: AppSpacing.xs + 2),
                         child: Text(
                           dateFmt.format(points[idx].date),
                           style: TextStyle(
@@ -284,7 +297,7 @@ class _SeriesSummary extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -294,7 +307,7 @@ class _SeriesSummary extends StatelessWidget {
                     color: cs.onSurface,
                   ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
                 _StatTile(label: 'Entries', value: '${points.length}'),
@@ -352,7 +365,7 @@ class _CenteredMessage extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Text(
           message,
           textAlign: TextAlign.center,

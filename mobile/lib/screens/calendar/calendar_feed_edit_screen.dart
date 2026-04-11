@@ -3,10 +3,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_error_messages.dart';
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/calendar_feed.dart';
 import '../../models/profile.dart';
 import '../../providers/calendar_feeds_provider.dart';
 import '../../providers/providers.dart';
+import '../../widgets/skeletons.dart';
+
+/// Returns the translation for [key] if present, otherwise [fallback].
+/// `T.tr` returns the key itself when no entry is found, so we use that
+/// sentinel to detect missing keys and fall back to the English literal.
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Create / edit form for a calendar feed.
 ///
@@ -65,7 +76,11 @@ class _CalendarFeedEditScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEdit ? 'Edit calendar feed' : 'New calendar feed'),
+        title: Text(
+          _isEdit
+              ? _trOr('calendar.edit', 'Edit calendar feed')
+              : _trOr('calendar.add', 'New calendar feed'),
+        ),
         actions: [
           TextButton(
             onPressed: mutation.busy ? null : _submit,
@@ -77,10 +92,10 @@ class _CalendarFeedEditScreenState
         ],
       ),
       body: profilesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonCard(),
         error: (err, _) => Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Text(apiErrorMessage(err)),
           ),
         ),
@@ -105,7 +120,7 @@ class _CalendarFeedEditScreenState
     return Form(
       key: _formKey,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           TextFormField(
             controller: _nameCtrl,
@@ -121,9 +136,9 @@ class _CalendarFeedEditScreenState
               return null;
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           Text('Profile', style: text.titleSmall),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
             initialValue: _selectedProfileId,
             decoration: const InputDecoration(
@@ -141,14 +156,17 @@ class _CalendarFeedEditScreenState
             validator: (v) =>
                 (v == null || v.isEmpty) ? 'Please pick a profile.' : null,
           ),
-          const SizedBox(height: 24),
-          Text('Content types', style: text.titleSmall),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            _trOr('calendar.content_types', 'Content types'),
+            style: text.titleSmall,
+          ),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             'Choose what should be included in the ICS feed.',
             style: text.bodySmall?.copyWith(color: colors.onSurfaceVariant),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Card(
             elevation: 0,
             color: colors.surfaceContainerHighest,
@@ -172,7 +190,7 @@ class _CalendarFeedEditScreenState
                   .toList(),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           SwitchListTile(
             value: _verboseMode,
             title: const Text('Verbose mode'),
@@ -184,9 +202,9 @@ class _CalendarFeedEditScreenState
             onChanged: (v) => setState(() => _verboseMode = v),
           ),
           if (mutation.error != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
                 color: colors.errorContainer,
                 borderRadius: BorderRadius.circular(8),
@@ -197,7 +215,7 @@ class _CalendarFeedEditScreenState
               ),
             ),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.lg),
           FilledButton(
             onPressed: mutation.busy ? null : _submit,
             child: mutation.busy
@@ -277,9 +295,9 @@ class _CalendarFeedEditScreenState
               'You can copy it again later from the feeds list.',
               style: Theme.of(ctx).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
                 color: colors.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),

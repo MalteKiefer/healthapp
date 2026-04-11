@@ -3,10 +3,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_error_messages.dart';
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/calendar_feed.dart';
 import '../../providers/calendar_feeds_provider.dart';
 import '../../providers/providers.dart';
+import '../../widgets/skeletons.dart';
 import 'calendar_feed_edit_screen.dart';
+
+/// Returns the translation for [key] if present, otherwise [fallback].
+/// `T.tr` returns the key itself when no entry is found, so we use that
+/// sentinel to detect missing keys and fall back to the English literal.
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Lists all calendar feeds owned by the current user.
 ///
@@ -26,15 +37,15 @@ class CalendarFeedsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendar feeds'),
+        title: Text(_trOr('calendar.title', 'Calendar feeds')),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context),
         icon: const Icon(Icons.add),
-        label: const Text('New feed'),
+        label: Text(_trOr('calendar.add', 'New feed')),
       ),
       body: feedsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonList(count: 3),
         error: (err, _) => _ErrorState(
           message: apiErrorMessage(err),
           onRetry: () => ref.invalidate(calendarFeedsListProvider),
@@ -46,7 +57,7 @@ class CalendarFeedsScreen extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(calendarFeedsListProvider),
             child: ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               itemCount: feeds.length,
               separatorBuilder: (_, i) => const Divider(height: 1),
               itemBuilder: (context, index) {
@@ -196,7 +207,7 @@ class _FeedTile extends StatelessWidget {
         style: text.titleMedium,
       ),
       subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.only(top: AppSpacing.xs),
         child: Text(
           typesLabel,
           maxLines: 2,
@@ -231,7 +242,7 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -240,12 +251,12 @@ class _EmptyState extends StatelessWidget {
               size: 64,
               color: colors.onSurfaceVariant,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             Text(
               'No calendar feeds yet',
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               'Create a feed to subscribe to your appointments, '
               'medications and more from any calendar app.',
@@ -272,14 +283,14 @@ class _ErrorState extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, color: colors.error, size: 48),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             FilledButton.tonal(
               onPressed: onRetry,
               child: const Text('Retry'),

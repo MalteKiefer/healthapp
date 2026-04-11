@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/notification.dart';
 import '../../providers/notification_preferences_provider.dart';
+import '../../widgets/skeletons.dart';
+
+/// Returns the translation for [key] if present, otherwise [fallback].
+/// `T.tr` returns the key itself when no entry is found, so we use that
+/// sentinel to detect missing keys and fall back to the English literal.
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Lets the user toggle which notification types the server should emit
 /// for them. Loads from and saves to `/api/v1/notifications/preferences`.
@@ -30,7 +41,7 @@ class _NotificationPreferencesScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notification preferences'),
+        title: Text(_trOr('notifications.preferences', 'Notification preferences')),
         actions: [
           if (_draft != null)
             TextButton(
@@ -49,20 +60,20 @@ class _NotificationPreferencesScreenState
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonCard(),
         error: (err, _) => Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.error_outline, color: colors.error, size: 48),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
                 Text(
                   'Failed to load preferences',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   err.toString(),
                   textAlign: TextAlign.center,
@@ -71,7 +82,7 @@ class _NotificationPreferencesScreenState
                       .bodySmall
                       ?.copyWith(color: colors.onSurfaceVariant),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.md),
                 FilledButton.tonal(
                   onPressed: () =>
                       ref.invalidate(notificationPreferencesProvider),
@@ -189,7 +200,7 @@ class _NotificationPreferencesScreenState
                 onChanged: (v) =>
                     _update(prefs.copyWith(storageQuotaWarning: v)),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.lg),
             ],
           );
         },
@@ -251,7 +262,12 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md + AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
       child: Text(
         label.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(

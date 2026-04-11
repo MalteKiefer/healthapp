@@ -3,9 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api/api_error_messages.dart';
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/activity_entry.dart';
 import '../../providers/activity_log_provider.dart';
 import '../../providers/providers.dart';
+import '../../widgets/skeletons.dart';
+
+/// Returns the translation for [key], or [fallback] when no translation
+/// is registered (i.e. `T.tr` echoes the key back).
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Activity Log screen.
 ///
@@ -30,11 +40,11 @@ class ActivityLogScreen extends ConsumerWidget {
     final profile = ref.watch(selectedProfileProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Activity Log')),
+      appBar: AppBar(title: Text(_trOr('activity.title', 'Activity Log'))),
       body: profile == null
           ? Center(
               child: Text(
-                'No profile selected',
+                _trOr('activity.no_profile', 'No profile selected'),
                 style: TextStyle(color: colors.onSurfaceVariant),
               ),
             )
@@ -60,14 +70,16 @@ class _ActivityList extends ConsumerWidget {
         await ref.read(activityLogProvider(profileId).future);
       },
       child: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonList(count: 6),
         error: (err, _) => ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             const SizedBox(height: 120),
             Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                ),
                 child: Column(
                   children: [
                     Icon(
@@ -75,18 +87,18 @@ class _ActivityList extends ConsumerWidget {
                       size: 48,
                       color: colors.error,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       apiErrorMessage(err),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: colors.onSurface),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.md),
                     OutlinedButton.icon(
                       onPressed: () =>
                           ref.invalidate(activityLogProvider(profileId)),
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
+                      label: Text(_trOr('common.retry', 'Retry')),
                     ),
                   ],
                 ),
@@ -108,9 +120,9 @@ class _ActivityList extends ConsumerWidget {
                         size: 48,
                         color: colors.onSurfaceVariant,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.sm),
                       Text(
-                        'No activity recorded',
+                        _trOr('activity.empty', 'No activity recorded'),
                         style: TextStyle(color: colors.onSurfaceVariant),
                       ),
                     ],
@@ -133,13 +145,13 @@ enum _Bucket { today, yesterday, thisWeek, earlier }
 String _bucketLabel(_Bucket b) {
   switch (b) {
     case _Bucket.today:
-      return 'Today';
+      return _trOr('activity.today', 'Today');
     case _Bucket.yesterday:
-      return 'Yesterday';
+      return _trOr('activity.yesterday', 'Yesterday');
     case _Bucket.thisWeek:
-      return 'This week';
+      return _trOr('activity.this_week', 'This week');
     case _Bucket.earlier:
-      return 'Earlier';
+      return _trOr('activity.earlier', 'Earlier');
   }
 }
 
@@ -173,7 +185,12 @@ class _GroupedList extends StatelessWidget {
         currentBucket = bucket;
         children.add(
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
             child: Text(
               _bucketLabel(bucket),
               style: text.labelLarge?.copyWith(
@@ -192,7 +209,7 @@ class _GroupedList extends StatelessWidget {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       children: children,
     );
   }

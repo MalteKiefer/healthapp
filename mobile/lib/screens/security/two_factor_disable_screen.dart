@@ -2,8 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../providers/providers.dart';
 import '../../providers/two_factor_provider.dart';
+
+/// Returns the translation for [key] if present, otherwise [fallback].
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Sprint 2: Two-Factor Authentication disable screen.
 ///
@@ -35,7 +43,9 @@ class _TwoFactorDisableScreenState
     final code = _codeCtrl.text.trim();
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter the 6-digit code')),
+        SnackBar(
+          content: Text(_trOr('twofactor.enter_code', 'Enter 6-digit code')),
+        ),
       );
       return;
     }
@@ -85,22 +95,23 @@ class _TwoFactorDisableScreenState
     final tt = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Disable Two-Factor Auth')),
+      appBar:
+          AppBar(title: Text(_trOr('twofactor.disable', 'Disable 2FA'))),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Icon(Icons.warning_amber_rounded,
                   size: 56, color: cs.error),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 'Disable two-factor authentication?',
                 style: tt.titleLarge,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 'Your account will only be protected by your '
                 'password. Enter the current 6-digit code from your '
@@ -108,23 +119,25 @@ class _TwoFactorDisableScreenState
                 style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xl),
               TextField(
                 controller: _codeCtrl,
                 keyboardType: TextInputType.number,
                 maxLength: 6,
                 textAlign: TextAlign.center,
+                autofillHints: const [AutofillHints.oneTimeCode],
                 style: tt.headlineSmall?.copyWith(letterSpacing: 8),
-                decoration: const InputDecoration(
-                  labelText: '6-digit code',
+                decoration: InputDecoration(
+                  labelText:
+                      _trOr('twofactor.enter_code', 'Enter 6-digit code'),
                   counterText: '',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.lg),
               FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: cs.errorContainer,
@@ -137,9 +150,9 @@ class _TwoFactorDisableScreenState
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Disable 2FA'),
+                    : Text(_trOr('twofactor.disable', 'Disable 2FA')),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               TextButton(
                 onPressed: _submitting
                     ? null

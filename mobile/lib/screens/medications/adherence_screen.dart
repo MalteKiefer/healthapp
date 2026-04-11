@@ -2,8 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/i18n/translations.dart';
+import '../../core/theme/spacing.dart';
 import '../../models/medication_adherence.dart';
 import '../../providers/medication_adherence_provider.dart';
+import '../../widgets/skeletons.dart';
+
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 /// Displays adherence per medication as progress bars plus a summary row.
 class AdherenceScreen extends ConsumerWidget {
@@ -17,7 +25,7 @@ class AdherenceScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Adherence'),
+        title: Text(_trOr('meds.adherence.title', 'Adherence')),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -25,11 +33,16 @@ class AdherenceScreen extends ConsumerWidget {
           await ref.read(medicationAdherenceProvider(profileId).future);
         },
         child: async.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => ListView(
+            children: const [
+              SkeletonCard(),
+              SkeletonList(count: 5),
+            ],
+          ),
           error: (e, _) => ListView(
             children: [
               Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Text(
                   'Failed to load adherence: $e',
                   style: TextStyle(color: scheme.error),
@@ -49,14 +62,14 @@ class AdherenceScreen extends ConsumerWidget {
                       color: scheme.outline,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                   Center(
                     child: Text(
                       'No adherence data yet',
                       style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Center(
                     child: Text(
                       'Log some intakes to see your stats',
@@ -67,18 +80,20 @@ class AdherenceScreen extends ConsumerWidget {
               );
             }
             return ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.md),
               children: [
                 _SummaryCard(summary: data.summary),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   'Per medication',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 ...data.perMedication.map(
                   (e) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(
+                      bottom: AppSpacing.sm + AppSpacing.xs,
+                    ),
                     child: _AdherenceRow(entry: e),
                   ),
                 ),
@@ -102,7 +117,7 @@ class _SummaryCard extends StatelessWidget {
     return Card(
       color: scheme.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -113,7 +128,7 @@ class _SummaryCard extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               pct == null ? '—' : '${pct.toStringAsFixed(0)}%',
               style: Theme.of(context)
@@ -122,7 +137,7 @@ class _SummaryCard extends StatelessWidget {
                   ?.copyWith(color: scheme.onPrimaryContainer),
             ),
             if (summary.totalDoses != null || summary.missedDoses != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 [
                   if (summary.totalDoses != null)
@@ -167,7 +182,7 @@ class _AdherenceRow extends StatelessWidget {
     return Card(
       color: scheme.surfaceContainerHighest,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -189,7 +204,7 @@ class _AdherenceRow extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: LinearProgressIndicator(
@@ -201,7 +216,7 @@ class _AdherenceRow extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
