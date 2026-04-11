@@ -410,15 +410,22 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                           'reminder_days_before': reminderDays,
                       };
                       try {
+                        final crypto = ref.read(e2eCryptoServiceProvider);
+                        final write = await crypto.encryptForWrite(
+                          profileId: widget.profileId,
+                          entityType: 'appointments',
+                          body: body,
+                          existingId: isEdit ? existing.id : null,
+                        );
                         if (isEdit) {
                           await api.patch<dynamic>(
-                            '/api/v1/profiles/${widget.profileId}/appointments/${existing.id}',
-                            body: body,
+                            '/api/v1/profiles/${widget.profileId}/appointments/${write.id}',
+                            body: write.toBody(),
                           );
                         } else {
                           await api.post<dynamic>(
                             '/api/v1/profiles/${widget.profileId}/appointments',
-                            body: body,
+                            body: write.toBody(),
                           );
                         }
                         if (!ctx.mounted) return;

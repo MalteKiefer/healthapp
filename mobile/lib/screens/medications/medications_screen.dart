@@ -318,15 +318,22 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                           'notes': notesCtrl.text.trim(),
                       };
                       try {
+                        final crypto = ref.read(e2eCryptoServiceProvider);
+                        final write = await crypto.encryptForWrite(
+                          profileId: widget.profileId,
+                          entityType: 'medications',
+                          body: body,
+                          existingId: isEdit ? existing.id : null,
+                        );
                         if (isEdit) {
                           await api.patch<void>(
-                            '/api/v1/profiles/${widget.profileId}/medications/${existing.id}',
-                            body: body,
+                            '/api/v1/profiles/${widget.profileId}/medications/${write.id}',
+                            body: write.toBody(),
                           );
                         } else {
                           await api.post<void>(
                             '/api/v1/profiles/${widget.profileId}/medications',
-                            body: body,
+                            body: write.toBody(),
                           );
                         }
                         ref.invalidate(

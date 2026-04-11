@@ -249,15 +249,22 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                           'description': notesCtrl.text.trim(),
                       };
                       try {
+                        final crypto = ref.read(e2eCryptoServiceProvider);
+                        final write = await crypto.encryptForWrite(
+                          profileId: widget.profileId,
+                          entityType: 'tasks',
+                          body: body,
+                          existingId: isEdit ? existing.id : null,
+                        );
                         if (isEdit) {
                           await api.patch<void>(
-                            '/api/v1/profiles/${widget.profileId}/tasks/${existing.id}',
-                            body: body,
+                            '/api/v1/profiles/${widget.profileId}/tasks/${write.id}',
+                            body: write.toBody(),
                           );
                         } else {
                           await api.post<void>(
                             '/api/v1/profiles/${widget.profileId}/tasks',
-                            body: body,
+                            body: write.toBody(),
                           );
                         }
                         ref.invalidate(

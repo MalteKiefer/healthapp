@@ -266,15 +266,22 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                               int.tryParse(durationMinCtrl.text.trim()),
                       };
                       try {
+                        final crypto = ref.read(e2eCryptoServiceProvider);
+                        final write = await crypto.encryptForWrite(
+                          profileId: widget.profileId,
+                          entityType: 'symptoms',
+                          body: body,
+                          existingId: isEdit ? existing.id : null,
+                        );
                         if (isEdit) {
                           await api.patch<void>(
-                            '/api/v1/profiles/${widget.profileId}/symptoms/${existing.id}',
-                            body: body,
+                            '/api/v1/profiles/${widget.profileId}/symptoms/${write.id}',
+                            body: write.toBody(),
                           );
                         } else {
                           await api.post<void>(
                             '/api/v1/profiles/${widget.profileId}/symptoms',
-                            body: body,
+                            body: write.toBody(),
                           );
                         }
                         ref.invalidate(

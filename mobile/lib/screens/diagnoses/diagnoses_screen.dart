@@ -259,7 +259,7 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                       final body = <String, dynamic>{
                         'name': nameCtrl.text.trim(),
                         if (icdCtrl.text.trim().isNotEmpty)
-                          'icd_code': icdCtrl.text.trim(),
+                          'icd10_code': icdCtrl.text.trim(),
                         if (status != null) 'status': status,
                         if (dateCtrl.text.trim().isNotEmpty)
                           'diagnosed_at':
@@ -273,15 +273,22 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                           'notes': notesCtrl.text.trim(),
                       };
                       try {
+                        final crypto = ref.read(e2eCryptoServiceProvider);
+                        final write = await crypto.encryptForWrite(
+                          profileId: widget.profileId,
+                          entityType: 'diagnoses',
+                          body: body,
+                          existingId: isEdit ? existing.id : null,
+                        );
                         if (isEdit) {
                           await api.patch<void>(
-                            '/api/v1/profiles/${widget.profileId}/diagnoses/${existing.id}',
-                            body: body,
+                            '/api/v1/profiles/${widget.profileId}/diagnoses/${write.id}',
+                            body: write.toBody(),
                           );
                         } else {
                           await api.post<void>(
                             '/api/v1/profiles/${widget.profileId}/diagnoses',
-                            body: body,
+                            body: write.toBody(),
                           );
                         }
                         ref.invalidate(

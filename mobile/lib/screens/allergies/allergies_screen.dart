@@ -264,15 +264,22 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                           'notes': notesCtrl.text.trim(),
                       };
                       try {
+                        final crypto = ref.read(e2eCryptoServiceProvider);
+                        final write = await crypto.encryptForWrite(
+                          profileId: widget.profileId,
+                          entityType: 'allergies',
+                          body: body,
+                          existingId: isEdit ? existing.id : null,
+                        );
                         if (isEdit) {
                           await api.patch<void>(
-                            '/api/v1/profiles/${widget.profileId}/allergies/${existing.id}',
-                            body: body,
+                            '/api/v1/profiles/${widget.profileId}/allergies/${write.id}',
+                            body: write.toBody(),
                           );
                         } else {
                           await api.post<void>(
                             '/api/v1/profiles/${widget.profileId}/allergies',
-                            body: body,
+                            body: write.toBody(),
                           );
                         }
                         ref.invalidate(

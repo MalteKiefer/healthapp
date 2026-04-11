@@ -32,7 +32,7 @@ final medicationIntakeListProvider = FutureProvider.family<
   final decrypted = await crypto.decryptRows(
     rows: rawItems,
     profileId: key.profileId,
-    entityType: 'medication_intakes',
+    entityType: 'medication_intake',
   );
   return decrypted.map(MedicationIntake.fromJson).toList();
 });
@@ -75,9 +75,16 @@ class MedicationIntakeController
         if (doseTaken != null && doseTaken.isNotEmpty) 'dose_taken': doseTaken,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
       };
+      final crypto = _ref.read(e2eCryptoServiceProvider);
+      final write = await crypto.encryptForWrite(
+        profileId: profileId,
+        entityType: 'medication_intake',
+        body: body,
+        existingId: null,
+      );
       await api.post(
         '/api/v1/profiles/$profileId/medications/$medicationId/intake',
-        body: body,
+        body: write.toBody(),
       );
       _ref.invalidate(
         medicationIntakeListProvider(
@@ -109,9 +116,16 @@ class MedicationIntakeController
       }
       if (doseTaken != null) body['dose_taken'] = doseTaken;
       if (notes != null) body['notes'] = notes;
-      await api.patch(
-        '/api/v1/profiles/$profileId/medications/$medicationId/intake/$intakeId',
+      final crypto = _ref.read(e2eCryptoServiceProvider);
+      final write = await crypto.encryptForWrite(
+        profileId: profileId,
+        entityType: 'medication_intake',
         body: body,
+        existingId: intakeId,
+      );
+      await api.patch(
+        '/api/v1/profiles/$profileId/medications/$medicationId/intake/${write.id}',
+        body: write.toBody(),
       );
       _ref.invalidate(
         medicationIntakeListProvider(

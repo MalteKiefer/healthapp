@@ -319,18 +319,41 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
                         'ordered_by': orderedByCtrl.text.trim(),
                       if (notesCtrl.text.trim().isNotEmpty)
                         'notes': notesCtrl.text.trim(),
-                      'values': markerValues,
                     };
                     try {
+                      final crypto = ref.read(e2eCryptoServiceProvider);
+                      final write = await crypto.encryptForWrite(
+                        profileId: widget.profileId,
+                        entityType: 'labs',
+                        body: body,
+                        existingId: isEdit ? existing.id : null,
+                      );
+                      // Encrypt each nested lab_value sub-row against
+                      // the parent labs row id so AAD binding matches
+                      // the read-path (entity = 'lab_value').
+                      final encryptedValues = <Map<String, dynamic>>[];
+                      for (final v in markerValues) {
+                        final vWrite = await crypto.encryptForWrite(
+                          profileId: widget.profileId,
+                          entityType: 'lab_value',
+                          body: v,
+                          existingId: null,
+                        );
+                        encryptedValues.add(vWrite.toBody());
+                      }
+                      final wireBody = <String, dynamic>{
+                        ...write.toBody(),
+                        'values': encryptedValues,
+                      };
                       if (isEdit) {
                         await api.patch<void>(
-                          '/api/v1/profiles/${widget.profileId}/labs/${existing.id}',
-                          body: body,
+                          '/api/v1/profiles/${widget.profileId}/labs/${write.id}',
+                          body: wireBody,
                         );
                       } else {
                         await api.post<void>(
                           '/api/v1/profiles/${widget.profileId}/labs',
-                          body: body,
+                          body: wireBody,
                         );
                       }
                       ref.invalidate(_labsProvider(widget.profileId));

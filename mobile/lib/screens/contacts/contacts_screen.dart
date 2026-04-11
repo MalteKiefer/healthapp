@@ -266,15 +266,22 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                         'is_emergency_contact': isEmergency,
                       };
                       try {
+                        final crypto = ref.read(e2eCryptoServiceProvider);
+                        final write = await crypto.encryptForWrite(
+                          profileId: widget.profileId,
+                          entityType: 'contacts',
+                          body: body,
+                          existingId: isEdit ? existing.id : null,
+                        );
                         if (isEdit) {
                           await api.patch<void>(
-                            '/api/v1/profiles/${widget.profileId}/contacts/${existing.id}',
-                            body: body,
+                            '/api/v1/profiles/${widget.profileId}/contacts/${write.id}',
+                            body: write.toBody(),
                           );
                         } else {
                           await api.post<void>(
                             '/api/v1/profiles/${widget.profileId}/contacts',
-                            body: body,
+                            body: write.toBody(),
                           );
                         }
                         ref.invalidate(
