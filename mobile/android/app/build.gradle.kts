@@ -71,11 +71,7 @@ flutter {
     source = "../.."
 }
 
-// TODO: androidx.biometric:1.2.0-alpha05 requires compileSdk >= 34.
-// compileSdk is currently set via `flutter.compileSdkVersion` — verify the
-// Flutter SDK in use resolves this to 34 or higher. If not, override compileSdk
-// in the android { } block above.
 dependencies {
-    implementation("androidx.biometric:biometric:1.2.0-alpha05")
+    implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.fragment:fragment-ktx:1.8.5")
 }

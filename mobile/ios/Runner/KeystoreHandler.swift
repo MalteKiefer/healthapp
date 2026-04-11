@@ -70,7 +70,7 @@ final class KeystoreHandler: NSObject {
         guard let access = SecAccessControlCreateWithFlags(
             kCFAllocatorDefault,
             kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
-            [.biometryCurrentSet, .privateKeyUsage],
+            [.biometryCurrentSet],
             &acError
         ) else {
             let msg = (acError?.takeRetainedValue() as Error?)?.localizedDescription ?? "access control"

@@ -3,6 +3,7 @@ package de.kiefer_networks.healthapp
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.security.keystore.StrongBoxUnavailableException
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -90,29 +91,43 @@ class KeystoreHandler(private val activity: FragmentActivity) : MethodChannel.Me
         // Remove any previous key under the same alias.
         if (hasKey(alias)) keyStore().deleteEntry(alias)
 
-        val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
-        val specBuilder = KeyGenParameterSpec.Builder(
-            alias,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-        )
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setKeySize(256)
-            .setUserAuthenticationRequired(true)
-            .setInvalidatedByBiometricEnrollment(true)
-            .setRandomizedEncryptionRequired(false) // we use a fixed nonce on purpose
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            // StrongBox where available; fall back silently otherwise.
-            try {
-                specBuilder.setIsStrongBoxBacked(true)
-            } catch (_: Exception) {
-                // ignore — StrongBox not available on this device
+        fun buildSpec(withStrongBox: Boolean): KeyGenParameterSpec {
+            val b = KeyGenParameterSpec.Builder(
+                alias,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+                .setUserAuthenticationRequired(true)
+                .setInvalidatedByBiometricEnrollment(true)
+                .setRandomizedEncryptionRequired(false) // we use a fixed nonce on purpose
+            if (withStrongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                b.setIsStrongBoxBacked(true)
             }
+            return b.build()
         }
 
-        gen.init(specBuilder.build())
-        gen.generateKey()
+        val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
+        // setIsStrongBoxBacked does not throw at builder time; the
+        // StrongBoxUnavailableException surfaces from generateKey() on
+        // devices without StrongBox hardware. Retry without StrongBox
+        // in that case so non-StrongBox devices still get a working
+        // (software/TEE-backed) keystore entry.
+        try {
+            gen.init(buildSpec(withStrongBox = true))
+            gen.generateKey()
+        } catch (e: StrongBoxUnavailableException) {
+            // Device advertises API >= P but has no StrongBox hardware.
+            // Fall back to software/TEE-backed keystore without StrongBox.
+            gen.init(buildSpec(withStrongBox = false))
+            gen.generateKey()
+        } catch (e: Exception) {
+            // Any other hardware/keystore failure while attempting the
+            // StrongBox-backed variant — retry without StrongBox as well.
+            gen.init(buildSpec(withStrongBox = false))
+            gen.generateKey()
+        }
     }
 
     private fun deleteKey(alias: String) {
