@@ -1,7 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../models/common.dart';
 import 'providers.dart';
+
+part 'open_tasks_provider.g.dart';
 
 /// Fetches only the open (not-yet-done) tasks for a given profile.
 ///
@@ -14,8 +16,8 @@ import 'providers.dart';
 /// ```dart
 /// final asyncTasks = ref.watch(openTasksProvider(profileId));
 /// ```
-final openTasksProvider =
-    FutureProvider.family<List<Task>, String>((ref, profileId) async {
+@riverpod
+Future<List<Task>> openTasks(OpenTasksRef ref, String profileId) async {
   final api = ref.read(apiClientProvider);
   final data = await api
       .get<Map<String, dynamic>>('/api/v1/profiles/$profileId/tasks/open');
@@ -23,4 +25,4 @@ final openTasksProvider =
   return items
       .map((e) => Task.fromJson(e as Map<String, dynamic>))
       .toList();
-});
+}

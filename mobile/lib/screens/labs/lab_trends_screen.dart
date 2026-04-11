@@ -171,8 +171,7 @@ class _MarkerTrendChart extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final key = LabTrendKey(profileId, marker);
-    final trendAsync = ref.watch(singleMarkerTrendProvider(key));
+    final trendAsync = ref.watch(singleMarkerTrendProvider(profileId, marker));
 
     return trendAsync.when(
       loading: () => const Padding(
@@ -181,7 +180,7 @@ class _MarkerTrendChart extends ConsumerWidget {
       ),
       error: (e, _) => _ErrorView(
         message: 'Failed to load trend: $e',
-        onRetry: () => ref.invalidate(singleMarkerTrendProvider(key)),
+        onRetry: () => ref.invalidate(singleMarkerTrendProvider(profileId, marker)),
       ),
       data: (trend) {
         if (trend.dataPoints.isEmpty) {

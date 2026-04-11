@@ -1,7 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../models/common.dart';
 import 'providers.dart';
+
+part 'vaccination_due_provider.g.dart';
 
 /// Fetches vaccinations that are due soon or overdue for the given profile.
 ///
@@ -31,8 +33,11 @@ import 'providers.dart';
 /// as-is; no wrapper is introduced. `vaccine_name` is mapped onto the
 /// existing `vaccine` field for compatibility with both the current
 /// mobile list screen and the web API shape.
-final vaccinationDueProvider =
-    FutureProvider.family<List<Vaccination>, String>((ref, profileId) async {
+@riverpod
+Future<List<Vaccination>> vaccinationDue(
+  VaccinationDueRef ref,
+  String profileId,
+) async {
   final api = ref.read(apiClientProvider);
   final data = await api.get<Map<String, dynamic>>(
     '/api/v1/profiles/$profileId/vaccinations/due',
@@ -50,4 +55,4 @@ final vaccinationDueProvider =
     return Vaccination.fromJson(normalized);
   }).toList();
   return items;
-});
+}

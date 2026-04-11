@@ -1,7 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../models/activity_entry.dart';
 import 'providers.dart';
+
+part 'activity_log_provider.g.dart';
 
 /// Fetches the activity log for a single profile.
 ///
@@ -12,8 +14,11 @@ import 'providers.dart';
 ///
 /// Invalidate this provider after any mutation that should immediately appear
 /// in the activity log.
-final activityLogProvider =
-    FutureProvider.family<List<ActivityEntry>, String>((ref, profileId) async {
+@riverpod
+Future<List<ActivityEntry>> activityLog(
+  ActivityLogRef ref,
+  String profileId,
+) async {
   final api = ref.read(apiClientProvider);
   final data = await api.get<Map<String, dynamic>>(
     '/api/v1/profiles/$profileId/activity?limit=200',
@@ -23,4 +28,4 @@ final activityLogProvider =
       .toList()
     ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   return items;
-});
+}
