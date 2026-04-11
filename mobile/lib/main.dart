@@ -24,9 +24,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final prefs = await SharedPreferences.getInstance();
-  final savedLang = prefs.getString('language') ?? 'de';
+  final savedLangPref = prefs.getString('language') ?? 'system';
   final savedTheme = prefs.getString('themeMode') ?? 'system';
-  T.setLanguage(savedLang);
+  T.setLanguage(savedLangPref);
 
   final themeMode = switch (savedTheme) {
     'light' => ThemeMode.light,
@@ -70,7 +70,7 @@ Future<void> main() async {
 
   runApp(ProviderScope(
     overrides: [
-      languageProvider.overrideWith((ref) => savedLang),
+      languageProvider.overrideWith((ref) => savedLangPref),
       themeModeProvider.overrideWith((ref) => themeMode),
       authServiceProvider.overrideWithValue(authService),
       appLockControllerProvider.overrideWith((ref) => controller),
@@ -118,8 +118,9 @@ class _HealthVaultAppState extends ConsumerState<HealthVaultApp> {
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
-    ref.watch(languageProvider);
-    final lang = ref.watch(languageProvider);
+    final pref = ref.watch(languageProvider);
+    final effective = T.effectiveLanguage(pref);
+    T.setLanguage(pref);
 
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
@@ -130,8 +131,15 @@ class _HealthVaultAppState extends ConsumerState<HealthVaultApp> {
           themeMode: themeMode,
           routerConfig: ref.watch(appRouterProvider),
           debugShowCheckedModeBanner: false,
-          locale: Locale(lang),
-          supportedLocales: const [Locale('de'), Locale('en')],
+          locale: Locale(effective),
+          supportedLocales: const [
+            Locale('en'),
+            Locale('de'),
+            Locale('fr'),
+            Locale('es'),
+            Locale('it'),
+            Locale('pl'),
+          ],
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
