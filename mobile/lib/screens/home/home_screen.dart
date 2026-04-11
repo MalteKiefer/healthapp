@@ -82,6 +82,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     context.go('$route/${profile.id}');
   }
 
+  void _goToProfileScoped(BuildContext ctx, String pid, String route) {
+    if (pid.isEmpty) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(
+          content: Text('Select a profile first'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    ctx.go(route);
+  }
+
   // -- Profile selector -------------------------------------------------------
 
   Widget _buildProfileSelector(List<Profile> profiles) {
@@ -264,8 +277,60 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ],
               ),
-              // TODO(sprint3): wire up activity log tile to /activity/<profileId>
-              // once the activity feature lands in its own agent.
+              const SizedBox(height: 12),
+
+              // -- Profile-scoped feature tiles (Sprint 4) ----------------
+              Row(
+                children: [
+                  _NavTile(
+                    icon: Icons.task_alt,
+                    label: 'Open Tasks',
+                    onTap: () => _goToProfileScoped(
+                      context,
+                      pid,
+                      '/tasks/$pid/open',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _NavTile(
+                    icon: Icons.event,
+                    label: 'Upcoming Appointments',
+                    onTap: () => _goToProfileScoped(
+                      context,
+                      pid,
+                      '/appointments/$pid/upcoming',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _NavTile(
+                    icon: Icons.vaccines,
+                    label: 'Vaccinations Due',
+                    onTap: () => _goToProfileScoped(
+                      context,
+                      pid,
+                      '/vaccinations/$pid/due',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _NavTile(
+                    icon: Icons.history,
+                    label: 'Activity Log',
+                    onTap: () => _goToProfileScoped(
+                      context,
+                      pid,
+                      '/activity/$pid',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(child: SizedBox.shrink()),
+                  const SizedBox(width: 12),
+                  const Expanded(child: SizedBox.shrink()),
+                ],
+              ),
               const SizedBox(height: 24),
 
               // -- Recent Vitals -------------------------------------------

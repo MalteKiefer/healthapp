@@ -1,28 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/i18n/translations.dart';
 import '../../providers/providers.dart';
-
-class _MoreItem {
-  final String labelKey;
-  final IconData icon;
-  final String route;
-  const _MoreItem(this.labelKey, this.icon, this.route);
-}
-
-const _modules = [
-  _MoreItem('allergies.title', Icons.warning_amber_outlined, '/allergies'),
-  _MoreItem('diagnoses.title', Icons.local_hospital_outlined, '/diagnoses'),
-  _MoreItem(
-      'vaccinations.title', Icons.vaccines_outlined, '/vaccinations'),
-  _MoreItem('appointments.title', Icons.event_outlined, '/appointments'),
-  _MoreItem('contacts.title', Icons.contacts_outlined, '/contacts'),
-  _MoreItem('tasks.title', Icons.task_alt_outlined, '/tasks'),
-  _MoreItem('diary.title', Icons.book_outlined, '/diary'),
-  _MoreItem('symptoms.title', Icons.sick_outlined, '/symptoms'),
-  _MoreItem('documents.title', Icons.folder_outlined, '/documents'),
-];
 
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
@@ -31,126 +10,188 @@ class MoreScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
-    final profile = ref.watch(selectedProfileProvider);
-    // Watch language to rebuild on change
-    ref.watch(languageProvider);
+    final selectedProfile = ref.watch(selectedProfileProvider);
+    final pid = selectedProfile?.id;
+    final hasProfile = pid != null && pid.isNotEmpty;
+    const noProfileSubtitle = 'Select a profile first';
 
-    void goTo(String route) {
-      if (profile == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(T.tr('home.select_profile'))),
+    Widget sectionHeader(String title) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            title,
+            style: tt.labelMedium?.copyWith(color: cs.primary),
+          ),
         );
-        return;
-      }
-      context.go('$route/${profile.id}');
+
+    ListTile navTile({
+      required IconData icon,
+      required String label,
+      required String route,
+      bool requiresProfile = false,
+    }) {
+      final disabled = requiresProfile && !hasProfile;
+      return ListTile(
+        leading: Icon(
+          icon,
+          color: disabled ? cs.onSurface.withValues(alpha: 0.38) : null,
+        ),
+        title: Text(
+          label,
+          style: disabled
+              ? TextStyle(color: cs.onSurface.withValues(alpha: 0.38))
+              : null,
+        ),
+        subtitle: disabled ? const Text(noProfileSubtitle) : null,
+        enabled: !disabled,
+        onTap: disabled ? null : () => context.go(route),
+      );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(T.tr('more.title')),
-        automaticallyImplyLeading: false,
-      ),
+      appBar: AppBar(title: const Text('More')),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
-          // Section: Health Modules
-          Text(T.tr('more.modules'),
-              style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
-          const SizedBox(height: 8),
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                for (int i = 0; i < _modules.length; i++) ...[
-                  if (i > 0)
-                    Divider(
-                      height: 1,
-                      indent: 56,
-                      color: cs.outlineVariant.withValues(alpha: 0.3),
-                    ),
-                  ListTile(
-                    leading: Icon(_modules[i].icon, color: cs.onSurfaceVariant),
-                    title: Text(T.tr(_modules[i].labelKey)),
-                    trailing: Icon(Icons.chevron_right,
-                        size: 20, color: cs.outline),
-                    onTap: () => goTo(_modules[i].route),
-                  ),
-                ],
-              ],
-            ),
+          // Profile
+          sectionHeader('Profile'),
+          navTile(
+            icon: Icons.people_outline,
+            label: 'Profile Management',
+            route: '/profiles',
+          ),
+          navTile(
+            icon: Icons.tune,
+            label: 'Vital Thresholds',
+            route: '/vitals/$pid/thresholds',
+            requiresProfile: true,
+          ),
+          navTile(
+            icon: Icons.history,
+            label: 'Activity Log',
+            route: '/activity/$pid',
+            requiresProfile: true,
+          ),
+          const Divider(),
+
+          // Security
+          sectionHeader('Security'),
+          navTile(
+            icon: Icons.security,
+            label: '2FA Setup',
+            route: '/2fa/setup',
+          ),
+          navTile(
+            icon: Icons.devices,
+            label: 'Active Sessions',
+            route: '/sessions',
+          ),
+          const Divider(),
+
+          // Data
+          sectionHeader('Data'),
+          navTile(
+            icon: Icons.show_chart,
+            label: 'Lab Trends',
+            route: '/labs/$pid/trends',
+            requiresProfile: true,
+          ),
+          navTile(
+            icon: Icons.medication_outlined,
+            label: 'Medication Adherence',
+            route: '/medications/$pid/adherence',
+            requiresProfile: true,
+          ),
+          navTile(
+            icon: Icons.sick_outlined,
+            label: 'Symptom Chart',
+            route: '/symptoms/$pid/chart',
+            requiresProfile: true,
+          ),
+          navTile(
+            icon: Icons.search,
+            label: 'Document Search',
+            route: '/documents/$pid/search',
+            requiresProfile: true,
+          ),
+          navTile(
+            icon: Icons.upload_file_outlined,
+            label: 'Bulk Upload',
+            route: '/documents/$pid/bulk',
+            requiresProfile: true,
+          ),
+          navTile(
+            icon: Icons.download_outlined,
+            label: 'Export',
+            route: '/export/$pid',
+            requiresProfile: true,
+          ),
+          navTile(
+            icon: Icons.schedule_outlined,
+            label: 'Export Schedules',
+            route: '/export/schedules',
+          ),
+          const Divider(),
+
+          // Sharing
+          sectionHeader('Sharing'),
+          navTile(
+            icon: Icons.share_outlined,
+            label: 'Doctor Shares',
+            route: '/shares/$pid',
+            requiresProfile: true,
+          ),
+          navTile(
+            icon: Icons.calendar_today_outlined,
+            label: 'Calendar Feeds',
+            route: '/calendar-feeds',
+          ),
+          navTile(
+            icon: Icons.emergency_outlined,
+            label: 'Emergency Access',
+            route: '/emergency/$pid',
+            requiresProfile: true,
+          ),
+          const Divider(),
+
+          // Filters / Quick Views
+          sectionHeader('Filters / Quick Views'),
+          navTile(
+            icon: Icons.task_alt_outlined,
+            label: 'Open Tasks',
+            route: '/tasks/$pid/open',
+            requiresProfile: true,
+          ),
+          navTile(
+            icon: Icons.event_outlined,
+            label: 'Upcoming Appointments',
+            route: '/appointments/$pid/upcoming',
+            requiresProfile: true,
+          ),
+          navTile(
+            icon: Icons.vaccines_outlined,
+            label: 'Vaccinations Due',
+            route: '/vaccinations/$pid/due',
+            requiresProfile: true,
+          ),
+          const Divider(),
+
+          // About
+          sectionHeader('About'),
+          navTile(
+            icon: Icons.settings_outlined,
+            label: 'Settings',
+            route: '/settings',
+          ),
+          navTile(
+            icon: Icons.info_outline,
+            label: 'About',
+            route: '/about',
+          ),
+          ListTile(
+            leading: Icon(Icons.logout, color: cs.error),
+            title: Text('Sign Out', style: TextStyle(color: cs.error)),
+            onTap: () => context.go('/sign-out'),
           ),
           const SizedBox(height: 24),
-
-          // Section: App
-          Text(T.tr('more.app'),
-              style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
-          const SizedBox(height: 8),
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                ListTile(
-                  leading: Icon(Icons.info_outline, color: cs.onSurfaceVariant),
-                  title: Text(T.tr('more.about')),
-                  trailing:
-                      Icon(Icons.chevron_right, size: 20, color: cs.outline),
-                  onTap: () => context.go('/about'),
-                ),
-                Divider(
-                  height: 1,
-                  indent: 56,
-                  color: cs.outlineVariant.withValues(alpha: 0.3),
-                ),
-                ListTile(
-                  leading:
-                      Icon(Icons.settings_outlined, color: cs.onSurfaceVariant),
-                  title: Text(T.tr('more.settings')),
-                  trailing:
-                      Icon(Icons.chevron_right, size: 20, color: cs.outline),
-                  onTap: () => context.go('/settings'),
-                ),
-                Divider(
-                  height: 1,
-                  indent: 56,
-                  color: cs.outlineVariant.withValues(alpha: 0.3),
-                ),
-                ListTile(
-                  leading: Icon(Icons.logout, color: cs.error),
-                  title: Text(T.tr('more.sign_out'),
-                      style: TextStyle(color: cs.error)),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: Text(T.tr('more.sign_out')),
-                        content: Text(T.tr('more.sign_out_confirm')),
-                        actions: [
-                          OutlinedButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: Text(T.tr('common.cancel')),
-                          ),
-                          FilledButton(
-                            onPressed: () async {
-                              Navigator.pop(ctx);
-                              await ref
-                                  .read(authServiceProvider)
-                                  .clearCredentials();
-                              await ref
-                                  .read(appLockControllerProvider.notifier)
-                                  .wipe();
-                              if (context.mounted) context.go('/login');
-                            },
-                            child: Text(T.tr('more.sign_out')),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
         ],
       ),
     );
