@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
@@ -38,6 +40,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       bodyKey: 'contacts.delete_body',
     );
     if (!confirmed) return;
+    await HapticFeedback.mediumImpact();
     try {
       await ref
           .read(apiClientProvider)
@@ -45,8 +48,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       ref.invalidate(_contactsProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(apiErrorMessage(e)),
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     }
   }
@@ -271,8 +276,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                             _contactsProvider(widget.profileId));
                       } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(content: Text('$e')));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(apiErrorMessage(e)),
+                            behavior: SnackBarBehavior.floating,
+                          ));
                         }
                       }
                     },
@@ -460,7 +467,12 @@ class _ContactCard extends StatelessWidget {
                     ),
                     if (contact.phone != null) ...[
                       const SizedBox(height: 4),
-                      InkWell(
+                      Tooltip(
+                        message: T.tr('field.phone'),
+                        child: Semantics(
+                          button: true,
+                          label: T.tr('field.phone'),
+                          child: InkWell(
                         onTap: () => _launchPhone(contact.phone!),
                         borderRadius: BorderRadius.circular(8),
                         child: Padding(
@@ -483,10 +495,17 @@ class _ContactCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                        ),
+                      ),
                     ],
                     if (contact.email != null) ...[
                       const SizedBox(height: 2),
-                      InkWell(
+                      Tooltip(
+                        message: T.tr('field.email'),
+                        child: Semantics(
+                          button: true,
+                          label: T.tr('field.email'),
+                          child: InkWell(
                         onTap: () => _launchEmail(contact.email!),
                         borderRadius: BorderRadius.circular(8),
                         child: Padding(
@@ -510,10 +529,17 @@ class _ContactCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                        ),
+                      ),
                     ],
                     if (contact.address != null) ...[
                       const SizedBox(height: 2),
-                      InkWell(
+                      Tooltip(
+                        message: T.tr('field.address'),
+                        child: Semantics(
+                          button: true,
+                          label: T.tr('field.address'),
+                          child: InkWell(
                         onTap: () => _launchMap(contact.address!),
                         borderRadius: BorderRadius.circular(8),
                         child: Padding(
@@ -537,6 +563,8 @@ class _ContactCard extends StatelessWidget {
                               ),
                             ],
                           ),
+                        ),
+                      ),
                         ),
                       ),
                     ],

@@ -72,7 +72,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final profile = ref.read(selectedProfileProvider);
     if (profile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(T.tr('home.select_profile'))),
+        SnackBar(
+          content: Text(T.tr('home.select_profile')),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }
@@ -239,6 +242,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 24),
 
+              // -- Navigation tiles (Sprint 2 features) -------------------
+              Row(
+                children: [
+                  _NavTile(
+                    icon: Icons.people_outline,
+                    label: 'Profiles',
+                    onTap: () => context.go('/profiles'),
+                  ),
+                  const SizedBox(width: 12),
+                  _NavTile(
+                    icon: Icons.notifications_outlined,
+                    label: 'Notifications',
+                    onTap: () => context.go('/notifications'),
+                  ),
+                  const SizedBox(width: 12),
+                  _NavTile(
+                    icon: Icons.search,
+                    label: 'Search',
+                    onTap: () => context.go('/search'),
+                  ),
+                ],
+              ),
+              // TODO(sprint3): wire up activity log tile to /activity/<profileId>
+              // once the activity feature lands in its own agent.
+              const SizedBox(height: 24),
+
               // -- Recent Vitals -------------------------------------------
               if (pid.isNotEmpty) ...[
                 Text(T.tr('home.recent_vitals'), style: tt.titleSmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -392,7 +421,7 @@ class _RecentVitals extends ConsumerWidget {
             value: latest.temperature!.toStringAsFixed(1),
             unit: '\u00b0C',
             icon: Icons.thermostat,
-            color: Colors.orange,
+            color: cs.tertiary,
           ));
         }
         if (latest.oxygenSaturation != null) {
@@ -401,7 +430,7 @@ class _RecentVitals extends ConsumerWidget {
             value: '${latest.oxygenSaturation!.toInt()}',
             unit: '%',
             icon: Icons.air,
-            color: Colors.teal,
+            color: cs.secondary,
           ));
         }
         if (latest.bloodGlucose != null) {
@@ -410,7 +439,7 @@ class _RecentVitals extends ConsumerWidget {
             value: '${latest.bloodGlucose!.toInt()}',
             unit: 'mg/dL',
             icon: Icons.water_drop_outlined,
-            color: Colors.purple,
+            color: cs.tertiaryContainer,
           ));
         }
 
@@ -703,5 +732,50 @@ class _UpcomingAppointments extends ConsumerWidget {
     } catch (_) {
       return iso;
     }
+  }
+}
+
+// -- Navigation Tile ----------------------------------------------------------
+
+class _NavTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _NavTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return Expanded(
+      child: Semantics(
+        label: label,
+        button: true,
+        child: Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Column(
+                children: [
+                  Icon(icon, color: cs.primary, size: 22),
+                  const SizedBox(height: 6),
+                  Text(
+                    label,
+                    style: tt.labelMedium?.copyWith(color: cs.onSurface),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

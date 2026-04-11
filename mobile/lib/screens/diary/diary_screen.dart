@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
@@ -29,25 +31,51 @@ class DiaryScreen extends ConsumerStatefulWidget {
 
 class _DiaryScreenState extends ConsumerState<DiaryScreen> {
   Future<void> _delete(String id) async {
-    final confirmed = await showDialog<bool>(
+    await HapticFeedback.mediumImpact();
+    if (!mounted) return;
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(T.tr('diary.delete')),
-        content: Text(T.tr('diary.delete_body')),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(T.tr('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
+      showDragHandle: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        final tt = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  T.tr('diary.delete'),
+                  style: tt.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  T.tr('diary.delete_body'),
+                  style: tt.bodyMedium
+                      ?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: cs.error,
+                    foregroundColor: cs.onError,
+                  ),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  icon: const Icon(Icons.delete_outline),
+                  label: Text(T.tr('common.delete')),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(T.tr('common.cancel')),
+                ),
+              ],
             ),
-            child: Text(T.tr('common.delete')),
           ),
-        ],
-      ),
+        );
+      },
     );
     if (confirmed != true) return;
     try {
@@ -57,8 +85,12 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
       ref.invalidate(_diaryProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -347,8 +379,12 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                           setSheetState(() => isSaving = false);
                         }
                         if (mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(content: Text('$e')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(apiErrorMessage(e)),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
                         }
                       }
                     },
@@ -486,9 +522,9 @@ class _DiaryCard extends StatelessWidget {
 
   Color _moodColor(int? score, ColorScheme cs) {
     if (score == null) return cs.primary;
-    if (score >= 8) return Colors.green;
+    if (score >= 8) return cs.tertiary;
     if (score >= 6) return cs.primary;
-    if (score >= 4) return cs.tertiary;
+    if (score >= 4) return cs.secondary;
     return cs.error;
   }
 
@@ -506,7 +542,11 @@ class _DiaryCard extends StatelessWidget {
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: Semantics(
+        button: true,
+        label: entry.title ?? entry.mood ?? 'Diary entry',
+        hint: 'Double tap to edit, long press to delete',
+        child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         onLongPress: onDelete,
@@ -589,6 +629,7 @@ class _DiaryCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

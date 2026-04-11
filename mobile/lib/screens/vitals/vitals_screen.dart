@@ -1,14 +1,22 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/vital.dart';
 import '../../providers/providers.dart';
-import '../../widgets/delete_confirm_dialog.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/loading_widget.dart';
+
+/// Returns the translation for [key] if present, otherwise [fallback].
+/// `T.tr` returns the key itself when no entry is found, so we use that
+/// sentinel to detect missing keys and fall back to the English literal.
+String _trOr(String key, String fallback) {
+  final v = T.tr(key);
+  return v == key ? fallback : v;
+}
 
 // -- Providers ----------------------------------------------------------------
 
@@ -27,23 +35,23 @@ final _vitalsProvider =
 enum _Metric { bp, pulse, weight, temp, spo2, glucose }
 
 extension _MetricExt on _Metric {
-  String get label => const {
-        _Metric.bp: 'BP',
-        _Metric.pulse: 'Pulse',
-        _Metric.weight: 'Weight',
-        _Metric.temp: 'Temp',
-        _Metric.spo2: 'SpO\u2082',
-        _Metric.glucose: 'Glucose',
-      }[this]!;
+  String get label => switch (this) {
+        _Metric.bp => _trOr('vitals.metric.bp', 'BP'),
+        _Metric.pulse => _trOr('vitals.metric.pulse', 'Pulse'),
+        _Metric.weight => _trOr('vitals.metric.weight', 'Weight'),
+        _Metric.temp => _trOr('vitals.metric.temp', 'Temp'),
+        _Metric.spo2 => _trOr('vitals.metric.spo2', 'SpO\u2082'),
+        _Metric.glucose => _trOr('vitals.metric.glucose', 'Glucose'),
+      };
 
-  String get unit => const {
-        _Metric.bp: 'mmHg',
-        _Metric.pulse: 'bpm',
-        _Metric.weight: 'kg',
-        _Metric.temp: '\u00b0C',
-        _Metric.spo2: '%',
-        _Metric.glucose: 'mg/dL',
-      }[this]!;
+  String get unit => switch (this) {
+        _Metric.bp => _trOr('vitals.unit.mmhg', 'mmHg'),
+        _Metric.pulse => _trOr('vitals.unit.bpm', 'bpm'),
+        _Metric.weight => _trOr('vitals.unit.kg', 'kg'),
+        _Metric.temp => _trOr('vitals.unit.celsius', '\u00b0C'),
+        _Metric.spo2 => _trOr('vitals.unit.percent', '%'),
+        _Metric.glucose => _trOr('vitals.unit.mgdl', 'mg/dL'),
+      };
 
   IconData get icon => const {
         _Metric.bp: Icons.favorite,
@@ -177,14 +185,21 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                 ),
                 const SizedBox(height: 20),
                 // -- Core vitals --
-                _sheetField(ctrl['systolic']!, T.tr('vitals.systolic'), 'mmHg'),
-                _sheetField(ctrl['diastolic']!, T.tr('vitals.diastolic'), 'mmHg'),
-                _sheetField(ctrl['pulse']!, T.tr('vitals.pulse'), 'bpm'),
-                _sheetField(ctrl['weight']!, T.tr('vitals.weight'), 'kg'),
+                _sheetField(ctrl['systolic']!, T.tr('vitals.systolic'),
+                    _trOr('vitals.unit.mmhg', 'mmHg')),
+                _sheetField(ctrl['diastolic']!, T.tr('vitals.diastolic'),
+                    _trOr('vitals.unit.mmhg', 'mmHg')),
+                _sheetField(ctrl['pulse']!, T.tr('vitals.pulse'),
+                    _trOr('vitals.unit.bpm', 'bpm')),
+                _sheetField(ctrl['weight']!, T.tr('vitals.weight'),
+                    _trOr('vitals.unit.kg', 'kg')),
                 _sheetField(ctrl['height']!, T.tr('vitals.height'), 'cm'),
-                _sheetField(ctrl['temp']!, T.tr('vitals.temperature'), '\u00b0C'),
-                _sheetField(ctrl['spo2']!, T.tr('vitals.spo2'), '%'),
-                _sheetField(ctrl['glucose']!, T.tr('vitals.blood_glucose'), 'mg/dL'),
+                _sheetField(ctrl['temp']!, T.tr('vitals.temperature'),
+                    _trOr('vitals.unit.celsius', '\u00b0C')),
+                _sheetField(ctrl['spo2']!, T.tr('vitals.spo2'),
+                    _trOr('vitals.unit.percent', '%')),
+                _sheetField(ctrl['glucose']!, T.tr('vitals.blood_glucose'),
+                    _trOr('vitals.unit.mgdl', 'mg/dL')),
                 _sheetField(ctrl['respiratory_rate']!,
                     T.tr('vitals.respiratory_rate'), '/min',
                     decimal: false),
@@ -319,8 +334,10 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                         setSheetState(() => isSaving = false);
                       }
                       if (mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('Error: $e')));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Error: $e'),
+                          behavior: SnackBarBehavior.floating,
+                        ));
                       }
                     }
                   },
@@ -363,13 +380,54 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
 
   // -- Delete -----------------------------------------------------------------
 
-  Future<void> _delete(String vitalId) async {
-    final confirmed = await showDeleteConfirmDialog(
-      context,
-      titleKey: 'vitals.delete',
-      bodyKey: 'vitals.delete_body',
+  Future<bool> _confirmDeleteSheet() async {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                T.tr('vitals.delete'),
+                style: tt.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                T.tr('vitals.delete_body'),
+                style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.tonal(
+                style: FilledButton.styleFrom(
+                  backgroundColor: cs.errorContainer,
+                  foregroundColor: cs.onErrorContainer,
+                ),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(T.tr('common.delete')),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(T.tr('common.cancel')),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+    return result ?? false;
+  }
+
+  Future<void> _delete(String vitalId) async {
+    final confirmed = await _confirmDeleteSheet();
     if (!confirmed) return;
+    HapticFeedback.mediumImpact();
     try {
       final api = ref.read(apiClientProvider);
       await api
@@ -377,8 +435,10 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
       ref.invalidate(_vitalsProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     }
   }
@@ -427,10 +487,14 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
         automaticallyImplyLeading: false,
         actions: [
           vitalsAsync.whenOrNull(
-                data: (vitals) => IconButton(
-                  icon: const Icon(Icons.share),
-                  tooltip: T.tr('common.share'),
-                  onPressed: () => _shareVitals(_filtered(vitals)),
+                data: (vitals) => Semantics(
+                  label: T.tr('common.share'),
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.share),
+                    tooltip: T.tr('common.share'),
+                    onPressed: () => _shareVitals(_filtered(vitals)),
+                  ),
                 ),
               ) ??
               const SizedBox.shrink(),
@@ -438,7 +502,12 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showFormSheet(),
-        child: const Icon(Icons.add),
+        tooltip: T.tr('vitals.add'),
+        child: Semantics(
+          label: T.tr('vitals.add'),
+          button: true,
+          child: const Icon(Icons.add),
+        ),
       ),
       body: vitalsAsync.when(
         loading: () => const LoadingWidget(),
@@ -600,13 +669,13 @@ class _ChartSection extends StatelessWidget {
                 if (range != null) ...[
                   HorizontalLine(
                     y: range.$1,
-                    color: Colors.green.withValues(alpha: 0.4),
+                    color: cs.primary.withValues(alpha: 0.4),
                     strokeWidth: 1,
                     dashArray: [6, 4],
                   ),
                   HorizontalLine(
                     y: range.$2,
-                    color: Colors.orange.withValues(alpha: 0.4),
+                    color: cs.tertiary.withValues(alpha: 0.4),
                     strokeWidth: 1,
                     dashArray: [6, 4],
                   ),

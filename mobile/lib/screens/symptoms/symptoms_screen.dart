@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
@@ -31,25 +33,50 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
   bool _activeOnly = true;
 
   Future<void> _delete(String id) async {
-    final confirmed = await showDialog<bool>(
+    await HapticFeedback.mediumImpact();
+    if (!mounted) return;
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(T.tr('symptoms.delete')),
-        content: Text(T.tr('symptoms.delete_body')),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(T.tr('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
+      showDragHandle: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        final tt = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  T.tr('symptoms.delete'),
+                  style: tt.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  T.tr('symptoms.delete_body'),
+                  style: tt.bodyMedium
+                      ?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: cs.error,
+                    foregroundColor: cs.onError,
+                  ),
+                  child: Text(T.tr('common.delete')),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(T.tr('common.cancel')),
+                ),
+              ],
             ),
-            child: Text(T.tr('common.delete')),
           ),
-        ],
-      ),
+        );
+      },
     );
     if (confirmed != true) return;
     try {
@@ -59,8 +86,12 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
       ref.invalidate(_symptomsProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -245,8 +276,12 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
                             _symptomsProvider(widget.profileId));
                       } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(content: Text('$e')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(apiErrorMessage(e)),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
                         }
                       }
                     },
@@ -456,12 +491,15 @@ class _SymptomCard extends StatelessWidget {
                     ),
                   if (symptom.isOngoing) ...[
                     const SizedBox(width: 6),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Colors.orange,
-                        shape: BoxShape.circle,
+                    Semantics(
+                      label: 'Ongoing',
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: cs.tertiary,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
                   ],

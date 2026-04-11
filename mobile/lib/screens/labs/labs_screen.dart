@@ -1,8 +1,10 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/lab.dart';
 import '../../providers/providers.dart';
@@ -197,7 +199,9 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
                               IconButton(
                                 icon: const Icon(Icons.remove_circle_outline,
                                     size: 20),
-                                onPressed: () {
+                                tooltip: T.tr('common.delete'),
+                                onPressed: () async {
+                                  await HapticFeedback.mediumImpact();
                                   setSheetState(() {
                                     markers[i].dispose();
                                     markers.removeAt(i);
@@ -332,8 +336,10 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
                         setSheetState(() => isSaving = false);
                       }
                       if (mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('Error: $e')));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(apiErrorMessage(e)),
+                          behavior: SnackBarBehavior.floating,
+                        ));
                       }
                     }
                   },
@@ -371,6 +377,7 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showFormSheet(),
+        tooltip: T.tr('labs.add'),
         child: const Icon(Icons.add),
       ),
       body: Column(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
@@ -30,27 +32,50 @@ class VaccinationsScreen extends ConsumerStatefulWidget {
 
 class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
   Future<void> _delete(String id) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(T.tr('vaccinations.delete')),
-        content: Text(T.tr('vaccinations.delete_body')),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(T.tr('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
+      showDragHandle: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        final tt = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  T.tr('vaccinations.delete'),
+                  style: tt.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  T.tr('vaccinations.delete_body'),
+                  style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: cs.error,
+                    foregroundColor: cs.onError,
+                  ),
+                  child: Text(T.tr('common.delete')),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(T.tr('common.cancel')),
+                ),
+              ],
             ),
-            child: Text(T.tr('common.delete')),
           ),
-        ],
-      ),
+        );
+      },
     );
     if (confirmed != true) return;
+    await HapticFeedback.mediumImpact();
     try {
       await ref
           .read(apiClientProvider)
@@ -58,8 +83,12 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
       ref.invalidate(_vaccinationsProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -276,8 +305,12 @@ class _VaccinationsScreenState extends ConsumerState<VaccinationsScreen> {
                           _vaccinationsProvider(widget.profileId));
                     } catch (e) {
                       if (mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('$e')));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(apiErrorMessage(e)),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
                       }
                     }
                   },
@@ -399,9 +432,15 @@ class _VaccinationCard extends StatelessWidget {
       }
     }
 
-    return Card(
+    return Semantics(
+      button: true,
+      label: '${vaccination.vaccine}. ${T.tr('vaccinations.edit')}.',
+      hint: T.tr('vaccinations.delete'),
+      child: Card(
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: Tooltip(
+        message: T.tr('vaccinations.edit'),
+        child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         onLongPress: onDelete,
@@ -483,6 +522,8 @@ class _VaccinationCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      ),
       ),
     );
   }

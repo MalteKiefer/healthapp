@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
@@ -29,27 +31,49 @@ class AllergiesScreen extends ConsumerStatefulWidget {
 
 class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
   Future<void> _delete(String id) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(T.tr('allergies.delete')),
-        content: Text(T.tr('allergies.delete_body')),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(T.tr('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
+      showDragHandle: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  T.tr('allergies.delete'),
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  T.tr('allergies.delete_body'),
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: cs.error,
+                    foregroundColor: cs.onError,
+                  ),
+                  child: Text(T.tr('common.delete')),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(T.tr('common.cancel')),
+                ),
+              ],
             ),
-            child: Text(T.tr('common.delete')),
           ),
-        ],
-      ),
+        );
+      },
     );
     if (confirmed != true) return;
+    await HapticFeedback.mediumImpact();
     try {
       await ref
           .read(apiClientProvider)
@@ -57,8 +81,10 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
       ref.invalidate(_allergiesProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(apiErrorMessage(e)),
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     }
   }
@@ -252,8 +278,10 @@ class _AllergiesScreenState extends ConsumerState<AllergiesScreen> {
                           setSheetState(() => isSaving = false);
                         }
                         if (mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(content: Text('$e')));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(apiErrorMessage(e)),
+                            behavior: SnackBarBehavior.floating,
+                          ));
                         }
                       }
                     },

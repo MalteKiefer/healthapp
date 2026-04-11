@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
-import '../../widgets/delete_confirm_dialog.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/loading_widget.dart';
 
@@ -33,12 +34,53 @@ class DiagnosesScreen extends ConsumerStatefulWidget {
 class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
   bool _activeOnly = true;
 
-  Future<void> _delete(String id) async {
-    final confirmed = await showDeleteConfirmDialog(
-      context,
-      titleKey: 'diagnoses.delete',
-      bodyKey: 'diagnoses.delete_body',
+  Future<bool> _confirmDelete() async {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                T.tr('diagnoses.delete'),
+                style: tt.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                T.tr('diagnoses.delete_body'),
+                style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.tonal(
+                style: FilledButton.styleFrom(
+                  backgroundColor: cs.errorContainer,
+                  foregroundColor: cs.onErrorContainer,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(T.tr('common.delete')),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(T.tr('common.cancel')),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+    return confirmed ?? false;
+  }
+
+  Future<void> _delete(String id) async {
+    await HapticFeedback.mediumImpact();
+    final confirmed = await _confirmDelete();
     if (!confirmed) return;
     try {
       await ref
@@ -47,8 +89,12 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
       ref.invalidate(_diagnosesProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -241,8 +287,12 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
                           setSheetState(() => isSaving = false);
                         }
                         if (mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(content: Text('$e')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(apiErrorMessage(e)),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
                         }
                       }
                     },
@@ -281,10 +331,14 @@ class _DiagnosesScreenState extends ConsumerState<DiagnosesScreen> {
         title: Text(T.tr('diagnoses.title')),
         automaticallyImplyLeading: false,
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showFormSheet(),
-        tooltip: T.tr('diagnoses.add'),
-        child: const Icon(Icons.add),
+      floatingActionButton: Semantics(
+        button: true,
+        label: T.tr('diagnoses.add'),
+        child: FloatingActionButton(
+          onPressed: () => _showFormSheet(),
+          tooltip: T.tr('diagnoses.add'),
+          child: const Icon(Icons.add),
+        ),
       ),
       body: Column(
         children: [
@@ -474,16 +528,15 @@ class _DiagnosisCard extends StatelessWidget {
                             Container(
                               width: 8,
                               height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.green,
+                              decoration: BoxDecoration(
+                                color: cs.tertiary,
                                 shape: BoxShape.circle,
                               ),
                             ),
                             const SizedBox(width: 4),
                             Text(
                               '${T.tr('status.resolved')}${resDate != null ? ' $resDate' : ''}',
-                              style: tt.bodySmall
-                                  ?.copyWith(color: Colors.green),
+                              style: tt.bodySmall?.copyWith(color: cs.tertiary),
                             ),
                           ],
                         ],

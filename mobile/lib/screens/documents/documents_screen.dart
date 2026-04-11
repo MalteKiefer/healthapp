@@ -1,12 +1,13 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
@@ -52,6 +53,36 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     final file = result.files.first;
     if (file.path == null) return;
 
+    // 1a. Validate size and extension
+    const maxSize = 50 * 1024 * 1024;
+    const allowed = {
+      'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'txt', 'csv', 'heic', 'heif',
+    };
+    final fileSize = file.size;
+    if (fileSize > maxSize) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('File too large (max 50 MB)'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+    final ext = (file.name.split('.').lastOrNull ?? '').toLowerCase();
+    if (!allowed.contains(ext)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('File type not allowed'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
     // 2. Ask for category
     String selectedCat = 'other';
     final categories = [
@@ -88,7 +119,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     // 3. Upload
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(T.tr('documents.uploading'))),
+      SnackBar(
+        content: Text(T.tr('documents.uploading')),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
 
     try {
@@ -102,38 +136,69 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       ref.invalidate(_documentsProvider(widget.profileId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(T.tr('documents.uploaded'))),
+          SnackBar(
+            content: Text(T.tr('documents.uploaded')),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
   }
 
   Future<void> _delete(String id) async {
-    final confirmed = await showDialog<bool>(
+    await HapticFeedback.mediumImpact();
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(T.tr('documents.delete')),
-        content: Text(T.tr('documents.delete_body')),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(T.tr('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
+      showDragHandle: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  T.tr('documents.delete'),
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  T.tr('documents.delete_body'),
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: cs.error,
+                    foregroundColor: cs.onError,
+                  ),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(T.tr('common.delete')),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(T.tr('common.cancel')),
+                ),
+              ],
             ),
-            child: Text(T.tr('common.delete')),
           ),
-        ],
-      ),
+        );
+      },
     );
     if (confirmed != true) return;
     try {
@@ -143,8 +208,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       ref.invalidate(_documentsProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -259,8 +328,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                       ref.invalidate(_documentsProvider(widget.profileId));
                     } catch (e) {
                       if (mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('$e')));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(apiErrorMessage(e)),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
                       }
                     }
                   },
@@ -299,8 +372,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       await Share.shareXFiles([XFile(file.path)], text: doc.filename);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -313,8 +390,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('${T.tr('common.error')}: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
       return;
     }
@@ -327,6 +408,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             title: Text(doc.filename),
             leading: IconButton(
               icon: const Icon(Icons.close),
+              tooltip: 'Close',
               onPressed: () => Navigator.pop(ctx),
             ),
           ),
@@ -345,7 +427,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   Future<void> _downloadPdf(Document doc) async {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(T.tr('doc.downloading'))),
+      SnackBar(
+        content: Text(T.tr('doc.downloading')),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
     try {
       final bytes = await ref.read(apiClientProvider).getBytes(
@@ -356,13 +441,20 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       await file.writeAsBytes(bytes);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${doc.filename} ${T.tr('doc.downloaded')}')),
+        SnackBar(
+          content: Text('${doc.filename} ${T.tr('doc.downloaded')}'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       await Share.shareXFiles([XFile(file.path)], text: doc.filename);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('${T.tr('common.error')}: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }

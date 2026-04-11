@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
-import '../../widgets/delete_confirm_dialog.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/loading_widget.dart';
 
@@ -34,12 +35,54 @@ class AppointmentsScreen extends ConsumerStatefulWidget {
 class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
   bool _upcomingOnly = true;
 
-  Future<void> _delete(String id) async {
-    final confirmed = await showDeleteConfirmDialog(
-      context,
-      titleKey: 'appointments.delete',
-      bodyKey: 'appointments.delete_body',
+  Future<bool> _confirmDeleteSheet() async {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                T.tr('appointments.delete'),
+                style: tt.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                T.tr('appointments.delete_body'),
+                style: tt.bodyMedium
+                    ?.copyWith(color: cs.onSurfaceVariant),
+              ),
+              const SizedBox(height: 20),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: cs.error,
+                  foregroundColor: cs.onError,
+                ),
+                onPressed: () => Navigator.pop(sheetCtx, true),
+                child: Text(T.tr('common.delete')),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(sheetCtx, false),
+                child: Text(T.tr('common.cancel')),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+    return result ?? false;
+  }
+
+  Future<void> _delete(String id) async {
+    await HapticFeedback.mediumImpact();
+    final confirmed = await _confirmDeleteSheet();
     if (!confirmed) return;
     try {
       await ref
@@ -48,8 +91,12 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       ref.invalidate(_appointmentsProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -207,7 +254,11 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                     decoration: InputDecoration(
                       labelText: T.tr('appointments.field_doctor'),
                       suffixIcon: IconButton(
-                        icon: const Icon(Icons.contacts_outlined),
+                        icon: Semantics(
+                          label: T.tr('contacts.title'),
+                          button: true,
+                          child: const Icon(Icons.contacts_outlined),
+                        ),
                         tooltip: T.tr('contacts.title'),
                         onPressed: () async {
                           final result =
@@ -323,8 +374,10 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                       if (selectedDateTime == null) {
                         ScaffoldMessenger.of(ctx).showSnackBar(
                           SnackBar(
-                              content: Text(
-                                  T.tr('appointments.date_required'))),
+                            content: Text(
+                                T.tr('appointments.date_required')),
+                            behavior: SnackBarBehavior.floating,
+                          ),
                         );
                         return;
                       }
@@ -372,8 +425,12 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                         }
                       } catch (e) {
                         if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx)
-                              .showSnackBar(SnackBar(content: Text('$e')));
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text(apiErrorMessage(e)),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
                         }
                       }
                     },
@@ -400,7 +457,10 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     if (contacts.isEmpty) {
       if (ctx.mounted) {
         ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(content: Text(T.tr('contacts.no_contacts'))),
+          SnackBar(
+            content: Text(T.tr('contacts.no_contacts')),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
       return null;
@@ -654,14 +714,14 @@ class _AppointmentCard extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.green.withValues(alpha: 0.12),
+                                color: cs.tertiaryContainer,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 T.tr('status.completed'),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 10,
-                                  color: Colors.green,
+                                  color: cs.onTertiaryContainer,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),

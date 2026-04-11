@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/medication.dart';
 import '../../providers/providers.dart';
-import '../../widgets/delete_confirm_dialog.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/loading_widget.dart';
 
@@ -34,13 +35,55 @@ class MedicationsScreen extends ConsumerStatefulWidget {
 class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
   bool _activeOnly = true;
 
-  Future<void> _delete(String id) async {
-    final confirmed = await showDeleteConfirmDialog(
-      context,
-      titleKey: 'meds.delete',
-      bodyKey: 'meds.delete_body',
+  Future<bool> _confirmDeleteSheet() async {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                T.tr('meds.delete'),
+                style: tt.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                T.tr('meds.delete_body'),
+                style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: cs.error,
+                  foregroundColor: cs.onError,
+                ),
+                icon: const Icon(Icons.delete_outline),
+                label: Text(T.tr('common.delete')),
+                onPressed: () => Navigator.pop(ctx, true),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(T.tr('common.cancel')),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+    return result ?? false;
+  }
+
+  Future<void> _delete(String id) async {
+    final confirmed = await _confirmDeleteSheet();
     if (!confirmed) return;
+    await HapticFeedback.mediumImpact();
     try {
       await ref
           .read(apiClientProvider)
@@ -48,8 +91,10 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
       ref.invalidate(medicationsProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(apiErrorMessage(e)),
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     }
   }
@@ -283,8 +328,10 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                             medicationsProvider(widget.profileId));
                       } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(content: Text('$e')));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(apiErrorMessage(e)),
+                            behavior: SnackBarBehavior.floating,
+                          ));
                         }
                       }
                     },
@@ -338,10 +385,14 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
         automaticallyImplyLeading: false,
         actions: [
           async.whenOrNull(
-                data: (items) => IconButton(
-                  icon: const Icon(Icons.share),
-                  tooltip: T.tr('common.share'),
-                  onPressed: () => _shareMedications(items),
+                data: (items) => Semantics(
+                  button: true,
+                  label: T.tr('common.share'),
+                  child: IconButton(
+                    icon: const Icon(Icons.share),
+                    tooltip: T.tr('common.share'),
+                    onPressed: () => _shareMedications(items),
+                  ),
                 ),
               ) ??
               const SizedBox.shrink(),
@@ -495,14 +546,19 @@ class _MedCard extends StatelessWidget {
                             ),
                           ),
                           // Active dot
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: med.isActive
-                                  ? Colors.green
-                                  : cs.outlineVariant,
-                              shape: BoxShape.circle,
+                          Semantics(
+                            label: med.isActive
+                                ? T.tr('common.active')
+                                : T.tr('common.all'),
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: med.isActive
+                                    ? cs.tertiary
+                                    : cs.outlineVariant,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                           ),
                         ],

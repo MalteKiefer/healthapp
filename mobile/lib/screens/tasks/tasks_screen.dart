@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/api/api_error_messages.dart';
 import '../../core/i18n/translations.dart';
 import '../../models/common.dart';
 import '../../providers/providers.dart';
@@ -31,25 +33,49 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   bool _openOnly = true;
 
   Future<void> _delete(String id) async {
-    final confirmed = await showDialog<bool>(
+    await HapticFeedback.mediumImpact();
+    if (!mounted) return;
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(T.tr('tasks.delete')),
-        content: Text(T.tr('tasks.delete_body')),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(T.tr('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
+      showDragHandle: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        final tt = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  T.tr('tasks.delete'),
+                  style: tt.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  T.tr('tasks.delete_body'),
+                  style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: cs.error,
+                    foregroundColor: cs.onError,
+                  ),
+                  child: Text(T.tr('common.delete')),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(T.tr('common.cancel')),
+                ),
+              ],
             ),
-            child: Text(T.tr('common.delete')),
           ),
-        ],
-      ),
+        );
+      },
     );
     if (confirmed != true) return;
     try {
@@ -59,8 +85,12 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       ref.invalidate(_tasksProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -74,8 +104,12 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       ref.invalidate(_tasksProvider(widget.profileId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErrorMessage(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -225,8 +259,12 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                             _tasksProvider(widget.profileId));
                       } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(content: Text('$e')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(apiErrorMessage(e)),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
                         }
                       }
                     },
@@ -258,7 +296,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showFormSheet(),
         tooltip: T.tr('tasks.add'),
-        child: const Icon(Icons.add),
+        child: Semantics(
+          label: T.tr('tasks.add'),
+          button: true,
+          child: const Icon(Icons.add),
+        ),
       ),
       body: Column(
         children: [
@@ -391,9 +433,16 @@ class _TaskCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Checkbox(
-                value: task.completed,
-                onChanged: (_) => onToggle(),
+              Semantics(
+                label: T.tr('tasks.toggle_completion'),
+                button: true,
+                child: Tooltip(
+                  message: T.tr('tasks.toggle_completion'),
+                  child: Checkbox(
+                    value: task.completed,
+                    onChanged: (_) => onToggle(),
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
