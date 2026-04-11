@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -117,20 +118,24 @@ class _HealthVaultAppState extends ConsumerState<HealthVaultApp> {
     ref.watch(languageProvider);
     final lang = ref.watch(languageProvider);
 
-    return MaterialApp.router(
-      title: 'HealthVault',
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      themeMode: themeMode,
-      routerConfig: ref.watch(appRouterProvider),
-      debugShowCheckedModeBanner: false,
-      locale: Locale(lang),
-      supportedLocales: const [Locale('de'), Locale('en')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+    return DynamicColorBuilder(
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        return MaterialApp.router(
+          title: 'HealthVault',
+          theme: AppTheme.lightFromDynamic(lightDynamic),
+          darkTheme: AppTheme.darkFromDynamic(darkDynamic),
+          themeMode: themeMode,
+          routerConfig: ref.watch(appRouterProvider),
+          debugShowCheckedModeBanner: false,
+          locale: Locale(lang),
+          supportedLocales: const [Locale('de'), Locale('en')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+        );
+      },
     );
   }
 }

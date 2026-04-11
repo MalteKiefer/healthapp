@@ -13,8 +13,32 @@ class AppTheme {
         brightness: Brightness.dark,
       );
 
-  static ThemeData light() => _build(lightScheme);
-  static ThemeData dark() => _build(darkScheme);
+  static ThemeData light() => lightFromDynamic(null);
+  static ThemeData dark() => darkFromDynamic(null);
+
+  /// Builds the light theme using a dynamic [ColorScheme] when provided
+  /// (e.g. Android 12+ Material You). Falls back to the seed-based scheme
+  /// on platforms where dynamic color is unavailable (DynamicColorBuilder
+  /// passes `null` for `lightDynamic` on those platforms).
+  static ThemeData lightFromDynamic(ColorScheme? dynamicScheme) {
+    final scheme = dynamicScheme ??
+        ColorScheme.fromSeed(
+          seedColor: _seedColor,
+          brightness: Brightness.light,
+        );
+    return _build(scheme);
+  }
+
+  /// Builds the dark theme using a dynamic [ColorScheme] when provided.
+  /// Falls back to the seed-based scheme when `darkDynamic` is `null`.
+  static ThemeData darkFromDynamic(ColorScheme? dynamicScheme) {
+    final scheme = dynamicScheme ??
+        ColorScheme.fromSeed(
+          seedColor: _seedColor,
+          brightness: Brightness.dark,
+        );
+    return _build(scheme);
+  }
 
   static ThemeData _build(ColorScheme cs) => ThemeData(
         useMaterial3: true,
