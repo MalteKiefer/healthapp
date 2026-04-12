@@ -91,13 +91,13 @@ Future<void> main() async {
   final cookieJar = EncryptedCookieJar(vault: vault);
   apiClient.setCookieJar(cookieJar);
 
-  // Once the vault becomes unlocked (either via PIN entry on an existing
-  // install or via setupPin after first login), restore the saved server URL
-  // onto ApiClient and reload persisted cookies from the vault.
-  container.listen<SecurityState>(appLockControllerProvider, (prev, next) async {
-    if (next != SecurityState.unlocked) return;
+  // Restore API session state (baseUrl, cookies, key cache) BEFORE the
+  // security state flips to unlocked. This runs synchronously inside
+  // unlockWithPin / setupPin, so the first screen that renders after
+  // unlock already has a working network session (no race condition).
+  controller.onBeforeUnlock = () async {
     try {
-      // 1. Existing: restore baseUrl + cookies.
+      // 1. Restore baseUrl + cookies.
       if (apiClient.baseUrl.isEmpty) {
         final creds = await authService.loadCredentials();
         if (creds != null) {
@@ -155,7 +155,7 @@ Future<void> main() async {
     } catch (_) {
       // Swallow — the UI surfaces a friendly error via apiErrorMessage.
     }
-  });
+  };
 
   runApp(UncontrolledProviderScope(
     container: container,

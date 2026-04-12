@@ -21,6 +21,13 @@ class AppLockController extends StateNotifier<SecurityState> {
   /// Tests can omit this and handle persistence themselves.
   final AuthService? authService;
 
+  /// Optional callback invoked after the vault is unlocked but BEFORE
+  /// the security state flips to [SecurityState.unlocked]. Use this
+  /// to restore API session state (baseUrl, cookies, key cache) so that
+  /// the first screen rendered after unlock already has a working
+  /// network session.
+  Future<void> Function()? onBeforeUnlock;
+
   final DateTime Function() _now;
   final Duration backgroundTimeout;
   final Duration absoluteSessionTimeout;
@@ -47,6 +54,7 @@ class AppLockController extends StateNotifier<SecurityState> {
       await authService!.saveCredentials(pending);
       _pendingCredentials = null;
     }
+    await onBeforeUnlock?.call();
     _sessionStartAt = _now();
     state = SecurityState.unlocked;
   }
@@ -55,6 +63,7 @@ class AppLockController extends StateNotifier<SecurityState> {
     state = SecurityState.unlocking;
     try {
       await pinService.verifyPin(pin);
+      await onBeforeUnlock?.call();
       _sessionStartAt = _now();
       state = SecurityState.unlocked;
     } catch (e) {
