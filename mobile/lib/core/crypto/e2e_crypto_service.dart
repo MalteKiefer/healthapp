@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../api/api_client.dart';
+import 'package:pointycastle/ecc/curves/secp256r1.dart';
+
 import 'base64_util.dart';
 import 'content_crypto.dart';
 import 'content_fields.dart';
@@ -67,6 +69,21 @@ class E2eCryptoService {
     cache.identityPublicRaw = kp.publicKeyRaw;
     cache.currentUserId = userId;
     cache.currentUserIdentityPubkeyBase64 = identityPubkeyBase64;
+
+    // Consistency check: verify d*G == extracted public key.
+    final curve = ECCurve_secp256r1();
+    var d = BigInt.zero;
+    for (final b in kp.privateScalar) {
+      d = (d << 8) | BigInt.from(b);
+    }
+    final derivedQ = curve.G * d;
+    final derivedPub = Uint8List.fromList(derivedQ!.getEncoded(false));
+    final scalarMatchesPub = _bytesEqual(derivedPub, kp.publicKeyRaw);
+    debugPrint('[e2e] unlock: scalar↔pubkey consistent: $scalarMatchesPub');
+    if (!scalarMatchesPub) {
+      debugPrint('[e2e]   derived[0..4]: ${derivedPub.sublist(0, 5)}');
+      debugPrint('[e2e]   pkcs8[0..4]:   ${kp.publicKeyRaw.sublist(0, 5)}');
+    }
   }
 
   /// Lazy profile key resolver. Checks the cache first; on miss, calls
@@ -98,17 +115,57 @@ class E2eCryptoService {
       final encryptedKey = grant['encrypted_key'] as String;
       final granterId = grant['granted_by_user_id'] as String;
       final granterPubB64 = grant['granter_identity_pubkey'] as String;
+      debugPrint('[e2e] DUMP encrypted_key=$encryptedKey');
+      debugPrint('[e2e] DUMP granterPub=$granterPubB64');
+      debugPrint('[e2e] DUMP granterId=$granterId userId=$userId');
+      debugPrint('[e2e] DUMP privScalarHex=${priv.map((b) => b.toRadixString(16).padLeft(2, "0")).join()}');
       final granterPubRaw = _decodePublicKeyRaw(granterPubB64);
+
+      // Diagnostic: for self-grants, verify that the public key from the
+      // server matches what we extracted from our PKCS#8 identity key.
+      if (granterId == userId) {
+        final myPub = cache.identityPublicRaw;
+        if (myPub != null) {
+          final match = granterPubRaw.length == myPub.length &&
+              _bytesEqual(granterPubRaw, myPub);
+          debugPrint(
+            '[e2e] self-grant pubkey match: $match '
+            '(server=${granterPubRaw.length}b, pkcs8=${myPub.length}b)',
+          );
+          if (!match) {
+            debugPrint(
+              '[e2e]   server[0..4]: ${granterPubRaw.sublist(0, 5)}',
+            );
+            debugPrint(
+              '[e2e]   pkcs8[0..4]:  ${myPub.sublist(0, 5)}',
+            );
+          }
+        }
+      }
+
       final ctx = GrantCrypto.grantContext(profileId, granterId, userId);
-      final profileKey = await GrantCrypto.unwrapProfileKey(
-        myPrivateScalar: priv,
-        granterPublicKeyRaw: granterPubRaw,
-        wrappedKeyBase64: encryptedKey,
-        context: ctx,
-      );
-      cache.putProfileKey(profileId, profileKey);
-      debugPrint('[e2e] ensureProfileKey($profileId): unwrap OK');
-      return profileKey;
+      try {
+        final profileKey = await GrantCrypto.unwrapProfileKey(
+          myPrivateScalar: priv,
+          granterPublicKeyRaw: granterPubRaw,
+          wrappedKeyBase64: encryptedKey,
+          context: ctx,
+        );
+        cache.putProfileKey(profileId, profileKey);
+        debugPrint('[e2e] ensureProfileKey($profileId): unwrap OK');
+        return profileKey;
+      } on StateError catch (e) {
+        // AES-GCM tag mismatch → stale grant (encrypted with old/different
+        // identity keys). We cannot recover the profile key — the existing
+        // content_enc data was encrypted with that key and minting a NEW
+        // key would make the data permanently unreadable. Return null so
+        // screens fall back to showing structural fields.
+        debugPrint(
+          '[e2e] ensureProfileKey($profileId): stale grant, '
+          'cannot unwrap ($e). Open web client to re-sync keys.',
+        );
+        return null;
+      }
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
         debugPrint('[e2e] ensureProfileKey($profileId): 404, trying self-grant');
@@ -338,6 +395,14 @@ class E2eCryptoService {
       contentEnc: contentEnc,
       structural: structural,
     );
+  }
+
+  static bool _bytesEqual(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   /// Drop all cached key material. Call on logout / wipe.

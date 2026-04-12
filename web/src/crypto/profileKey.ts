@@ -66,40 +66,76 @@ export async function ensureProfileKey(
   try {
     const grant = await api.get<MyGrantResp>(`/api/v1/profiles/${profileId}/my-grant`);
     const ctx = grantContext(profileId, grant.granted_by_user_id, currentUserId);
-    const key = await receiveKeyGrant(
-      grant.encrypted_key,
-      idPriv,
-      grant.granter_identity_pubkey,
-      ctx,
-    );
-    setProfileKey(profileId, key);
-    return key;
+    try {
+      const key = await receiveKeyGrant(
+        grant.encrypted_key,
+        idPriv,
+        grant.granter_identity_pubkey,
+        ctx,
+      );
+      setProfileKey(profileId, key);
+      return key;
+    } catch (unwrapErr) {
+      // Unwrap failed — stale grant (encrypted with old identity keys).
+      // If we're the owner, revoke it and re-mint with current keys.
+      console.warn(`ensureProfileKey(${profileId}): unwrap failed, attempting repair`, unwrapErr);
+      if (currentUserId !== ownerUserId) return null;
+      return await _repairOrMintGrant(profileId, currentUserId, idPriv);
+    }
   } catch (err) {
     if (!(err instanceof ApiError) || err.status !== 404) {
-      console.warn(`ensureProfileKey(${profileId}): unwrap failed`, err);
+      console.warn(`ensureProfileKey(${profileId}): fetch grant failed`, err);
       return null;
     }
     // 404 — no active grant. If we're the owner, create a self-grant now.
     if (currentUserId !== ownerUserId) return null;
+    return await _repairOrMintGrant(profileId, currentUserId, idPriv);
+  }
+}
+
+/**
+ * Revoke any existing stale grant, then mint a fresh self-grant.
+ *
+ * If a profile key is already cached (from a previous successful unwrap
+ * or from sessionStorage), re-wrap THAT key so existing content_enc data
+ * remains readable. Only generate a brand-new key as a last resort.
+ */
+async function _repairOrMintGrant(
+  profileId: string,
+  userId: string,
+  idPriv: CryptoKey,
+): Promise<CryptoKey | null> {
+  try {
+    // Best-effort revoke of the stale grant.
     try {
-      const me = await api.get<MeResp>('/api/v1/users/me');
-      const profileKey = await generateProfileKey();
-      const wrapped = await createKeyGrant(
-        profileKey,
-        idPriv,
-        me.identity_pubkey,
-        grantContext(profileId, currentUserId, currentUserId),
-      );
-      await api.post(`/api/v1/profiles/${profileId}/grants`, {
-        grantee_user_id: currentUserId,
-        encrypted_key: wrapped,
-        grant_signature: '',
-      });
-      setProfileKey(profileId, profileKey);
-      return profileKey;
-    } catch (mintErr) {
-      console.warn(`ensureProfileKey(${profileId}): lazy self-grant failed`, mintErr);
-      return null;
+      await api.delete(`/api/v1/profiles/${profileId}/grants/${userId}`);
+    } catch {
+      // May 404 if already revoked — that's fine.
     }
+
+    const me = await api.get<MeResp>('/api/v1/users/me');
+
+    // Prefer the cached key so existing encrypted data stays readable.
+    let profileKey = getProfileKey(profileId);
+    if (!profileKey) {
+      profileKey = await generateProfileKey();
+    }
+
+    const wrapped = await createKeyGrant(
+      profileKey,
+      idPriv,
+      me.identity_pubkey,
+      grantContext(profileId, userId, userId),
+    );
+    await api.post(`/api/v1/profiles/${profileId}/grants`, {
+      grantee_user_id: userId,
+      encrypted_key: wrapped,
+      grant_signature: '',
+    });
+    setProfileKey(profileId, profileKey);
+    return profileKey;
+  } catch (mintErr) {
+    console.warn(`_repairOrMintGrant(${profileId}): failed`, mintErr);
+    return null;
   }
 }

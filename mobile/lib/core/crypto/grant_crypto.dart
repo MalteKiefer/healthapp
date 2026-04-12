@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:flutter/foundation.dart';
 import 'package:pointycastle/ecc/api.dart'
     show ECDomainParameters, ECPrivateKey, ECPublicKey;
 import 'package:pointycastle/ecc/curves/prime256v1.dart'
@@ -94,6 +95,13 @@ class GrantCrypto {
       info: info,
     );
     final wrappingKeyBytes = await wrappingKeyData.extractBytes();
+
+    // Debug: log intermediate values for cross-client comparison.
+    debugPrint('[e2e:unwrap] privScalar[0..3]: ${myPrivateScalar.sublist(0, 4)}');
+    debugPrint('[e2e:unwrap] granterPub[0..4]: ${granterPublicKeyRaw.sublist(0, 5)}');
+    debugPrint('[e2e:unwrap] sharedBits[0..3]: ${sharedBits.sublist(0, 4)}');
+    debugPrint('[e2e:unwrap] context: $context');
+    debugPrint('[e2e:unwrap] wrappingKey[0..3]: ${Uint8List.fromList(wrappingKeyBytes).sublist(0, 4)}');
 
     // Step 3: AES-256-GCM decrypt the wrapped blob.
     // Wire format: base64(iv(12) || ciphertext || tag(16)).
