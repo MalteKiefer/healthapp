@@ -1,5 +1,7 @@
 # HealthVault
 
+[![Donate](https://img.shields.io/liberapay/receives/beli3ver.svg?logo=liberapay)](https://de.liberapay.com/beli3ver)
+
 **Self-hosted, zero-knowledge health data platform.**
 
 Take full ownership of your family's health records with end-to-end encryption, offline access, and no third-party dependencies.
