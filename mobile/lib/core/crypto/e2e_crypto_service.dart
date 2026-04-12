@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -105,16 +107,72 @@ class E2eCryptoService {
         context: ctx,
       );
       cache.putProfileKey(profileId, profileKey);
+      debugPrint('[e2e] ensureProfileKey($profileId): unwrap OK');
       return profileKey;
     } on ApiException catch (e) {
       if (e.statusCode == 404) {
-        debugPrint('[e2e] ensureProfileKey($profileId): 404 no grant');
-        return null;
+        debugPrint('[e2e] ensureProfileKey($profileId): 404, trying self-grant');
+        return _mintSelfGrant(profileId, priv, cache);
       }
       debugPrint('[e2e] ensureProfileKey($profileId): api ${e.statusCode} $e');
       return null;
     } catch (e, st) {
       debugPrint('[e2e] ensureProfileKey($profileId): $e\n$st');
+      return null;
+    }
+  }
+
+  /// Lazy self-grant mint fallback. When no active grant exists for a
+  /// profile (404 from /my-grant), generate a fresh 32-byte AES-256
+  /// profile key, wrap it via ECDH(myPriv, myPub) + HKDF + AES-GCM,
+  /// and POST it as a self-grant to the server. Mirrors the web client's
+  /// `ensureProfileKey` 404 fallback in `web/src/crypto/profileKey.ts`.
+  ///
+  /// Returns the profile key on success, null on failure (logged).
+  Future<Uint8List?> _mintSelfGrant(
+    String profileId,
+    Uint8List priv,
+    E2eKeyCache cache,
+  ) async {
+    final pub = cache.identityPublicRaw;
+    final userId = cache.currentUserId;
+    if (pub == null || userId == null) {
+      debugPrint('[e2e] _mintSelfGrant($profileId): no identity public key');
+      return null;
+    }
+
+    try {
+      // 1. Generate random 32-byte profile key.
+      final rng = Random.secure();
+      final profileKey = Uint8List(32);
+      for (var i = 0; i < 32; i++) {
+        profileKey[i] = rng.nextInt(256);
+      }
+
+      // 2. Wrap it.
+      final ctx = GrantCrypto.grantContext(profileId, userId, userId);
+      final wrappedKey = await GrantCrypto.wrapProfileKey(
+        profileKey: profileKey,
+        myPrivateScalar: priv,
+        myPublicKeyRaw: pub,
+        context: ctx,
+      );
+
+      // 3. POST grant to server (only succeeds if we're the profile owner).
+      await _api.post<Map<String, dynamic>>(
+        '/api/v1/profiles/$profileId/grants',
+        body: <String, dynamic>{
+          'grantee_user_id': userId,
+          'encrypted_key': wrappedKey,
+          'grant_signature': '',
+        },
+      );
+
+      cache.putProfileKey(profileId, profileKey);
+      debugPrint('[e2e] _mintSelfGrant($profileId): OK');
+      return profileKey;
+    } catch (e, st) {
+      debugPrint('[e2e] _mintSelfGrant($profileId): $e\n$st');
       return null;
     }
   }

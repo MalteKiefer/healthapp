@@ -128,6 +128,57 @@ class GrantCrypto {
     return Uint8List.fromList(plaintext);
   }
 
+  /// Wrap a raw 32-byte profile key for storage as a grant.
+  ///
+  /// Mirrors [unwrapProfileKey]: same ECDH → HKDF → AES-GCM pipeline,
+  /// but encrypts instead of decrypts. Returns the base64-encoded wire
+  /// blob `iv(12) || ciphertext || tag(16)`.
+  static Future<String> wrapProfileKey({
+    required Uint8List profileKey,
+    required Uint8List myPrivateScalar,
+    required Uint8List myPublicKeyRaw,
+    required String context,
+  }) async {
+    if (profileKey.length != 32) {
+      throw ArgumentError('profileKey must be 32 bytes');
+    }
+    if (myPrivateScalar.length != 32) {
+      throw ArgumentError('myPrivateScalar must be 32 bytes');
+    }
+    if (myPublicKeyRaw.length != 65 || myPublicKeyRaw[0] != 0x04) {
+      throw ArgumentError('myPublicKeyRaw must be 65-byte uncompressed P-256');
+    }
+
+    final sharedBits = _ecdhP256(myPrivateScalar, myPublicKeyRaw);
+
+    final salt = Uint8List.fromList(
+      utf8.encode('HealthVault-ProfileKeyGrant-v1'),
+    );
+    final info = Uint8List.fromList(
+      utf8.encode('HealthVault ProfileKeyGrant v1 $context'),
+    );
+    final hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
+    final wrappingKeyData = await hkdf.deriveKey(
+      secretKey: SecretKey(sharedBits),
+      nonce: salt,
+      info: info,
+    );
+    final wrappingKeyBytes = await wrappingKeyData.extractBytes();
+
+    final aesGcm = AesGcm.with256bits();
+    final secretBox = await aesGcm.encrypt(
+      profileKey,
+      secretKey: SecretKey(wrappingKeyBytes),
+    );
+
+    // Wire format: iv(12) || ciphertext || tag(16).
+    final combined = Uint8List(12 + secretBox.cipherText.length + 16);
+    combined.setRange(0, 12, secretBox.nonce);
+    combined.setRange(12, 12 + secretBox.cipherText.length, secretBox.cipherText);
+    combined.setRange(12 + secretBox.cipherText.length, combined.length, secretBox.mac.bytes);
+    return base64Encode(combined);
+  }
+
   // ---------------------------------------------------------------------
   // Internal: raw P-256 ECDH via pointycastle.
   // ---------------------------------------------------------------------
