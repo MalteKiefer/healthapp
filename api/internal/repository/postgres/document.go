@@ -31,15 +31,15 @@ func (r *DocumentRepo) Create(ctx context.Context, d *documents.Document) error 
 
 	query := `
 		INSERT INTO documents (
-			id, profile_id, filename_enc, mime_type, file_size_bytes,
-			storage_path, category, tags, ocr_text_enc, uploaded_by,
-			encrypted_at, created_at, updated_at
+			id, profile_id, filename, mime_type, file_size_bytes,
+			storage_path, category, tags, ocr_text, uploaded_by,
+			created_at, updated_at
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 
 	_, err := r.db.Exec(ctx, query,
-		d.ID, d.ProfileID, d.FilenameEnc, d.MimeType, d.FileSizeBytes,
-		d.StoragePath, d.Category, d.Tags, d.OCRTextEnc, d.UploadedBy,
-		d.EncryptedAt, d.CreatedAt, d.UpdatedAt,
+		d.ID, d.ProfileID, d.Filename, d.MimeType, d.FileSizeBytes,
+		d.StoragePath, d.Category, d.Tags, d.OCRText, d.UploadedBy,
+		d.CreatedAt, d.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("insert document: %w", err)
@@ -49,9 +49,9 @@ func (r *DocumentRepo) Create(ctx context.Context, d *documents.Document) error 
 
 func (r *DocumentRepo) GetByID(ctx context.Context, id uuid.UUID) (*documents.Document, error) {
 	query := `
-		SELECT id, profile_id, filename_enc, mime_type, file_size_bytes,
-			storage_path, category, tags, ocr_text_enc, uploaded_by,
-			encrypted_at, created_at, updated_at, deleted_at
+		SELECT id, profile_id, filename, mime_type, file_size_bytes,
+			storage_path, category, tags, ocr_text, uploaded_by,
+			created_at, updated_at, deleted_at
 		FROM documents WHERE id = $1 AND deleted_at IS NULL`
 
 	return r.scanDocument(r.db.QueryRow(ctx, query, id))
@@ -73,9 +73,9 @@ func (r *DocumentRepo) List(ctx context.Context, filter documents.ListFilter) ([
 	}
 
 	query := `
-		SELECT id, profile_id, filename_enc, mime_type, file_size_bytes,
-			storage_path, category, tags, ocr_text_enc, uploaded_by,
-			encrypted_at, created_at, updated_at, deleted_at
+		SELECT id, profile_id, filename, mime_type, file_size_bytes,
+			storage_path, category, tags, ocr_text, uploaded_by,
+			created_at, updated_at, deleted_at
 		FROM documents WHERE profile_id = $1 AND deleted_at IS NULL`
 
 	listArgs := []interface{}{filter.ProfileID}
@@ -125,13 +125,13 @@ func (r *DocumentRepo) Update(ctx context.Context, d *documents.Document) error 
 
 	query := `
 		UPDATE documents SET
-			filename_enc = $2, mime_type = $3, category = $4,
-			tags = $5, ocr_text_enc = $6, updated_at = $7
+			filename = $2, mime_type = $3, category = $4,
+			tags = $5, ocr_text = $6, updated_at = $7
 		WHERE id = $1 AND deleted_at IS NULL`
 
 	_, err := r.db.Exec(ctx, query,
-		d.ID, d.FilenameEnc, d.MimeType, d.Category,
-		d.Tags, d.OCRTextEnc, d.UpdatedAt,
+		d.ID, d.Filename, d.MimeType, d.Category,
+		d.Tags, d.OCRText, d.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("update document: %w", err)
@@ -153,9 +153,9 @@ func (r *DocumentRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 func (r *DocumentRepo) scanDocument(row pgx.Row) (*documents.Document, error) {
 	var d documents.Document
 	err := row.Scan(
-		&d.ID, &d.ProfileID, &d.FilenameEnc, &d.MimeType, &d.FileSizeBytes,
-		&d.StoragePath, &d.Category, &d.Tags, &d.OCRTextEnc, &d.UploadedBy,
-		&d.EncryptedAt, &d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,
+		&d.ID, &d.ProfileID, &d.Filename, &d.MimeType, &d.FileSizeBytes,
+		&d.StoragePath, &d.Category, &d.Tags, &d.OCRText, &d.UploadedBy,
+		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -169,9 +169,9 @@ func (r *DocumentRepo) scanDocument(row pgx.Row) (*documents.Document, error) {
 func (r *DocumentRepo) scanDocumentRow(rows pgx.Rows) (*documents.Document, error) {
 	var d documents.Document
 	err := rows.Scan(
-		&d.ID, &d.ProfileID, &d.FilenameEnc, &d.MimeType, &d.FileSizeBytes,
-		&d.StoragePath, &d.Category, &d.Tags, &d.OCRTextEnc, &d.UploadedBy,
-		&d.EncryptedAt, &d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,
+		&d.ID, &d.ProfileID, &d.Filename, &d.MimeType, &d.FileSizeBytes,
+		&d.StoragePath, &d.Category, &d.Tags, &d.OCRText, &d.UploadedBy,
+		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan document row: %w", err)

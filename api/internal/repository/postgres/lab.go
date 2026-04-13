@@ -13,7 +13,6 @@ import (
 	"github.com/healthvault/healthvault/internal/domain/labs"
 )
 
-// LabRepo implements labs.Repository backed by PostgreSQL.
 type LabRepo struct {
 	db *pgxpool.Pool
 }
@@ -21,6 +20,11 @@ type LabRepo struct {
 func NewLabRepo(db *pgxpool.Pool) *LabRepo {
 	return &LabRepo{db: db}
 }
+
+const labResultColumns = `id, profile_id, lab_name, ordered_by, sample_date, result_date, notes,
+	version, previous_id, is_current, created_at, updated_at, deleted_at`
+
+const labValueColumns = `id, lab_result_id, marker, value, value_text, unit, reference_low, reference_high, flag`
 
 func (r *LabRepo) Create(ctx context.Context, lr *labs.LabResult) error {
 	tx, err := r.db.Begin(ctx)
@@ -38,16 +42,12 @@ func (r *LabRepo) Create(ctx context.Context, lr *labs.LabResult) error {
 	lr.Version = 1
 	lr.IsCurrent = true
 
-	query := `
-		INSERT INTO lab_results (
-			id, profile_id,
-			version, previous_id, is_current, created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-
-	_, err = tx.Exec(ctx, query,
-		lr.ID, lr.ProfileID,
-		lr.Version, lr.PreviousID, lr.IsCurrent, lr.CreatedAt, lr.UpdatedAt, lr.ContentEnc,
-	)
+	_, err = tx.Exec(ctx, `
+		INSERT INTO lab_results (id, profile_id, lab_name, ordered_by, sample_date, result_date, notes,
+			version, previous_id, is_current, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+		lr.ID, lr.ProfileID, lr.LabName, lr.OrderedBy, lr.SampleDate, lr.ResultDate, lr.Notes,
+		lr.Version, lr.PreviousID, lr.IsCurrent, lr.CreatedAt, lr.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert lab_result: %w", err)
 	}
@@ -58,13 +58,10 @@ func (r *LabRepo) Create(ctx context.Context, lr *labs.LabResult) error {
 			v.ID = uuid.New()
 		}
 		v.LabResultID = lr.ID
-
 		_, err = tx.Exec(ctx, `
-			INSERT INTO lab_values (
-				id, lab_result_id, content_enc
-			) VALUES ($1,$2,$3)`,
-			v.ID, v.LabResultID, v.ContentEnc,
-		)
+			INSERT INTO lab_values (id, lab_result_id, marker, value, value_text, unit, reference_low, reference_high, flag)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+			v.ID, v.LabResultID, v.Marker, v.Value, v.ValueText, v.Unit, v.ReferenceLow, v.ReferenceHigh, v.Flag)
 		if err != nil {
 			return fmt.Errorf("insert lab_value: %w", err)
 		}
@@ -74,20 +71,14 @@ func (r *LabRepo) Create(ctx context.Context, lr *labs.LabResult) error {
 }
 
 func (r *LabRepo) GetByID(ctx context.Context, id uuid.UUID) (*labs.LabResult, error) {
-	query := `
-		SELECT id, profile_id,
-			version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
-		FROM lab_results WHERE id = $1 AND deleted_at IS NULL`
-
 	var lr labs.LabResult
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&lr.ID, &lr.ProfileID,
-		&lr.Version, &lr.PreviousID, &lr.IsCurrent, &lr.CreatedAt, &lr.UpdatedAt, &lr.DeletedAt, &lr.ContentEnc,
-	)
+	err := r.db.QueryRow(ctx, `SELECT `+labResultColumns+` FROM lab_results WHERE id = $1 AND deleted_at IS NULL`, id).Scan(
+		&lr.ID, &lr.ProfileID, &lr.LabName, &lr.OrderedBy, &lr.SampleDate, &lr.ResultDate, &lr.Notes,
+		&lr.Version, &lr.PreviousID, &lr.IsCurrent, &lr.CreatedAt, &lr.UpdatedAt, &lr.DeletedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotFound
-		}
 		return nil, fmt.Errorf("scan lab_result: %w", err)
 	}
 
@@ -96,29 +87,20 @@ func (r *LabRepo) GetByID(ctx context.Context, id uuid.UUID) (*labs.LabResult, e
 		return nil, err
 	}
 	lr.Values = values
-
 	return &lr, nil
 }
 
 func (r *LabRepo) List(ctx context.Context, profileID uuid.UUID, limit, offset int) ([]labs.LabResult, int, error) {
 	var total int
-	err := r.db.QueryRow(ctx,
+	if err := r.db.QueryRow(ctx,
 		"SELECT COUNT(*) FROM lab_results WHERE profile_id = $1 AND is_current = TRUE AND deleted_at IS NULL",
-		profileID,
-	).Scan(&total)
-	if err != nil {
+		profileID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count lab_results: %w", err)
 	}
 
-	query := `
-		SELECT id, profile_id,
-			version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
-		FROM lab_results
-		WHERE profile_id = $1 AND is_current = TRUE AND deleted_at IS NULL
-		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3`
-
-	rows, err := r.db.Query(ctx, query, profileID, limit, offset)
+	rows, err := r.db.Query(ctx, `SELECT `+labResultColumns+`
+		FROM lab_results WHERE profile_id = $1 AND is_current = TRUE AND deleted_at IS NULL
+		ORDER BY created_at DESC LIMIT $2 OFFSET $3`, profileID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("query lab_results: %w", err)
 	}
@@ -127,10 +109,8 @@ func (r *LabRepo) List(ctx context.Context, profileID uuid.UUID, limit, offset i
 	var results []labs.LabResult
 	for rows.Next() {
 		var lr labs.LabResult
-		if err := rows.Scan(
-			&lr.ID, &lr.ProfileID,
-			&lr.Version, &lr.PreviousID, &lr.IsCurrent, &lr.CreatedAt, &lr.UpdatedAt, &lr.DeletedAt, &lr.ContentEnc,
-		); err != nil {
+		if err := rows.Scan(&lr.ID, &lr.ProfileID, &lr.LabName, &lr.OrderedBy, &lr.SampleDate, &lr.ResultDate, &lr.Notes,
+			&lr.Version, &lr.PreviousID, &lr.IsCurrent, &lr.CreatedAt, &lr.UpdatedAt, &lr.DeletedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan lab_result row: %w", err)
 		}
 		results = append(results, lr)
@@ -139,18 +119,15 @@ func (r *LabRepo) List(ctx context.Context, profileID uuid.UUID, limit, offset i
 		return nil, 0, fmt.Errorf("iterate rows: %w", err)
 	}
 
-	// Batch-load all lab values in a single query to avoid N+1.
+	// Batch-load all lab values
 	if len(results) > 0 {
 		ids := make([]uuid.UUID, len(results))
 		for i, lr := range results {
 			ids[i] = lr.ID
 		}
 
-		valRows, err := r.db.Query(ctx, `
-			SELECT id, lab_result_id, content_enc
-			FROM lab_values
-			WHERE lab_result_id = ANY($1)
-			ORDER BY lab_result_id`, ids)
+		valRows, err := r.db.Query(ctx, `SELECT `+labValueColumns+`
+			FROM lab_values WHERE lab_result_id = ANY($1) ORDER BY lab_result_id`, ids)
 		if err != nil {
 			return nil, 0, fmt.Errorf("batch query lab_values: %w", err)
 		}
@@ -159,15 +136,12 @@ func (r *LabRepo) List(ctx context.Context, profileID uuid.UUID, limit, offset i
 		valMap := make(map[uuid.UUID][]labs.LabValue)
 		for valRows.Next() {
 			var v labs.LabValue
-			if err := valRows.Scan(&v.ID, &v.LabResultID, &v.ContentEnc); err != nil {
+			if err := valRows.Scan(&v.ID, &v.LabResultID, &v.Marker, &v.Value, &v.ValueText, &v.Unit,
+				&v.ReferenceLow, &v.ReferenceHigh, &v.Flag); err != nil {
 				return nil, 0, fmt.Errorf("scan lab_value: %w", err)
 			}
 			valMap[v.LabResultID] = append(valMap[v.LabResultID], v)
 		}
-		if err := valRows.Err(); err != nil {
-			return nil, 0, fmt.Errorf("iterate lab_values rows: %w", err)
-		}
-
 		for i := range results {
 			results[i].Values = valMap[results[i].ID]
 		}
@@ -183,16 +157,12 @@ func (r *LabRepo) Update(ctx context.Context, lr *labs.LabResult) error {
 	}
 	defer tx.Rollback(ctx)
 
-	// Mark the old version as no longer current
-	_, err = tx.Exec(ctx,
-		"UPDATE lab_results SET is_current = FALSE, updated_at = $2 WHERE id = $1",
-		lr.ID, time.Now().UTC(),
-	)
+	_, err = tx.Exec(ctx, "UPDATE lab_results SET is_current = FALSE, updated_at = $2 WHERE id = $1",
+		lr.ID, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("mark old version: %w", err)
 	}
 
-	// Insert the new version
 	previousID := lr.ID
 	lr.PreviousID = &previousID
 	lr.ID = uuid.New()
@@ -202,32 +172,24 @@ func (r *LabRepo) Update(ctx context.Context, lr *labs.LabResult) error {
 	lr.CreatedAt = now
 	lr.UpdatedAt = now
 
-	query := `
-		INSERT INTO lab_results (
-			id, profile_id,
-			version, previous_id, is_current, created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-
-	_, err = tx.Exec(ctx, query,
-		lr.ID, lr.ProfileID,
-		lr.Version, lr.PreviousID, lr.IsCurrent, lr.CreatedAt, lr.UpdatedAt, lr.ContentEnc,
-	)
+	_, err = tx.Exec(ctx, `
+		INSERT INTO lab_results (id, profile_id, lab_name, ordered_by, sample_date, result_date, notes,
+			version, previous_id, is_current, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+		lr.ID, lr.ProfileID, lr.LabName, lr.OrderedBy, lr.SampleDate, lr.ResultDate, lr.Notes,
+		lr.Version, lr.PreviousID, lr.IsCurrent, lr.CreatedAt, lr.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert new version: %w", err)
 	}
 
-	// Insert values for the new version
 	for i := range lr.Values {
 		v := &lr.Values[i]
 		v.ID = uuid.New()
 		v.LabResultID = lr.ID
-
 		_, err = tx.Exec(ctx, `
-			INSERT INTO lab_values (
-				id, lab_result_id, content_enc
-			) VALUES ($1,$2,$3)`,
-			v.ID, v.LabResultID, v.ContentEnc,
-		)
+			INSERT INTO lab_values (id, lab_result_id, marker, value, value_text, unit, reference_low, reference_high, flag)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+			v.ID, v.LabResultID, v.Marker, v.Value, v.ValueText, v.Unit, v.ReferenceLow, v.ReferenceHigh, v.Flag)
 		if err != nil {
 			return fmt.Errorf("insert lab_value: %w", err)
 		}
@@ -237,43 +199,31 @@ func (r *LabRepo) Update(ctx context.Context, lr *labs.LabResult) error {
 }
 
 func (r *LabRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE lab_results SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL",
-		id, time.Now().UTC(),
-	)
+	_, err := r.db.Exec(ctx, "UPDATE lab_results SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL", id, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("soft delete lab result: %w", err)
 	}
 	return nil
 }
 
-// CheckDuplicate looks for a lab result with the same profile created within +/-2 minutes.
 func (r *LabRepo) CheckDuplicate(ctx context.Context, lr *labs.LabResult) (*uuid.UUID, error) {
-	query := `
-		SELECT id FROM lab_results
-		WHERE profile_id = $1
-		  AND deleted_at IS NULL
-		  AND is_current = TRUE
-		  AND created_at BETWEEN $2 - INTERVAL '2 minutes' AND $2 + INTERVAL '2 minutes'
-		LIMIT 1`
-
 	var existingID uuid.UUID
-	err := r.db.QueryRow(ctx, query, lr.ProfileID, lr.CreatedAt).Scan(&existingID)
+	err := r.db.QueryRow(ctx, `
+		SELECT id FROM lab_results
+		WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE
+		AND created_at BETWEEN $2 - INTERVAL '2 minutes' AND $2 + INTERVAL '2 minutes'
+		LIMIT 1`, lr.ProfileID, lr.CreatedAt).Scan(&existingID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("check duplicate: %w", err)
 	}
 	return &existingID, nil
 }
 
 func (r *LabRepo) getValues(ctx context.Context, labResultID uuid.UUID) ([]labs.LabValue, error) {
-	query := `
-		SELECT id, lab_result_id, content_enc
-		FROM lab_values WHERE lab_result_id = $1`
-
-	rows, err := r.db.Query(ctx, query, labResultID)
+	rows, err := r.db.Query(ctx, `SELECT `+labValueColumns+` FROM lab_values WHERE lab_result_id = $1`, labResultID)
 	if err != nil {
 		return nil, fmt.Errorf("query lab_values: %w", err)
 	}
@@ -282,51 +232,64 @@ func (r *LabRepo) getValues(ctx context.Context, labResultID uuid.UUID) ([]labs.
 	var values []labs.LabValue
 	for rows.Next() {
 		var v labs.LabValue
-		if err := rows.Scan(
-			&v.ID, &v.LabResultID, &v.ContentEnc,
-		); err != nil {
+		if err := rows.Scan(&v.ID, &v.LabResultID, &v.Marker, &v.Value, &v.ValueText, &v.Unit,
+			&v.ReferenceLow, &v.ReferenceHigh, &v.Flag); err != nil {
 			return nil, fmt.Errorf("scan lab_value: %w", err)
 		}
 		values = append(values, v)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate rows: %w", err)
-	}
-
-	return values, nil
+	return values, rows.Err()
 }
 
 func (r *LabRepo) ListTrends(ctx context.Context, profileID uuid.UUID, from, to *time.Time) ([]labs.MarkerTrend, error) {
-	// NOTE: ListTrends previously read plaintext lab_values columns (marker,
-	// value, unit, reference_low, reference_high, flag) and lab_results.sample_date.
-	// Those columns have been dropped in Stage 2.4. Trend analysis must now be
-	// performed client-side after decrypting content_enc. Return empty until
-	// the client-side implementation is ready.
-	return nil, nil
-}
+	query := `
+		SELECT lv.marker, lv.value, lv.unit, lv.reference_low, lv.reference_high, lv.flag, lr.sample_date
+		FROM lab_values lv
+		JOIN lab_results lr ON lr.id = lv.lab_result_id
+		WHERE lr.profile_id = $1 AND lr.is_current = TRUE AND lr.deleted_at IS NULL
+		AND lv.value IS NOT NULL`
 
-// SetLabResultContentEnc populates content_enc only if currently NULL
-// (idempotent lazy-migration path).
-func (r *LabRepo) SetLabResultContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE lab_results SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL AND deleted_at IS NULL",
-		id, contentEnc,
-	)
-	if err != nil {
-		return fmt.Errorf("set content_enc: %w", err)
+	args := []interface{}{profileID}
+	argIdx := 2
+	if from != nil {
+		query += fmt.Sprintf(" AND lr.sample_date >= $%d", argIdx)
+		args = append(args, *from)
+		argIdx++
 	}
-	return nil
-}
+	if to != nil {
+		query += fmt.Sprintf(" AND lr.sample_date <= $%d", argIdx)
+		args = append(args, *to)
+	}
+	query += " ORDER BY lv.marker, lr.sample_date"
 
-// SetLabValueContentEnc populates content_enc only if currently NULL
-// (idempotent lazy-migration path). lab_values has no deleted_at column.
-func (r *LabRepo) SetLabValueContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE lab_values SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL",
-		id, contentEnc,
-	)
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return fmt.Errorf("set content_enc: %w", err)
+		return nil, fmt.Errorf("query trends: %w", err)
 	}
-	return nil
+	defer rows.Close()
+
+	trendMap := make(map[string]*labs.MarkerTrend)
+	for rows.Next() {
+		var marker string
+		var value float64
+		var unit *string
+		var refLow, refHigh *float64
+		var flag *string
+		var sampleDate time.Time
+		if err := rows.Scan(&marker, &value, &unit, &refLow, &refHigh, &flag, &sampleDate); err != nil {
+			return nil, fmt.Errorf("scan trend row: %w", err)
+		}
+		t, ok := trendMap[marker]
+		if !ok {
+			t = &labs.MarkerTrend{Marker: marker, Unit: unit, ReferenceLow: refLow, ReferenceHigh: refHigh}
+			trendMap[marker] = t
+		}
+		t.DataPoints = append(t.DataPoints, labs.TrendDataPoint{Date: sampleDate, Value: value, Flag: flag})
+	}
+
+	var trends []labs.MarkerTrend
+	for _, t := range trendMap {
+		trends = append(trends, *t)
+	}
+	return trends, nil
 }

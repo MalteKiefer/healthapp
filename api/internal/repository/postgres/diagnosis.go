@@ -21,6 +21,9 @@ func NewDiagnosisRepo(db *pgxpool.Pool) *DiagnosisRepo {
 	return &DiagnosisRepo{db: db}
 }
 
+const diagColumns = `id, profile_id, name, icd10_code, status, diagnosed_at, diagnosed_by, resolved_at, notes,
+	version, previous_id, is_current, created_at, updated_at, deleted_at`
+
 func (r *DiagnosisRepo) Create(ctx context.Context, d *diagnoses.Diagnosis) error {
 	if d.ID == uuid.Nil {
 		d.ID = uuid.New()
@@ -31,18 +34,12 @@ func (r *DiagnosisRepo) Create(ctx context.Context, d *diagnoses.Diagnosis) erro
 	d.Version = 1
 	d.IsCurrent = true
 
-	query := `
-		INSERT INTO diagnoses (
-			id, profile_id,
-			version, previous_id, is_current,
-			created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-
-	_, err := r.db.Exec(ctx, query,
-		d.ID, d.ProfileID,
-		d.Version, d.PreviousID, d.IsCurrent,
-		d.CreatedAt, d.UpdatedAt, d.ContentEnc,
-	)
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO diagnoses (id, profile_id, name, icd10_code, status, diagnosed_at, diagnosed_by, resolved_at, notes,
+			version, previous_id, is_current, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+		d.ID, d.ProfileID, d.Name, d.ICD10Code, d.Status, d.DiagnosedAt, d.DiagnosedBy, d.ResolvedAt, d.Notes,
+		d.Version, d.PreviousID, d.IsCurrent, d.CreatedAt, d.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert diagnosis: %w", err)
 	}
@@ -50,35 +47,20 @@ func (r *DiagnosisRepo) Create(ctx context.Context, d *diagnoses.Diagnosis) erro
 }
 
 func (r *DiagnosisRepo) GetByID(ctx context.Context, id uuid.UUID) (*diagnoses.Diagnosis, error) {
-	query := `
-		SELECT id, profile_id,
-			version, previous_id, is_current,
-			created_at, updated_at, deleted_at, content_enc
-		FROM diagnoses WHERE id = $1 AND deleted_at IS NULL AND is_current = TRUE`
-
-	return r.scanDiagnosis(r.db.QueryRow(ctx, query, id))
+	return r.scanDiagnosis(r.db.QueryRow(ctx,
+		`SELECT `+diagColumns+` FROM diagnoses WHERE id = $1 AND deleted_at IS NULL AND is_current = TRUE`, id))
 }
 
 func (r *DiagnosisRepo) List(ctx context.Context, filter diagnoses.ListFilter) ([]diagnoses.Diagnosis, int, error) {
 	countQuery := "SELECT COUNT(*) FROM diagnoses WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE"
-	args := []interface{}{filter.ProfileID}
-
 	var total int
-	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, countQuery, filter.ProfileID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count diagnoses: %w", err)
 	}
 
-	query := `
-		SELECT id, profile_id,
-			version, previous_id, is_current,
-			created_at, updated_at, deleted_at, content_enc
-		FROM diagnoses WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE`
-
+	query := `SELECT ` + diagColumns + ` FROM diagnoses WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE ORDER BY created_at DESC`
 	listArgs := []interface{}{filter.ProfileID}
 	listIdx := 2
-
-	query += " ORDER BY created_at DESC"
-
 	if filter.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT $%d", listIdx)
 		listArgs = append(listArgs, filter.Limit)
@@ -103,14 +85,9 @@ func (r *DiagnosisRepo) List(ctx context.Context, filter diagnoses.ListFilter) (
 		}
 		result = append(result, *d)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("iterate rows: %w", err)
-	}
-
-	return result, total, nil
+	return result, total, rows.Err()
 }
 
-// Update performs a versioned update: inserts a new row with version+1 and marks the old row as not current.
 func (r *DiagnosisRepo) Update(ctx context.Context, d *diagnoses.Diagnosis) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -118,16 +95,12 @@ func (r *DiagnosisRepo) Update(ctx context.Context, d *diagnoses.Diagnosis) erro
 	}
 	defer tx.Rollback(ctx)
 
-	// Mark old version as not current
-	_, err = tx.Exec(ctx,
-		"UPDATE diagnoses SET is_current = FALSE, updated_at = $2 WHERE id = $1 AND deleted_at IS NULL",
-		d.ID, time.Now().UTC(),
-	)
+	_, err = tx.Exec(ctx, "UPDATE diagnoses SET is_current = FALSE, updated_at = $2 WHERE id = $1 AND deleted_at IS NULL",
+		d.ID, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("mark old version: %w", err)
 	}
 
-	// Insert new version
 	previousID := d.ID
 	d.PreviousID = &previousID
 	d.ID = uuid.New()
@@ -137,30 +110,20 @@ func (r *DiagnosisRepo) Update(ctx context.Context, d *diagnoses.Diagnosis) erro
 	d.CreatedAt = now
 	d.UpdatedAt = now
 
-	query := `
-		INSERT INTO diagnoses (
-			id, profile_id,
-			version, previous_id, is_current,
-			created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-
-	_, err = tx.Exec(ctx, query,
-		d.ID, d.ProfileID,
-		d.Version, d.PreviousID, d.IsCurrent,
-		d.CreatedAt, d.UpdatedAt, d.ContentEnc,
-	)
+	_, err = tx.Exec(ctx, `
+		INSERT INTO diagnoses (id, profile_id, name, icd10_code, status, diagnosed_at, diagnosed_by, resolved_at, notes,
+			version, previous_id, is_current, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+		d.ID, d.ProfileID, d.Name, d.ICD10Code, d.Status, d.DiagnosedAt, d.DiagnosedBy, d.ResolvedAt, d.Notes,
+		d.Version, d.PreviousID, d.IsCurrent, d.CreatedAt, d.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert new version: %w", err)
 	}
-
 	return tx.Commit(ctx)
 }
 
 func (r *DiagnosisRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE diagnoses SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL",
-		id, time.Now().UTC(),
-	)
+	_, err := r.db.Exec(ctx, "UPDATE diagnoses SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL", id, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("soft delete diagnosis: %w", err)
 	}
@@ -169,11 +132,8 @@ func (r *DiagnosisRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 
 func (r *DiagnosisRepo) scanDiagnosis(row pgx.Row) (*diagnoses.Diagnosis, error) {
 	var d diagnoses.Diagnosis
-	err := row.Scan(
-		&d.ID, &d.ProfileID,
-		&d.Version, &d.PreviousID, &d.IsCurrent,
-		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt, &d.ContentEnc,
-	)
+	err := row.Scan(&d.ID, &d.ProfileID, &d.Name, &d.ICD10Code, &d.Status, &d.DiagnosedAt, &d.DiagnosedBy, &d.ResolvedAt, &d.Notes,
+		&d.Version, &d.PreviousID, &d.IsCurrent, &d.CreatedAt, &d.UpdatedAt, &d.DeletedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -183,27 +143,10 @@ func (r *DiagnosisRepo) scanDiagnosis(row pgx.Row) (*diagnoses.Diagnosis, error)
 	return &d, nil
 }
 
-// SetContentEnc populates content_enc only if currently NULL (idempotent
-// lazy-migration path — safe to call concurrently from multiple clients).
-// Versioned table: no deleted_at filter so historical rows can also migrate.
-func (r *DiagnosisRepo) SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE diagnoses SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL",
-		id, contentEnc,
-	)
-	if err != nil {
-		return fmt.Errorf("set content_enc: %w", err)
-	}
-	return nil
-}
-
 func (r *DiagnosisRepo) scanDiagnosisRow(rows pgx.Rows) (*diagnoses.Diagnosis, error) {
 	var d diagnoses.Diagnosis
-	err := rows.Scan(
-		&d.ID, &d.ProfileID,
-		&d.Version, &d.PreviousID, &d.IsCurrent,
-		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt, &d.ContentEnc,
-	)
+	err := rows.Scan(&d.ID, &d.ProfileID, &d.Name, &d.ICD10Code, &d.Status, &d.DiagnosedAt, &d.DiagnosedBy, &d.ResolvedAt, &d.Notes,
+		&d.Version, &d.PreviousID, &d.IsCurrent, &d.CreatedAt, &d.UpdatedAt, &d.DeletedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan diagnosis row: %w", err)
 	}

@@ -21,6 +21,9 @@ func NewDiaryRepo(db *pgxpool.Pool) *DiaryRepo {
 	return &DiaryRepo{db: db}
 }
 
+const diaryColumns = `id, profile_id, title, event_type, started_at, ended_at, description, severity, location, outcome,
+	version, previous_id, is_current, created_at, updated_at, deleted_at`
+
 func (r *DiaryRepo) Create(ctx context.Context, e *diary.DiaryEvent) error {
 	if e.ID == uuid.Nil {
 		e.ID = uuid.New()
@@ -31,16 +34,12 @@ func (r *DiaryRepo) Create(ctx context.Context, e *diary.DiaryEvent) error {
 	e.Version = 1
 	e.IsCurrent = true
 
-	query := `
-		INSERT INTO diary_events (
-			id, profile_id,
-			version, previous_id, is_current, created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-
-	_, err := r.db.Exec(ctx, query,
-		e.ID, e.ProfileID,
-		e.Version, e.PreviousID, e.IsCurrent, e.CreatedAt, e.UpdatedAt, e.ContentEnc,
-	)
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO diary_events (id, profile_id, title, event_type, started_at, ended_at, description, severity, location, outcome,
+			version, previous_id, is_current, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+		e.ID, e.ProfileID, e.Title, e.EventType, e.StartedAt, e.EndedAt, e.Description, e.Severity, e.Location, e.Outcome,
+		e.Version, e.PreviousID, e.IsCurrent, e.CreatedAt, e.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert diary event: %w", err)
 	}
@@ -48,33 +47,20 @@ func (r *DiaryRepo) Create(ctx context.Context, e *diary.DiaryEvent) error {
 }
 
 func (r *DiaryRepo) GetByID(ctx context.Context, id uuid.UUID) (*diary.DiaryEvent, error) {
-	query := `
-		SELECT id, profile_id,
-			version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
-		FROM diary_events WHERE id = $1 AND deleted_at IS NULL`
-
-	return r.scanEvent(r.db.QueryRow(ctx, query, id))
+	return r.scanEvent(r.db.QueryRow(ctx,
+		`SELECT `+diaryColumns+` FROM diary_events WHERE id = $1 AND deleted_at IS NULL`, id))
 }
 
 func (r *DiaryRepo) List(ctx context.Context, filter diary.ListFilter) ([]diary.DiaryEvent, int, error) {
 	countQuery := "SELECT COUNT(*) FROM diary_events WHERE profile_id = $1 AND is_current = TRUE AND deleted_at IS NULL"
-	args := []interface{}{filter.ProfileID}
-
 	var total int
-	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, countQuery, filter.ProfileID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count diary events: %w", err)
 	}
 
-	query := `
-		SELECT id, profile_id,
-			version, previous_id, is_current, created_at, updated_at, deleted_at, content_enc
-		FROM diary_events WHERE profile_id = $1 AND is_current = TRUE AND deleted_at IS NULL`
-
+	query := `SELECT ` + diaryColumns + ` FROM diary_events WHERE profile_id = $1 AND is_current = TRUE AND deleted_at IS NULL ORDER BY created_at DESC`
 	listArgs := []interface{}{filter.ProfileID}
 	listIdx := 2
-
-	query += " ORDER BY created_at DESC"
-
 	if filter.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT $%d", listIdx)
 		listArgs = append(listArgs, filter.Limit)
@@ -99,15 +85,9 @@ func (r *DiaryRepo) List(ctx context.Context, filter diary.ListFilter) ([]diary.
 		}
 		result = append(result, *e)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("iterate rows: %w", err)
-	}
-
-	return result, total, nil
+	return result, total, rows.Err()
 }
 
-// Update implements versioned updates: inserts a new row with version+1 and
-// marks the old row as no longer current within a transaction.
 func (r *DiaryRepo) Update(ctx context.Context, e *diary.DiaryEvent) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -115,16 +95,12 @@ func (r *DiaryRepo) Update(ctx context.Context, e *diary.DiaryEvent) error {
 	}
 	defer tx.Rollback(ctx)
 
-	// Mark old row as not current.
-	_, err = tx.Exec(ctx,
-		"UPDATE diary_events SET is_current = FALSE, updated_at = $2 WHERE id = $1 AND deleted_at IS NULL",
-		e.ID, time.Now().UTC(),
-	)
+	_, err = tx.Exec(ctx, "UPDATE diary_events SET is_current = FALSE, updated_at = $2 WHERE id = $1 AND deleted_at IS NULL",
+		e.ID, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("mark old version: %w", err)
 	}
 
-	// Insert new versioned row.
 	previousID := e.ID
 	e.PreviousID = &previousID
 	e.ID = uuid.New()
@@ -134,28 +110,20 @@ func (r *DiaryRepo) Update(ctx context.Context, e *diary.DiaryEvent) error {
 	e.CreatedAt = now
 	e.UpdatedAt = now
 
-	query := `
-		INSERT INTO diary_events (
-			id, profile_id,
-			version, previous_id, is_current, created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-
-	_, err = tx.Exec(ctx, query,
-		e.ID, e.ProfileID,
-		e.Version, e.PreviousID, e.IsCurrent, e.CreatedAt, e.UpdatedAt, e.ContentEnc,
-	)
+	_, err = tx.Exec(ctx, `
+		INSERT INTO diary_events (id, profile_id, title, event_type, started_at, ended_at, description, severity, location, outcome,
+			version, previous_id, is_current, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+		e.ID, e.ProfileID, e.Title, e.EventType, e.StartedAt, e.EndedAt, e.Description, e.Severity, e.Location, e.Outcome,
+		e.Version, e.PreviousID, e.IsCurrent, e.CreatedAt, e.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert new version: %w", err)
 	}
-
 	return tx.Commit(ctx)
 }
 
 func (r *DiaryRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE diary_events SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL",
-		id, time.Now().UTC(),
-	)
+	_, err := r.db.Exec(ctx, "UPDATE diary_events SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL", id, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("soft delete diary event: %w", err)
 	}
@@ -164,10 +132,8 @@ func (r *DiaryRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 
 func (r *DiaryRepo) scanEvent(row pgx.Row) (*diary.DiaryEvent, error) {
 	var e diary.DiaryEvent
-	err := row.Scan(
-		&e.ID, &e.ProfileID,
-		&e.Version, &e.PreviousID, &e.IsCurrent, &e.CreatedAt, &e.UpdatedAt, &e.DeletedAt, &e.ContentEnc,
-	)
+	err := row.Scan(&e.ID, &e.ProfileID, &e.Title, &e.EventType, &e.StartedAt, &e.EndedAt, &e.Description, &e.Severity, &e.Location, &e.Outcome,
+		&e.Version, &e.PreviousID, &e.IsCurrent, &e.CreatedAt, &e.UpdatedAt, &e.DeletedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -177,26 +143,10 @@ func (r *DiaryRepo) scanEvent(row pgx.Row) (*diary.DiaryEvent, error) {
 	return &e, nil
 }
 
-// SetContentEnc populates content_enc only if currently NULL (idempotent
-// lazy-migration path — safe to call concurrently from multiple clients).
-// Versioned table: no deleted_at filter so historical rows can also migrate.
-func (r *DiaryRepo) SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE diary_events SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL",
-		id, contentEnc,
-	)
-	if err != nil {
-		return fmt.Errorf("set content_enc: %w", err)
-	}
-	return nil
-}
-
 func (r *DiaryRepo) scanEventRow(rows pgx.Rows) (*diary.DiaryEvent, error) {
 	var e diary.DiaryEvent
-	err := rows.Scan(
-		&e.ID, &e.ProfileID,
-		&e.Version, &e.PreviousID, &e.IsCurrent, &e.CreatedAt, &e.UpdatedAt, &e.DeletedAt, &e.ContentEnc,
-	)
+	err := rows.Scan(&e.ID, &e.ProfileID, &e.Title, &e.EventType, &e.StartedAt, &e.EndedAt, &e.Description, &e.Severity, &e.Location, &e.Outcome,
+		&e.Version, &e.PreviousID, &e.IsCurrent, &e.CreatedAt, &e.UpdatedAt, &e.DeletedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan diary event row: %w", err)
 	}

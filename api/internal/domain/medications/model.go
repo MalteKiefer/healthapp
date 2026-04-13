@@ -11,7 +11,6 @@ type Medication struct {
 	ID        uuid.UUID `json:"id"`
 	ProfileID uuid.UUID `json:"profile_id"`
 
-	// --- Fields below come from content_enc decryption on the client, not from DB columns ---
 	Name         string  `json:"name"`
 	Dosage       *string `json:"dosage,omitempty"`
 	Unit         *string `json:"unit,omitempty"`
@@ -20,7 +19,6 @@ type Medication struct {
 	PrescribedBy *string `json:"prescribed_by,omitempty"`
 	Reason       *string `json:"reason,omitempty"`
 	Notes        *string `json:"notes,omitempty"`
-	// --- End content_enc-only fields ---
 
 	StartedAt          *time.Time `json:"started_at,omitempty"`
 	EndedAt            *time.Time `json:"ended_at,omitempty"`
@@ -31,10 +29,6 @@ type Medication struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 	DeletedAt          *time.Time `json:"-"`
-	// ContentEnc holds the AES-GCM-encrypted JSON blob of all health fields
-	// (produced client-side with the profile key). The plaintext DB columns
-	// were dropped in Stage 2.4; this is now the sole source of health data.
-	ContentEnc *string `json:"content_enc,omitempty"`
 }
 
 // MedicationIntake records when a medication dose was taken or skipped.
@@ -45,17 +39,11 @@ type MedicationIntake struct {
 	ScheduledAt  *time.Time `json:"scheduled_at,omitempty"`
 	TakenAt      *time.Time `json:"taken_at,omitempty"`
 
-	// --- Fields below come from content_enc decryption on the client, not from DB columns ---
 	DoseTaken     *string `json:"dose_taken,omitempty"`
 	SkippedReason *string `json:"skipped_reason,omitempty"`
 	Notes         *string `json:"notes,omitempty"`
-	// --- End content_enc-only fields ---
 
 	CreatedAt time.Time `json:"created_at"`
-	// ContentEnc holds the AES-GCM-encrypted JSON blob of all health fields
-	// (produced client-side with the profile key). The plaintext DB columns
-	// were dropped in Stage 2.4; this is now the sole source of health data.
-	ContentEnc *string `json:"content_enc,omitempty"`
 }
 
 // ListFilter defines query parameters for listing medications.

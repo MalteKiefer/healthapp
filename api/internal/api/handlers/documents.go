@@ -148,7 +148,7 @@ func (h *DocumentHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	d := documents.Document{
 		ID:            docID,
 		ProfileID:     profileID,
-		FilenameEnc:   r.FormValue("filename_enc"),
+		Filename:   r.FormValue("filename"),
 		MimeType:      header.Header.Get("Content-Type"),
 		FileSizeBytes: written,
 		StoragePath:   storagePath,
@@ -156,14 +156,11 @@ func (h *DocumentHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		UploadedBy:    claims.UserID,
 	}
 
-	if v := r.FormValue("ocr_text_enc"); v != "" {
-		d.OCRTextEnc = &v
+	if v := r.FormValue("ocr_text"); v != "" {
+		d.OCRText = &v
 	}
 
-	if r.FormValue("encrypted") == "true" {
-		now := time.Now().UTC()
-		d.EncryptedAt = &now
-	}
+	// E2E encryption removed - files stored in plaintext
 
 	// Parse tags from repeated form field or JSON-encoded string.
 	if tags := r.Form["tags"]; len(tags) > 0 {
@@ -175,8 +172,8 @@ func (h *DocumentHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if d.FilenameEnc == "" {
-		d.FilenameEnc = header.Filename
+	if d.Filename == "" {
+		d.Filename = header.Filename
 	}
 	if d.MimeType == "" {
 		d.MimeType = "application/octet-stream"
@@ -318,19 +315,19 @@ func (h *DocumentHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	// Decode patch -- only provided fields are updated.
 	var patch struct {
-		FilenameEnc *string             `json:"filename_enc,omitempty"`
+		Filename *string             `json:"filename,omitempty"`
 		MimeType    *string             `json:"mime_type,omitempty"`
 		Category    *documents.Category `json:"category,omitempty"`
 		Tags        []string            `json:"tags,omitempty"`
-		OCRTextEnc  *string             `json:"ocr_text_enc,omitempty"`
+		OCRText  *string             `json:"ocr_text,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
 		return
 	}
 
-	if patch.FilenameEnc != nil {
-		existing.FilenameEnc = *patch.FilenameEnc
+	if patch.Filename != nil {
+		existing.Filename = *patch.Filename
 	}
 	if patch.MimeType != nil {
 		existing.MimeType = *patch.MimeType
@@ -341,8 +338,8 @@ func (h *DocumentHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	if patch.Tags != nil {
 		existing.Tags = patch.Tags
 	}
-	if patch.OCRTextEnc != nil {
-		existing.OCRTextEnc = patch.OCRTextEnc
+	if patch.OCRText != nil {
+		existing.OCRText = patch.OCRText
 	}
 
 	if err := h.docRepo.Update(r.Context(), existing); err != nil {
@@ -455,13 +452,13 @@ func (h *DocumentHandler) HandleDownload(w http.ResponseWriter, r *http.Request)
 	}
 	defer f.Close()
 
-	if d.EncryptedAt != nil {
+	if false { // E2E encryption removed
 		w.Header().Set("X-Encrypted", "true")
 		w.Header().Set("Content-Type", "application/octet-stream")
 	} else {
 		w.Header().Set("Content-Type", d.MimeType)
 	}
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(d.FilenameEnc, `"`, `\"`)))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(d.Filename, `"`, `\"`)))
 	w.Header().Set("Content-Length", strconv.FormatInt(d.FileSizeBytes, 10))
 	io.Copy(w, f)
 }

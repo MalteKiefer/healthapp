@@ -21,6 +21,13 @@ func NewVitalRepo(db *pgxpool.Pool) *VitalRepo {
 	return &VitalRepo{db: db}
 }
 
+const vitalColumns = `id, profile_id,
+	blood_pressure_systolic, blood_pressure_diastolic, pulse,
+	oxygen_saturation, weight, height, body_temperature, blood_glucose,
+	respiratory_rate, waist_circumference, hip_circumference,
+	body_fat_percentage, bmi, sleep_duration_minutes, sleep_quality,
+	device, notes, measured_at, created_at, updated_at, deleted_at`
+
 func (r *VitalRepo) Create(ctx context.Context, v *vitals.Vital) error {
 	if v.ID == uuid.Nil {
 		v.ID = uuid.New()
@@ -31,11 +38,21 @@ func (r *VitalRepo) Create(ctx context.Context, v *vitals.Vital) error {
 
 	query := `
 		INSERT INTO vitals (
-			id, profile_id, measured_at, created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6)`
+			id, profile_id,
+			blood_pressure_systolic, blood_pressure_diastolic, pulse,
+			oxygen_saturation, weight, height, body_temperature, blood_glucose,
+			respiratory_rate, waist_circumference, hip_circumference,
+			body_fat_percentage, bmi, sleep_duration_minutes, sleep_quality,
+			device, notes, measured_at, created_at, updated_at
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`
 
 	_, err := r.db.Exec(ctx, query,
-		v.ID, v.ProfileID, v.MeasuredAt, v.CreatedAt, v.UpdatedAt, v.ContentEnc,
+		v.ID, v.ProfileID,
+		v.BloodPressureSystolic, v.BloodPressureDiastolic, v.Pulse,
+		v.OxygenSaturation, v.Weight, v.Height, v.BodyTemperature, v.BloodGlucose,
+		v.RespiratoryRate, v.WaistCircumference, v.HipCircumference,
+		v.BodyFatPercentage, v.BMI, v.SleepDurationMinutes, v.SleepQuality,
+		v.Device, v.Notes, v.MeasuredAt, v.CreatedAt, v.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("insert vital: %w", err)
@@ -44,10 +61,7 @@ func (r *VitalRepo) Create(ctx context.Context, v *vitals.Vital) error {
 }
 
 func (r *VitalRepo) GetByID(ctx context.Context, id uuid.UUID) (*vitals.Vital, error) {
-	query := `
-		SELECT id, profile_id, measured_at, created_at, updated_at, deleted_at, content_enc
-		FROM vitals WHERE id = $1 AND deleted_at IS NULL`
-
+	query := `SELECT ` + vitalColumns + ` FROM vitals WHERE id = $1 AND deleted_at IS NULL`
 	return r.scanVital(r.db.QueryRow(ctx, query, id))
 }
 
@@ -71,9 +85,7 @@ func (r *VitalRepo) List(ctx context.Context, filter vitals.ListFilter) ([]vital
 		return nil, 0, fmt.Errorf("count vitals: %w", err)
 	}
 
-	query := `
-		SELECT id, profile_id, measured_at, created_at, updated_at, deleted_at, content_enc
-		FROM vitals WHERE profile_id = $1 AND deleted_at IS NULL`
+	query := `SELECT ` + vitalColumns + ` FROM vitals WHERE profile_id = $1 AND deleted_at IS NULL`
 
 	listArgs := []interface{}{filter.ProfileID}
 	listIdx := 2
@@ -127,11 +139,22 @@ func (r *VitalRepo) Update(ctx context.Context, v *vitals.Vital) error {
 
 	query := `
 		UPDATE vitals SET
-			measured_at = $2, updated_at = $3, content_enc = $4
+			blood_pressure_systolic = $2, blood_pressure_diastolic = $3, pulse = $4,
+			oxygen_saturation = $5, weight = $6, height = $7, body_temperature = $8,
+			blood_glucose = $9, respiratory_rate = $10, waist_circumference = $11,
+			hip_circumference = $12, body_fat_percentage = $13, bmi = $14,
+			sleep_duration_minutes = $15, sleep_quality = $16, device = $17,
+			notes = $18, measured_at = $19, updated_at = $20
 		WHERE id = $1 AND deleted_at IS NULL`
 
 	_, err := r.db.Exec(ctx, query,
-		v.ID, v.MeasuredAt, v.UpdatedAt, v.ContentEnc,
+		v.ID,
+		v.BloodPressureSystolic, v.BloodPressureDiastolic, v.Pulse,
+		v.OxygenSaturation, v.Weight, v.Height, v.BodyTemperature,
+		v.BloodGlucose, v.RespiratoryRate, v.WaistCircumference,
+		v.HipCircumference, v.BodyFatPercentage, v.BMI,
+		v.SleepDurationMinutes, v.SleepQuality, v.Device,
+		v.Notes, v.MeasuredAt, v.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("update vital: %w", err)
@@ -150,7 +173,7 @@ func (r *VitalRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// CheckDuplicate looks for an entry within ±2 minutes.
+// CheckDuplicate looks for an entry within +/-2 minutes.
 func (r *VitalRepo) CheckDuplicate(ctx context.Context, v *vitals.Vital) (*uuid.UUID, error) {
 	query := `
 		SELECT id FROM vitals
@@ -172,8 +195,6 @@ func (r *VitalRepo) CheckDuplicate(ctx context.Context, v *vitals.Vital) (*uuid.
 }
 
 // GetChartData returns time-series data for a given metric.
-// NOTE: This method references columns that were dropped in Stage 2.4.
-// It will be cleaned up separately to read from content_enc instead.
 func (r *VitalRepo) GetChartData(ctx context.Context, profileID uuid.UUID, metric string, from, to *string) ([]vitals.ChartPoint, error) {
 	query := fmt.Sprintf(`
 		SELECT measured_at, %s
@@ -221,8 +242,12 @@ func (r *VitalRepo) GetChartData(ctx context.Context, profileID uuid.UUID, metri
 func (r *VitalRepo) scanVital(row pgx.Row) (*vitals.Vital, error) {
 	var v vitals.Vital
 	err := row.Scan(
-		&v.ID, &v.ProfileID, &v.MeasuredAt,
-		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
+		&v.ID, &v.ProfileID,
+		&v.BloodPressureSystolic, &v.BloodPressureDiastolic, &v.Pulse,
+		&v.OxygenSaturation, &v.Weight, &v.Height, &v.BodyTemperature, &v.BloodGlucose,
+		&v.RespiratoryRate, &v.WaistCircumference, &v.HipCircumference,
+		&v.BodyFatPercentage, &v.BMI, &v.SleepDurationMinutes, &v.SleepQuality,
+		&v.Device, &v.Notes, &v.MeasuredAt, &v.CreatedAt, &v.UpdatedAt, &v.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -236,24 +261,15 @@ func (r *VitalRepo) scanVital(row pgx.Row) (*vitals.Vital, error) {
 func (r *VitalRepo) scanVitalRow(rows pgx.Rows) (*vitals.Vital, error) {
 	var v vitals.Vital
 	err := rows.Scan(
-		&v.ID, &v.ProfileID, &v.MeasuredAt,
-		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
+		&v.ID, &v.ProfileID,
+		&v.BloodPressureSystolic, &v.BloodPressureDiastolic, &v.Pulse,
+		&v.OxygenSaturation, &v.Weight, &v.Height, &v.BodyTemperature, &v.BloodGlucose,
+		&v.RespiratoryRate, &v.WaistCircumference, &v.HipCircumference,
+		&v.BodyFatPercentage, &v.BMI, &v.SleepDurationMinutes, &v.SleepQuality,
+		&v.Device, &v.Notes, &v.MeasuredAt, &v.CreatedAt, &v.UpdatedAt, &v.DeletedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan vital row: %w", err)
 	}
 	return &v, nil
-}
-
-// SetContentEnc populates content_enc only if currently NULL (idempotent
-// lazy-migration path — safe to call concurrently from multiple clients).
-func (r *VitalRepo) SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE vitals SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL AND deleted_at IS NULL",
-		id, contentEnc,
-	)
-	if err != nil {
-		return fmt.Errorf("set content_enc: %w", err)
-	}
-	return nil
 }

@@ -151,14 +151,11 @@ type loginRequest struct {
 }
 
 type loginResponse struct {
-	ExpiresAt          int64  `json:"expires_at"`
-	UserID             string `json:"user_id"`
-	Role               string `json:"role"`
-	RequiresTOTP       bool   `json:"requires_totp"`
-	PEKSalt            string `json:"pek_salt"`
-	ChallengeToken     string `json:"challenge_token,omitempty"`
-	IdentityPrivkeyEnc string `json:"identity_privkey_enc"`
-	SigningPrivkeyEnc  string `json:"signing_privkey_enc"`
+	ExpiresAt      int64  `json:"expires_at"`
+	UserID         string `json:"user_id"`
+	Role           string `json:"role"`
+	RequiresTOTP   bool   `json:"requires_totp"`
+	ChallengeToken string `json:"challenge_token,omitempty"`
 }
 
 type login2FARequest struct {
@@ -337,11 +334,22 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 		req.Email = strings.ToLower(addr.Address)
 	}
 
-	if req.DisplayName == "" || req.AuthHash == "" ||
-		req.IdentityPubkey == "" || req.IdentityPrivkeyEnc == "" ||
-		req.SigningPubkey == "" || req.SigningPrivkeyEnc == "" {
+	if req.DisplayName == "" || req.AuthHash == "" {
 		writeJSON(w, http.StatusBadRequest, errorResponse("missing_required_fields"))
 		return
+	}
+	// Provide dummy values for legacy crypto fields (kept in DB for backward compat)
+	if req.IdentityPubkey == "" {
+		req.IdentityPubkey = "none"
+	}
+	if req.IdentityPrivkeyEnc == "" {
+		req.IdentityPrivkeyEnc = "none"
+	}
+	if req.SigningPubkey == "" {
+		req.SigningPubkey = "none"
+	}
+	if req.SigningPrivkeyEnc == "" {
+		req.SigningPrivkeyEnc = "none"
 	}
 
 	if len(req.RecoveryCodes) != 10 {
@@ -540,7 +548,6 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, loginResponse{
 			UserID:         u.ID.String(),
 			RequiresTOTP:   true,
-			PEKSalt:        u.PEKSalt,
 			ChallengeToken: challengeToken,
 		})
 		return
@@ -852,7 +859,6 @@ func (h *AuthHandler) HandleRecovery(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, loginResponse{
 			UserID:         u.ID.String(),
 			RequiresTOTP:   true,
-			PEKSalt:        u.PEKSalt,
 			ChallengeToken: challengeToken,
 		})
 		return
@@ -928,12 +934,9 @@ func (h *AuthHandler) completeLogin(w http.ResponseWriter, r *http.Request, u *u
 	setAuthCookies(w, pair.AccessToken, pair.RefreshToken, h.secureCookies)
 
 	writeJSON(w, http.StatusOK, loginResponse{
-		ExpiresAt:          pair.ExpiresAt,
-		UserID:             u.ID.String(),
-		Role:               u.Role,
-		PEKSalt:            u.PEKSalt,
-		IdentityPrivkeyEnc: u.IdentityPrivkeyEnc,
-		SigningPrivkeyEnc:  u.SigningPrivkeyEnc,
+		ExpiresAt: pair.ExpiresAt,
+		UserID:    u.ID.String(),
+		Role:      u.Role,
 	})
 }
 

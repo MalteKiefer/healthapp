@@ -1,5 +1,4 @@
 import { api } from './client';
-import { decryptOrPassthrough, encryptForWrite, type EntityBase } from './encryptedEntity';
 
 export type DiagnosisStatus =
   | 'active'
@@ -8,7 +7,7 @@ export type DiagnosisStatus =
   | 'in_remission'
   | 'suspected';
 
-export interface Diagnosis extends EntityBase {
+export interface Diagnosis {
   name: string;
   icd10_code?: string;
   status: DiagnosisStatus;
@@ -28,15 +27,6 @@ export interface DiagnosisListResponse {
   total: number;
 }
 
-const ENTITY = 'diagnosis';
-const CONTENT_FIELDS = [
-  'name', 'icd10_code', 'status', 'diagnosed_at',
-  'diagnosed_by', 'resolved_at', 'notes',
-] as const;
-
-const migratePath = (r: Diagnosis) =>
-  `/api/v1/profiles/${r.profile_id}/diagnoses/${r.id}/migrate-content`;
-
 export const diagnosesApi = {
   list: async (
     profileId: string,
@@ -50,68 +40,22 @@ export const diagnosesApi = {
     const res = await api.get<DiagnosisListResponse>(
       `/api/v1/profiles/${profileId}/diagnoses${qs ? `?${qs}` : ''}`,
     );
-    const items = await Promise.all(
-      (res.items || []).map((r) =>
-        decryptOrPassthrough(
-          r,
-          ENTITY,
-          CONTENT_FIELDS as unknown as readonly (keyof Diagnosis)[],
-          migratePath,
-        ),
-      ),
-    );
-    return { items, total: res.total };
+    return res;
   },
 
   get: async (profileId: string, id: string): Promise<Diagnosis> => {
     const raw = await api.get<Diagnosis>(`/api/v1/profiles/${profileId}/diagnoses/${id}`);
-    return decryptOrPassthrough(
-      raw,
-      ENTITY,
-      CONTENT_FIELDS as unknown as readonly (keyof Diagnosis)[],
-      migratePath,
-    );
+    return raw;
   },
 
   create: async (profileId: string, data: Partial<Diagnosis>): Promise<Diagnosis> => {
-    const newId = crypto.randomUUID();
-    const { content_enc, structural } = await encryptForWrite<Diagnosis>(
-      profileId,
-      newId,
-      ENTITY,
-      data,
-      CONTENT_FIELDS as unknown as readonly (keyof Diagnosis)[],
-    );
-    const body: Record<string, unknown> = { ...structural, id: newId };
-    if (content_enc) body.content_enc = content_enc;
-    const raw = await api.post<Diagnosis>(`/api/v1/profiles/${profileId}/diagnoses`, body);
-    return decryptOrPassthrough(
-      raw,
-      ENTITY,
-      CONTENT_FIELDS as unknown as readonly (keyof Diagnosis)[],
-      migratePath,
-    );
+    return await api.post<Diagnosis>(`/api/v1/profiles/${profileId}/diagnoses`, data);
   },
 
   update: async (profileId: string, id: string, data: Partial<Diagnosis>): Promise<Diagnosis> => {
-    const { content_enc, structural } = await encryptForWrite<Diagnosis>(
-      profileId,
-      id,
-      ENTITY,
-      data,
-      CONTENT_FIELDS as unknown as readonly (keyof Diagnosis)[],
-    );
-    const body: Record<string, unknown> = { ...structural };
-    if (content_enc) body.content_enc = content_enc;
-    const raw = await api.patch<Diagnosis>(
+    return api.patch<Diagnosis>(
       `/api/v1/profiles/${profileId}/diagnoses/${id}`,
-      body,
-    );
-    return decryptOrPassthrough(
-      raw,
-      ENTITY,
-      CONTENT_FIELDS as unknown as readonly (keyof Diagnosis)[],
-      migratePath,
+      data,
     );
   },
 

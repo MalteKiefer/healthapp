@@ -12,5 +12,4 @@ type Repository interface {
 	List(ctx context.Context, profileID uuid.UUID) ([]Contact, error)
 	Update(ctx context.Context, c *Contact) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
-	SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error
 }

@@ -11,7 +11,6 @@ type Contact struct {
 	ID        uuid.UUID `json:"id"`
 	ProfileID uuid.UUID `json:"profile_id"`
 
-	// --- Fields below come from content_enc decryption on the client, not from DB columns ---
 	ContactType        string   `json:"contact_type"`
 	Name               string   `json:"name"`
 	Specialty          *string  `json:"specialty,omitempty"`
@@ -27,15 +26,10 @@ type Contact struct {
 	Address            *string  `json:"address,omitempty"`
 	Notes              *string  `json:"notes,omitempty"`
 	IsEmergencyContact bool     `json:"is_emergency_contact"`
-	// --- End content_enc-only fields ---
 
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
 	DeletedAt *time.Time `json:"-"`
-	// ContentEnc holds the AES-GCM-encrypted JSON blob of all sensitive fields
-	// (produced client-side with the profile key). The plaintext DB columns
-	// were dropped in Stage 2.4; this is now the sole source of health data.
-	ContentEnc *string `json:"content_enc,omitempty"`
 }
 
 func (c *Contact) ComputeAddress() {

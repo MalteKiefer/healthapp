@@ -53,7 +53,6 @@ type Server struct {
 	InviteHandler          *handlers.InviteHandler
 	WebhookHandler         *handlers.WebhookHandler
 	LegalHandler           *handlers.LegalHandler
-	GrantHandler           *handlers.GrantHandler
 	ActivityHandler        *handlers.ActivityHandler
 	ReferenceRangeHandler  *handlers.ReferenceRangeHandler
 	PDFHandler             *handlers.PDFHandler
@@ -118,7 +117,6 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 	inviteHandler := handlers.NewInviteHandler(db, logger)
 	webhookHandler := handlers.NewWebhookHandler(db, logger, totpEncKey)
 	legalHandler := handlers.NewLegalHandler(db, logger)
-	grantHandler := handlers.NewGrantHandler(db, profileRepo, logger)
 	activityHandler := handlers.NewActivityHandler(db, profileRepo, logger)
 	referenceRangeHandler := handlers.NewReferenceRangeHandler()
 	pdfHandler := handlers.NewPDFHandler(db, profileRepo, logger)
@@ -159,7 +157,6 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, logger *zap.Logger, cfg *con
 		InviteHandler:          inviteHandler,
 		WebhookHandler:         webhookHandler,
 		LegalHandler:           legalHandler,
-		GrantHandler:           grantHandler,
 		ActivityHandler:        activityHandler,
 		ReferenceRangeHandler:  referenceRangeHandler,
 		PDFHandler:             pdfHandler,
@@ -278,15 +275,8 @@ func (s *Server) setupRoutes() {
 					r.Get("/", s.ProfileHandler.HandleGet)
 					r.Patch("/", s.ProfileHandler.HandleUpdate)
 					r.Delete("/", s.ProfileHandler.HandleDelete)
-					r.Get("/grants", s.GrantHandler.HandleListGrants)
-					r.Post("/grants", s.GrantHandler.HandleCreateGrant)
-					r.Delete("/grants/{grantUserID}", s.GrantHandler.HandleRevokeGrant)
-					r.Get("/my-grant", s.GrantHandler.HandleGetMyGrant)
-					r.Post("/key-rotation", s.GrantHandler.HandleKeyRotation)
-					r.Post("/transfer", s.GrantHandler.HandleTransfer)
 					r.Post("/archive", s.ProfileHandler.HandleArchive)
 					r.Post("/unarchive", s.ProfileHandler.HandleUnarchive)
-					r.Patch("/migrate-content", s.ProfileHandler.HandleMigrateContent)
 
 					// Vitals
 					r.Route("/vitals", func(r chi.Router) {
@@ -296,7 +286,6 @@ func (s *Server) setupRoutes() {
 						r.Get("/{vitalID}", s.VitalHandler.HandleGet)
 						r.Patch("/{vitalID}", s.VitalHandler.HandleUpdate)
 						r.Delete("/{vitalID}", s.VitalHandler.HandleDelete)
-						r.Patch("/{vitalID}/migrate-content", s.VitalHandler.HandleMigrateContent)
 					})
 
 					// Labs
@@ -308,8 +297,6 @@ func (s *Server) setupRoutes() {
 						r.Patch("/{labID}", s.LabHandler.HandleUpdate)
 						r.Delete("/{labID}", s.LabHandler.HandleDelete)
 						r.Get("/{labID}/export/pdf", s.LabHandler.HandleExportPDF)
-						r.Patch("/{labID}/migrate-content", s.LabHandler.HandleLabResultMigrateContent)
-						r.Patch("/{labID}/values/{valueID}/migrate-content", s.LabHandler.HandleLabValueMigrateContent)
 					})
 
 					// Documents
@@ -333,7 +320,6 @@ func (s *Server) setupRoutes() {
 						r.Get("/{eventID}", s.DiaryHandler.HandleGet)
 						r.Patch("/{eventID}", s.DiaryHandler.HandleUpdate)
 						r.Delete("/{eventID}", s.DiaryHandler.HandleDelete)
-						r.Patch("/{eventID}/migrate-content", s.DiaryHandler.HandleMigrateContent)
 					})
 
 					// Medications
@@ -348,8 +334,6 @@ func (s *Server) setupRoutes() {
 						r.Post("/{medicationID}/intake", s.MedicationHandler.HandleCreateIntake)
 						r.Patch("/{medicationID}/intake/{intakeID}", s.MedicationHandler.HandleUpdateIntake)
 						r.Delete("/{medicationID}/intake/{intakeID}", s.MedicationHandler.HandleDeleteIntake)
-						r.Patch("/{medicationID}/migrate-content", s.MedicationHandler.HandleMedicationMigrateContent)
-						r.Patch("/{medicationID}/intake/{intakeID}/migrate-content", s.MedicationHandler.HandleMedicationIntakeMigrateContent)
 					})
 
 					// Allergies
@@ -358,7 +342,6 @@ func (s *Server) setupRoutes() {
 						r.Post("/", s.AllergyHandler.HandleCreate)
 						r.Patch("/{allergyID}", s.AllergyHandler.HandleUpdate)
 						r.Delete("/{allergyID}", s.AllergyHandler.HandleDelete)
-						r.Patch("/{allergyID}/migrate-content", s.AllergyHandler.HandleMigrateContent)
 					})
 
 					// Vaccinations
@@ -369,7 +352,6 @@ func (s *Server) setupRoutes() {
 						r.Get("/{vaccinationID}", s.VaccinationHandler.HandleGet)
 						r.Patch("/{vaccinationID}", s.VaccinationHandler.HandleUpdate)
 						r.Delete("/{vaccinationID}", s.VaccinationHandler.HandleDelete)
-						r.Patch("/{vaccinationID}/migrate-content", s.VaccinationHandler.HandleMigrateContent)
 					})
 
 					// Diagnoses
@@ -379,7 +361,6 @@ func (s *Server) setupRoutes() {
 						r.Get("/{diagnosisID}", s.DiagnosisHandler.HandleGet)
 						r.Patch("/{diagnosisID}", s.DiagnosisHandler.HandleUpdate)
 						r.Delete("/{diagnosisID}", s.DiagnosisHandler.HandleDelete)
-						r.Patch("/{diagnosisID}/migrate-content", s.DiagnosisHandler.HandleMigrateContent)
 					})
 
 					// Medical Contacts
@@ -388,7 +369,6 @@ func (s *Server) setupRoutes() {
 						r.Post("/", s.ContactHandler.HandleCreate)
 						r.Patch("/{contactID}", s.ContactHandler.HandleUpdate)
 						r.Delete("/{contactID}", s.ContactHandler.HandleDelete)
-						r.Patch("/{contactID}/migrate-content", s.ContactHandler.HandleMigrateContent)
 					})
 
 					// Tasks
@@ -398,7 +378,6 @@ func (s *Server) setupRoutes() {
 						r.Get("/open", s.TaskHandler.HandleGetOpen)
 						r.Patch("/{taskID}", s.TaskHandler.HandleUpdate)
 						r.Delete("/{taskID}", s.TaskHandler.HandleDelete)
-						r.Patch("/{taskID}/migrate-content", s.TaskHandler.HandleMigrateContent)
 					})
 
 					// Appointments
@@ -409,7 +388,6 @@ func (s *Server) setupRoutes() {
 						r.Patch("/{apptID}", s.AppointmentHandler.HandleUpdate)
 						r.Delete("/{apptID}", s.AppointmentHandler.HandleDelete)
 						r.Post("/{apptID}/complete", s.AppointmentHandler.HandleComplete)
-						r.Patch("/{apptID}/migrate-content", s.AppointmentHandler.HandleMigrateContent)
 					})
 
 					// Symptoms
@@ -420,8 +398,6 @@ func (s *Server) setupRoutes() {
 						r.Get("/{symptomID}", s.SymptomHandler.HandleGet)
 						r.Patch("/{symptomID}", s.SymptomHandler.HandleUpdate)
 						r.Delete("/{symptomID}", s.SymptomHandler.HandleDelete)
-						r.Patch("/{symptomID}/migrate-content", s.SymptomHandler.HandleSymptomRecordMigrateContent)
-						r.Patch("/{symptomID}/entries/{entryID}/migrate-content", s.SymptomHandler.HandleSymptomEntryMigrateContent)
 					})
 
 					// Vital Thresholds
@@ -488,7 +464,6 @@ func (s *Server) setupRoutes() {
 				r.Get("/{feedID}", s.CalendarHandler.HandleGetFeed)
 				r.Patch("/{feedID}", s.CalendarHandler.HandleUpdateFeed)
 				r.Delete("/{feedID}", s.CalendarHandler.HandleDeleteFeed)
-				r.Patch("/{feedID}/migrate-content", s.CalendarHandler.HandleMigrateContent)
 			})
 
 			// Export

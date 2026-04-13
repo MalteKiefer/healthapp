@@ -15,5 +15,4 @@ type Repository interface {
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	CheckDuplicate(ctx context.Context, v *Vital) (*uuid.UUID, error)
 	GetChartData(ctx context.Context, profileID uuid.UUID, metric string, from, to *string) ([]ChartPoint, error)
-	SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error
 }

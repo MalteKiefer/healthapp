@@ -14,5 +14,4 @@ type Repository interface {
 	Update(ctx context.Context, v *Vaccination) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	GetDue(ctx context.Context, profileID uuid.UUID) ([]Vaccination, error)
-	SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error
 }

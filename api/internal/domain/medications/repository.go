@@ -22,7 +22,4 @@ type Repository interface {
 	DeleteIntake(ctx context.Context, id uuid.UUID) error
 	ListIntake(ctx context.Context, medicationID uuid.UUID, limit, offset int) ([]MedicationIntake, int, error)
 	GetAdherence(ctx context.Context, medicationID uuid.UUID, from, to *time.Time) (*AdherenceSummary, error)
-
-	SetMedicationContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error
-	SetMedicationIntakeContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error
 }

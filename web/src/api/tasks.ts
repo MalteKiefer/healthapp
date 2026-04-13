@@ -1,7 +1,6 @@
 import { api } from './client';
-import { decryptOrPassthrough, encryptForWrite, type EntityBase } from './encryptedEntity';
 
-export interface Task extends EntityBase {
+export interface Task {
   title: string;
   due_date?: string;
   priority: string;
@@ -20,13 +19,7 @@ export interface TaskListResponse {
   total: number;
 }
 
-const ENTITY = 'task';
 // due_date/status/done_at stay plaintext (server filters on them).
-const CONTENT_FIELDS = ['title', 'priority', 'notes'] as const;
-
-const migratePath = (r: Task) =>
-  `/api/v1/profiles/${r.profile_id}/tasks/${r.id}/migrate-content`;
-
 export const tasksApi = {
   list: async (
     profileId: string,
@@ -40,66 +33,20 @@ export const tasksApi = {
     const res = await api.get<TaskListResponse>(
       `/api/v1/profiles/${profileId}/tasks${qs ? `?${qs}` : ''}`,
     );
-    const items = await Promise.all(
-      (res.items || []).map((r) =>
-        decryptOrPassthrough(
-          r,
-          ENTITY,
-          CONTENT_FIELDS as unknown as readonly (keyof Task)[],
-          migratePath,
-        ),
-      ),
-    );
-    return { items, total: res.total };
+    return res;
   },
 
   get: async (profileId: string, id: string): Promise<Task> => {
     const raw = await api.get<Task>(`/api/v1/profiles/${profileId}/tasks/${id}`);
-    return decryptOrPassthrough(
-      raw,
-      ENTITY,
-      CONTENT_FIELDS as unknown as readonly (keyof Task)[],
-      migratePath,
-    );
+    return raw;
   },
 
   create: async (profileId: string, data: Partial<Task>): Promise<Task> => {
-    const newId = crypto.randomUUID();
-    const { content_enc, structural } = await encryptForWrite<Task>(
-      profileId,
-      newId,
-      ENTITY,
-      data,
-      CONTENT_FIELDS as unknown as readonly (keyof Task)[],
-    );
-    const body: Record<string, unknown> = { ...structural, id: newId };
-    if (content_enc) body.content_enc = content_enc;
-    const raw = await api.post<Task>(`/api/v1/profiles/${profileId}/tasks`, body);
-    return decryptOrPassthrough(
-      raw,
-      ENTITY,
-      CONTENT_FIELDS as unknown as readonly (keyof Task)[],
-      migratePath,
-    );
+    return await api.post<Task>(`/api/v1/profiles/${profileId}/tasks`, data);
   },
 
   update: async (profileId: string, id: string, data: Partial<Task>): Promise<Task> => {
-    const { content_enc, structural } = await encryptForWrite<Task>(
-      profileId,
-      id,
-      ENTITY,
-      data,
-      CONTENT_FIELDS as unknown as readonly (keyof Task)[],
-    );
-    const body: Record<string, unknown> = { ...structural };
-    if (content_enc) body.content_enc = content_enc;
-    const raw = await api.patch<Task>(`/api/v1/profiles/${profileId}/tasks/${id}`, body);
-    return decryptOrPassthrough(
-      raw,
-      ENTITY,
-      CONTENT_FIELDS as unknown as readonly (keyof Task)[],
-      migratePath,
-    );
+    return await api.patch<Task>(`/api/v1/profiles/${profileId}/tasks/${id}`, data);
   },
 
   delete: (profileId: string, id: string) =>

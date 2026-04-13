@@ -370,44 +370,6 @@ func (h *ProfileHandler) HandleUnarchive(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "unarchived"})
 }
 
-// HandleMigrateContent writes the encrypted content_enc blob for a profile
-// (idempotent — skips if already set).
-// PATCH /profiles/{profileID}/migrate-content
-func (h *ProfileHandler) HandleMigrateContent(w http.ResponseWriter, r *http.Request) {
-	claims, ok := ClaimsFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
-		return
-	}
-
-	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
-		return
-	}
-
-	hasAccess, err := h.repo.HasAccess(r.Context(), profileID, claims.UserID)
-	if err != nil || !hasAccess {
-		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
-		return
-	}
-
-	var body struct {
-		ContentEnc string `json:"content_enc"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ContentEnc == "" {
-		writeJSON(w, http.StatusBadRequest, errorResponse("content_enc_required"))
-		return
-	}
-
-	if err := h.repo.SetContentEnc(r.Context(), profileID, body.ContentEnc); err != nil {
-		h.logger.Error("set content_enc", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
 
 // ── Helpers ─────────────────────────────────────────────────────────
 

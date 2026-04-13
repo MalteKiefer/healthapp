@@ -32,9 +32,9 @@ func (r *SymptomRepo) Create(ctx context.Context, s *symptoms.SymptomRecord) err
 	defer tx.Rollback(ctx)
 
 	_, err = tx.Exec(ctx, `
-		INSERT INTO symptom_records (id, profile_id, linked_vital_id, created_at, updated_at, content_enc)
-		VALUES ($1,$2,$3,$4,$5,$6)`,
-		s.ID, s.ProfileID, s.LinkedVitalID, s.CreatedAt, s.UpdatedAt, s.ContentEnc)
+		INSERT INTO symptom_records (id, profile_id, recorded_at, trigger_factors, notes, linked_vital_id, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+		s.ID, s.ProfileID, s.RecordedAt, s.TriggerFactors, s.Notes, s.LinkedVitalID, s.CreatedAt, s.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert symptom record: %w", err)
 	}
@@ -46,9 +46,9 @@ func (r *SymptomRepo) Create(ctx context.Context, s *symptoms.SymptomRecord) err
 		}
 		e.SymptomRecordID = s.ID
 		_, err = tx.Exec(ctx, `
-			INSERT INTO symptom_entries (id, symptom_record_id, content_enc)
-			VALUES ($1,$2,$3)`,
-			e.ID, e.SymptomRecordID, e.ContentEnc)
+			INSERT INTO symptom_entries (id, symptom_record_id, symptom_type, custom_label, intensity, body_region, duration_minutes)
+			VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+			e.ID, e.SymptomRecordID, e.SymptomType, e.CustomLabel, e.Intensity, e.BodyRegion, e.DurationMinutes)
 		if err != nil {
 			return fmt.Errorf("insert symptom entry: %w", err)
 		}
@@ -60,9 +60,9 @@ func (r *SymptomRepo) Create(ctx context.Context, s *symptoms.SymptomRecord) err
 func (r *SymptomRepo) GetByID(ctx context.Context, id uuid.UUID) (*symptoms.SymptomRecord, error) {
 	var s symptoms.SymptomRecord
 	err := r.db.QueryRow(ctx, `
-		SELECT id, profile_id, linked_vital_id, created_at, updated_at, deleted_at, content_enc
+		SELECT id, profile_id, recorded_at, trigger_factors, notes, linked_vital_id, created_at, updated_at, deleted_at
 		FROM symptom_records WHERE id = $1 AND deleted_at IS NULL`, id).Scan(
-		&s.ID, &s.ProfileID, &s.LinkedVitalID, &s.CreatedAt, &s.UpdatedAt, &s.DeletedAt, &s.ContentEnc)
+		&s.ID, &s.ProfileID, &s.RecordedAt, &s.TriggerFactors, &s.Notes, &s.LinkedVitalID, &s.CreatedAt, &s.UpdatedAt, &s.DeletedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -70,9 +70,8 @@ func (r *SymptomRepo) GetByID(ctx context.Context, id uuid.UUID) (*symptoms.Symp
 		return nil, fmt.Errorf("scan symptom record: %w", err)
 	}
 
-	// Load entries
 	rows, err := r.db.Query(ctx, `
-		SELECT id, symptom_record_id, content_enc
+		SELECT id, symptom_record_id, symptom_type, custom_label, intensity, body_region, duration_minutes
 		FROM symptom_entries WHERE symptom_record_id = $1`, id)
 	if err != nil {
 		return nil, fmt.Errorf("query entries: %w", err)
@@ -80,27 +79,22 @@ func (r *SymptomRepo) GetByID(ctx context.Context, id uuid.UUID) (*symptoms.Symp
 	defer rows.Close()
 	for rows.Next() {
 		var e symptoms.SymptomEntry
-		if err := rows.Scan(&e.ID, &e.SymptomRecordID, &e.ContentEnc); err != nil {
+		if err := rows.Scan(&e.ID, &e.SymptomRecordID, &e.SymptomType, &e.CustomLabel, &e.Intensity, &e.BodyRegion, &e.DurationMinutes); err != nil {
 			return nil, fmt.Errorf("scan symptom entry row: %w", err)
 		}
 		s.Entries = append(s.Entries, e)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate rows: %w", err)
-	}
-
-	return &s, nil
+	return &s, rows.Err()
 }
 
 func (r *SymptomRepo) List(ctx context.Context, profileID uuid.UUID, limit, offset int) ([]symptoms.SymptomRecord, int, error) {
 	var total int
-	err := r.db.QueryRow(ctx, "SELECT COUNT(*) FROM symptom_records WHERE profile_id = $1 AND deleted_at IS NULL", profileID).Scan(&total)
-	if err != nil {
+	if err := r.db.QueryRow(ctx, "SELECT COUNT(*) FROM symptom_records WHERE profile_id = $1 AND deleted_at IS NULL", profileID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count symptom records: %w", err)
 	}
 
 	rows, err := r.db.Query(ctx, `
-		SELECT id, profile_id, linked_vital_id, created_at, updated_at, deleted_at, content_enc
+		SELECT id, profile_id, recorded_at, trigger_factors, notes, linked_vital_id, created_at, updated_at, deleted_at
 		FROM symptom_records WHERE profile_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC LIMIT $2 OFFSET $3`, profileID, limit, offset)
 	if err != nil {
@@ -111,24 +105,20 @@ func (r *SymptomRepo) List(ctx context.Context, profileID uuid.UUID, limit, offs
 	var result []symptoms.SymptomRecord
 	for rows.Next() {
 		var s symptoms.SymptomRecord
-		if err := rows.Scan(&s.ID, &s.ProfileID, &s.LinkedVitalID, &s.CreatedAt, &s.UpdatedAt, &s.DeletedAt, &s.ContentEnc); err != nil {
+		if err := rows.Scan(&s.ID, &s.ProfileID, &s.RecordedAt, &s.TriggerFactors, &s.Notes, &s.LinkedVitalID, &s.CreatedAt, &s.UpdatedAt, &s.DeletedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan symptom record row: %w", err)
 		}
 		result = append(result, s)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("iterate rows: %w", err)
-	}
-
-	return result, total, nil
+	return result, total, rows.Err()
 }
 
 func (r *SymptomRepo) Update(ctx context.Context, s *symptoms.SymptomRecord) error {
 	s.UpdatedAt = time.Now().UTC()
 	_, err := r.db.Exec(ctx, `
-		UPDATE symptom_records SET linked_vital_id=$2, updated_at=$3, content_enc=$4
+		UPDATE symptom_records SET recorded_at=$2, trigger_factors=$3, notes=$4, linked_vital_id=$5, updated_at=$6
 		WHERE id=$1 AND deleted_at IS NULL`,
-		s.ID, s.LinkedVitalID, s.UpdatedAt, s.ContentEnc)
+		s.ID, s.RecordedAt, s.TriggerFactors, s.Notes, s.LinkedVitalID, s.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("update symptom record: %w", err)
 	}
@@ -139,32 +129,6 @@ func (r *SymptomRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.db.Exec(ctx, "UPDATE symptom_records SET deleted_at=$2 WHERE id=$1 AND deleted_at IS NULL", id, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("soft delete symptom record: %w", err)
-	}
-	return nil
-}
-
-// SetSymptomRecordContentEnc populates content_enc only if currently NULL
-// (idempotent lazy-migration path).
-func (r *SymptomRepo) SetSymptomRecordContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE symptom_records SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL AND deleted_at IS NULL",
-		id, contentEnc,
-	)
-	if err != nil {
-		return fmt.Errorf("set content_enc: %w", err)
-	}
-	return nil
-}
-
-// SetSymptomEntryContentEnc populates content_enc only if currently NULL
-// (idempotent lazy-migration path). symptom_entries has no deleted_at column.
-func (r *SymptomRepo) SetSymptomEntryContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE symptom_entries SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL",
-		id, contentEnc,
-	)
-	if err != nil {
-		return fmt.Errorf("set content_enc: %w", err)
 	}
 	return nil
 }

@@ -11,7 +11,6 @@ type Vital struct {
 	ID        uuid.UUID  `json:"id"`
 	ProfileID uuid.UUID  `json:"profile_id"`
 
-	// --- Fields below come from content_enc decryption on the client, not from DB columns ---
 	BloodPressureSystolic  *int     `json:"blood_pressure_systolic,omitempty"`
 	BloodPressureDiastolic *int     `json:"blood_pressure_diastolic,omitempty"`
 	Pulse                  *int     `json:"pulse,omitempty"`
@@ -29,16 +28,11 @@ type Vital struct {
 	SleepQuality           *int     `json:"sleep_quality,omitempty"`
 	Device                 *string  `json:"device,omitempty"`
 	Notes                  *string  `json:"notes,omitempty"`
-	// --- End content_enc-only fields ---
 
 	MeasuredAt time.Time  `json:"measured_at"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
 	DeletedAt  *time.Time `json:"-"`
-	// ContentEnc holds the AES-GCM-encrypted JSON blob of all health fields
-	// (produced client-side with the profile key). The plaintext DB columns
-	// were dropped in Stage 2.4; this is now the sole source of health data.
-	ContentEnc *string `json:"content_enc,omitempty"`
 }
 
 // CalculateBMI computes BMI from weight (kg) and height (cm) if both are present.

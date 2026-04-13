@@ -21,6 +21,9 @@ func NewVaccinationRepo(db *pgxpool.Pool) *VaccinationRepo {
 	return &VaccinationRepo{db: db}
 }
 
+const vaccColumns = `id, profile_id, vaccine_name, trade_name, manufacturer, lot_number, dose_number, administered_by, site, notes,
+	administered_at, next_due_at, document_id, version, previous_id, is_current, created_at, updated_at, deleted_at`
+
 func (r *VaccinationRepo) Create(ctx context.Context, v *vaccinations.Vaccination) error {
 	if v.ID == uuid.Nil {
 		v.ID = uuid.New()
@@ -31,20 +34,12 @@ func (r *VaccinationRepo) Create(ctx context.Context, v *vaccinations.Vaccinatio
 	v.Version = 1
 	v.IsCurrent = true
 
-	query := `
-		INSERT INTO vaccinations (
-			id, profile_id,
-			administered_at, next_due_at, document_id,
-			version, previous_id, is_current,
-			created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
-
-	_, err := r.db.Exec(ctx, query,
-		v.ID, v.ProfileID,
-		v.AdministeredAt, v.NextDueAt, v.DocumentID,
-		v.Version, v.PreviousID, v.IsCurrent,
-		v.CreatedAt, v.UpdatedAt, v.ContentEnc,
-	)
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO vaccinations (id, profile_id, vaccine_name, trade_name, manufacturer, lot_number, dose_number, administered_by, site, notes,
+			administered_at, next_due_at, document_id, version, previous_id, is_current, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+		v.ID, v.ProfileID, v.VaccineName, v.TradeName, v.Manufacturer, v.LotNumber, v.DoseNumber, v.AdministeredBy, v.Site, v.Notes,
+		v.AdministeredAt, v.NextDueAt, v.DocumentID, v.Version, v.PreviousID, v.IsCurrent, v.CreatedAt, v.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert vaccination: %w", err)
 	}
@@ -52,37 +47,19 @@ func (r *VaccinationRepo) Create(ctx context.Context, v *vaccinations.Vaccinatio
 }
 
 func (r *VaccinationRepo) GetByID(ctx context.Context, id uuid.UUID) (*vaccinations.Vaccination, error) {
-	query := `
-		SELECT id, profile_id,
-			administered_at, next_due_at, document_id,
-			version, previous_id, is_current,
-			created_at, updated_at, deleted_at, content_enc
-		FROM vaccinations WHERE id = $1 AND deleted_at IS NULL AND is_current = TRUE`
-
-	return r.scanVaccination(r.db.QueryRow(ctx, query, id))
+	return r.scanVaccination(r.db.QueryRow(ctx,
+		`SELECT `+vaccColumns+` FROM vaccinations WHERE id = $1 AND deleted_at IS NULL AND is_current = TRUE`, id))
 }
 
 func (r *VaccinationRepo) List(ctx context.Context, filter vaccinations.ListFilter) ([]vaccinations.Vaccination, int, error) {
-	countQuery := "SELECT COUNT(*) FROM vaccinations WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE"
-	args := []interface{}{filter.ProfileID}
-
 	var total int
-	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, "SELECT COUNT(*) FROM vaccinations WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE", filter.ProfileID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count vaccinations: %w", err)
 	}
 
-	query := `
-		SELECT id, profile_id,
-			administered_at, next_due_at, document_id,
-			version, previous_id, is_current,
-			created_at, updated_at, deleted_at, content_enc
-		FROM vaccinations WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE`
-
+	query := `SELECT ` + vaccColumns + ` FROM vaccinations WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE ORDER BY administered_at DESC`
 	listArgs := []interface{}{filter.ProfileID}
 	listIdx := 2
-
-	query += " ORDER BY administered_at DESC"
-
 	if filter.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT $%d", listIdx)
 		listArgs = append(listArgs, filter.Limit)
@@ -107,14 +84,9 @@ func (r *VaccinationRepo) List(ctx context.Context, filter vaccinations.ListFilt
 		}
 		result = append(result, *v)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("iterate rows: %w", err)
-	}
-
-	return result, total, nil
+	return result, total, rows.Err()
 }
 
-// Update performs a versioned update: inserts a new row with version+1 and marks the old row as not current.
 func (r *VaccinationRepo) Update(ctx context.Context, v *vaccinations.Vaccination) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -122,16 +94,12 @@ func (r *VaccinationRepo) Update(ctx context.Context, v *vaccinations.Vaccinatio
 	}
 	defer tx.Rollback(ctx)
 
-	// Mark old version as not current
-	_, err = tx.Exec(ctx,
-		"UPDATE vaccinations SET is_current = FALSE, updated_at = $2 WHERE id = $1 AND deleted_at IS NULL",
-		v.ID, time.Now().UTC(),
-	)
+	_, err = tx.Exec(ctx, "UPDATE vaccinations SET is_current = FALSE, updated_at = $2 WHERE id = $1 AND deleted_at IS NULL",
+		v.ID, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("mark old version: %w", err)
 	}
 
-	// Insert new version
 	previousID := v.ID
 	v.PreviousID = &previousID
 	v.ID = uuid.New()
@@ -141,54 +109,31 @@ func (r *VaccinationRepo) Update(ctx context.Context, v *vaccinations.Vaccinatio
 	v.CreatedAt = now
 	v.UpdatedAt = now
 
-	query := `
-		INSERT INTO vaccinations (
-			id, profile_id,
-			administered_at, next_due_at, document_id,
-			version, previous_id, is_current,
-			created_at, updated_at, content_enc
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
-
-	_, err = tx.Exec(ctx, query,
-		v.ID, v.ProfileID,
-		v.AdministeredAt, v.NextDueAt, v.DocumentID,
-		v.Version, v.PreviousID, v.IsCurrent,
-		v.CreatedAt, v.UpdatedAt, v.ContentEnc,
-	)
+	_, err = tx.Exec(ctx, `
+		INSERT INTO vaccinations (id, profile_id, vaccine_name, trade_name, manufacturer, lot_number, dose_number, administered_by, site, notes,
+			administered_at, next_due_at, document_id, version, previous_id, is_current, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+		v.ID, v.ProfileID, v.VaccineName, v.TradeName, v.Manufacturer, v.LotNumber, v.DoseNumber, v.AdministeredBy, v.Site, v.Notes,
+		v.AdministeredAt, v.NextDueAt, v.DocumentID, v.Version, v.PreviousID, v.IsCurrent, v.CreatedAt, v.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert new version: %w", err)
 	}
-
 	return tx.Commit(ctx)
 }
 
 func (r *VaccinationRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE vaccinations SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL",
-		id, time.Now().UTC(),
-	)
+	_, err := r.db.Exec(ctx, "UPDATE vaccinations SET deleted_at = $2 WHERE id = $1 AND deleted_at IS NULL", id, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("soft delete vaccination: %w", err)
 	}
 	return nil
 }
 
-// GetDue returns vaccinations where next_due_at is in the future or within the past 30 days.
 func (r *VaccinationRepo) GetDue(ctx context.Context, profileID uuid.UUID) ([]vaccinations.Vaccination, error) {
-	query := `
-		SELECT id, profile_id,
-			administered_at, next_due_at, document_id,
-			version, previous_id, is_current,
-			created_at, updated_at, deleted_at, content_enc
-		FROM vaccinations
-		WHERE profile_id = $1
-		  AND deleted_at IS NULL
-		  AND is_current = TRUE
-		  AND next_due_at IS NOT NULL
-		  AND next_due_at >= NOW() - INTERVAL '30 days'
-		ORDER BY next_due_at ASC`
-
-	rows, err := r.db.Query(ctx, query, profileID)
+	rows, err := r.db.Query(ctx, `SELECT `+vaccColumns+`
+		FROM vaccinations WHERE profile_id = $1 AND deleted_at IS NULL AND is_current = TRUE
+		AND next_due_at IS NOT NULL AND next_due_at >= NOW() - INTERVAL '30 days'
+		ORDER BY next_due_at ASC`, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("query due vaccinations: %w", err)
 	}
@@ -202,21 +147,13 @@ func (r *VaccinationRepo) GetDue(ctx context.Context, profileID uuid.UUID) ([]va
 		}
 		result = append(result, *v)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate rows: %w", err)
-	}
-
-	return result, nil
+	return result, rows.Err()
 }
 
 func (r *VaccinationRepo) scanVaccination(row pgx.Row) (*vaccinations.Vaccination, error) {
 	var v vaccinations.Vaccination
-	err := row.Scan(
-		&v.ID, &v.ProfileID,
-		&v.AdministeredAt, &v.NextDueAt, &v.DocumentID,
-		&v.Version, &v.PreviousID, &v.IsCurrent,
-		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
-	)
+	err := row.Scan(&v.ID, &v.ProfileID, &v.VaccineName, &v.TradeName, &v.Manufacturer, &v.LotNumber, &v.DoseNumber, &v.AdministeredBy, &v.Site, &v.Notes,
+		&v.AdministeredAt, &v.NextDueAt, &v.DocumentID, &v.Version, &v.PreviousID, &v.IsCurrent, &v.CreatedAt, &v.UpdatedAt, &v.DeletedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -226,27 +163,10 @@ func (r *VaccinationRepo) scanVaccination(row pgx.Row) (*vaccinations.Vaccinatio
 	return &v, nil
 }
 
-// SetContentEnc populates content_enc only if currently NULL (idempotent
-// lazy-migration path — safe to call concurrently from multiple clients).
-func (r *VaccinationRepo) SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE vaccinations SET content_enc = $2 WHERE id = $1 AND content_enc IS NULL AND deleted_at IS NULL",
-		id, contentEnc,
-	)
-	if err != nil {
-		return fmt.Errorf("set content_enc: %w", err)
-	}
-	return nil
-}
-
 func (r *VaccinationRepo) scanVaccinationRow(rows pgx.Rows) (*vaccinations.Vaccination, error) {
 	var v vaccinations.Vaccination
-	err := rows.Scan(
-		&v.ID, &v.ProfileID,
-		&v.AdministeredAt, &v.NextDueAt, &v.DocumentID,
-		&v.Version, &v.PreviousID, &v.IsCurrent,
-		&v.CreatedAt, &v.UpdatedAt, &v.DeletedAt, &v.ContentEnc,
-	)
+	err := rows.Scan(&v.ID, &v.ProfileID, &v.VaccineName, &v.TradeName, &v.Manufacturer, &v.LotNumber, &v.DoseNumber, &v.AdministeredBy, &v.Site, &v.Notes,
+		&v.AdministeredAt, &v.NextDueAt, &v.DocumentID, &v.Version, &v.PreviousID, &v.IsCurrent, &v.CreatedAt, &v.UpdatedAt, &v.DeletedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan vaccination row: %w", err)
 	}

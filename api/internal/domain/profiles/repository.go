@@ -17,8 +17,6 @@ type Repository interface {
 	Archive(ctx context.Context, id uuid.UUID) error
 	Unarchive(ctx context.Context, id uuid.UUID) error
 
-	SetContentEnc(ctx context.Context, id uuid.UUID, contentEnc string) error
-
 	// Key grants
 	CreateKeyGrant(ctx context.Context, g *KeyGrant) error
 	RevokeKeyGrant(ctx context.Context, profileID, granteeUserID uuid.UUID) error

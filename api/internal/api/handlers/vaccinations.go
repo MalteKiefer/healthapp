@@ -278,65 +278,6 @@ func (h *VaccinationHandler) HandleDelete(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleMigrateContent lazily backfills the content_enc column for a
-// vaccination row. Idempotent: the repo writes only if the column is
-// currently NULL.
-// PATCH /profiles/{profileID}/vaccinations/{vaccID}/migrate-content
-func (h *VaccinationHandler) HandleMigrateContent(w http.ResponseWriter, r *http.Request) {
-	claims, ok := ClaimsFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
-		return
-	}
-
-	profileID, err := uuid.Parse(chi.URLParam(r, "profileID"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_profile_id"))
-		return
-	}
-	hasAccess, err := h.profileRepo.HasAccess(r.Context(), profileID, claims.UserID)
-	if err != nil || !hasAccess {
-		writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))
-		return
-	}
-
-	vaccinationID, err := uuid.Parse(chi.URLParam(r, "vaccinationID"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_vaccination_id"))
-		return
-	}
-
-	existing, err := h.vaccinationRepo.GetByID(r.Context(), vaccinationID)
-	if err != nil {
-		if errors.Is(err, postgres.ErrNotFound) {
-			writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
-			return
-		}
-		h.logger.Error("get vaccination for migrate", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
-	if existing.ProfileID != profileID {
-		writeJSON(w, http.StatusNotFound, errorResponse("not_found"))
-		return
-	}
-
-	var body struct {
-		ContentEnc string `json:"content_enc"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ContentEnc == "" {
-		writeJSON(w, http.StatusBadRequest, errorResponse("content_enc_required"))
-		return
-	}
-
-	if err := h.vaccinationRepo.SetContentEnc(r.Context(), vaccinationID, body.ContentEnc); err != nil {
-		h.logger.Error("set content_enc", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
 
 // HandleDue is deprecated — filtering is now done client-side after
 // decrypting the full list.
