@@ -1,5 +1,4 @@
 import 'package:uuid/uuid.dart';
-import '../api/api_client.dart';
 
 const _uuid = Uuid();
 
@@ -9,12 +8,10 @@ const _uuid = Uuid();
 class EncryptedWrite {
   EncryptedWrite({
     required this.id,
-    required this.contentEnc,
     required this.structural,
   });
 
   final String id;
-  final String? contentEnc;
   final Map<String, dynamic> structural;
 
   Map<String, dynamic> toBody() => <String, dynamic>{
@@ -26,32 +23,7 @@ class EncryptedWrite {
 /// Crypto service stub - E2E encryption has been removed.
 /// All methods pass data through without encryption/decryption.
 class E2eCryptoService {
-  E2eCryptoService(this._api);
-
-  final ApiClient _api;
-
-  /// No-op: crypto keys are no longer needed.
-  Future<void> unlockWithPassword({
-    required String passphrase,
-    required String pekSaltBase64,
-    required String identityPrivkeyEnc,
-    required String userId,
-    required String identityPubkeyBase64,
-  }) async {
-    // No-op: E2E encryption removed
-  }
-
-  /// No-op: returns null (no profile key needed).
-  Future<dynamic> ensureProfileKey(String profileId) async => null;
-
-  /// No-op: returns the row unchanged (data is already plaintext).
-  Future<Map<String, dynamic>> decryptRow({
-    required Map<String, dynamic> row,
-    required String profileId,
-    required String entityType,
-  }) async {
-    return row;
-  }
+  E2eCryptoService(dynamic _api);
 
   /// No-op: returns the rows unchanged (data is already plaintext).
   Future<List<Map<String, dynamic>>> decryptRows({
@@ -65,16 +37,6 @@ class E2eCryptoService {
       out.add(r);
     }
     return out;
-  }
-
-  /// No-op: returns null (no encryption needed).
-  Future<String?> encryptContentFor({
-    required Map<String, dynamic> content,
-    required String profileId,
-    required String entityType,
-    required String rowId,
-  }) async {
-    return null;
   }
 
   /// Pass-through: returns all fields as structural (no encryption).
@@ -91,7 +53,6 @@ class E2eCryptoService {
 
     return EncryptedWrite(
       id: id,
-      contentEnc: null,
       structural: structural,
     );
   }

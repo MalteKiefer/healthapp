@@ -5,7 +5,7 @@ import '../models/profile.dart';
 /// Mirrors the web client's `Partial<Profile>` structural fields. Content
 /// fields (date_of_birth, biological_sex, blood_type, rhesus_factor) are
 /// sent in plaintext on mobile for now; the server accepts both legacy
-/// plaintext fields and the encrypted `content_enc` blob used by the web
+/// plaintext fields used by the web
 /// client. Encryption parity will be added in a later sprint.
 class ProfileWriteRequest {
   final String? id;

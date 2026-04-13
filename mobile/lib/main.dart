@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dynamic_color/dynamic_color.dart';
@@ -10,7 +9,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/auth/auth_service.dart';
-import 'core/crypto/key_cache.dart';
 import 'core/i18n/translations.dart';
 import 'core/router/app_router.dart';
 import 'core/security/app_lock/app_lock_controller.dart';
@@ -105,53 +103,6 @@ Future<void> main() async {
         }
       }
       await cookieJar.reload();
-
-      final cache = E2eKeyCache.instance;
-
-      // 2. If the cache is empty (returning user after PIN unlock), try to
-      // load the persisted identity key material from the vault.
-      if (cache.pek == null) {
-        final pekB64 = await vault.getString('e2e.pek');
-        final privB64 = await vault.getString('e2e.id_priv');
-        final pubB64 = await vault.getString('e2e.id_pub');
-        final uid = await vault.getString('e2e.user_id');
-        final idPub = await vault.getString('e2e.id_pubkey_b64');
-        if (pekB64 != null &&
-            privB64 != null &&
-            pubB64 != null &&
-            uid != null &&
-            idPub != null) {
-          cache.pek = base64Decode(pekB64);
-          cache.identityPrivateScalar = base64Decode(privB64);
-          cache.identityPublicRaw = base64Decode(pubB64);
-          cache.currentUserId = uid;
-          cache.currentUserIdentityPubkeyBase64 = idPub;
-        }
-      }
-
-      // 3. If the cache IS populated (fresh login just completed), write it
-      // to the vault so the NEXT restart can restore it after PIN unlock.
-      if (cache.pek != null) {
-        await vault.putString('e2e.pek', base64Encode(cache.pek!));
-        await vault.putString(
-          'e2e.id_priv',
-          base64Encode(cache.identityPrivateScalar!),
-        );
-        await vault.putString(
-          'e2e.id_pub',
-          base64Encode(cache.identityPublicRaw!),
-        );
-        if (cache.currentUserId != null) {
-          await vault.putString('e2e.user_id', cache.currentUserId!);
-        }
-        if (cache.currentUserIdentityPubkeyBase64 != null) {
-          await vault.putString(
-            'e2e.id_pubkey_b64',
-            cache.currentUserIdentityPubkeyBase64!,
-          );
-        }
-        await vault.flush();
-      }
     } catch (_) {
       // Swallow — the UI surfaces a friendly error via apiErrorMessage.
     }

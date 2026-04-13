@@ -17,9 +17,5 @@ type Repository interface {
 	Archive(ctx context.Context, id uuid.UUID) error
 	Unarchive(ctx context.Context, id uuid.UUID) error
 
-	// Key grants
-	CreateKeyGrant(ctx context.Context, g *KeyGrant) error
-	RevokeKeyGrant(ctx context.Context, profileID, granteeUserID uuid.UUID) error
-	GetKeyGrantsForProfile(ctx context.Context, profileID uuid.UUID) ([]KeyGrant, error)
 	HasAccess(ctx context.Context, profileID, userID uuid.UUID) (bool, error)
 }

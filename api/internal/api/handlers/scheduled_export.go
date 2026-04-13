@@ -70,8 +70,6 @@ func (h *ScheduledExportHandler) HandleCreateSchedule(w http.ResponseWriter, r *
 		err := h.db.QueryRow(r.Context(),
 			`SELECT EXISTS(
 				SELECT 1 FROM profiles WHERE id = $1 AND owner_user_id = $2
-				UNION
-				SELECT 1 FROM profile_key_grants WHERE profile_id = $1 AND grantee_user_id = $2 AND revoked_at IS NULL
 			)`, pid, claims.UserID).Scan(&hasAccess)
 		if err != nil || !hasAccess {
 			writeJSON(w, http.StatusForbidden, errorResponse("access_denied"))

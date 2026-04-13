@@ -1,15 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { clearAllKeys } from '../crypto';
 import { useAuthStore } from '../store/auth';
 
 const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const EVENTS = ['mousedown', 'keydown', 'scroll', 'touchstart', 'pointerdown'];
 
 /**
- * useIdleTimeout — clears encryption keys and logs out after inactivity.
- * This ensures sensitive key material doesn't persist in memory indefinitely.
+ * useIdleTimeout — logs out after inactivity.
  */
 export function useIdleTimeout() {
   const navigate = useNavigate();
@@ -18,7 +16,6 @@ export function useIdleTimeout() {
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const handleIdle = useCallback(() => {
-    clearAllKeys();
     logout();
     queryClient.clear();
     navigate('/login', { state: { reason: 'idle_timeout' } });

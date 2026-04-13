@@ -14,12 +14,6 @@ import { useDateFormat } from '../hooks/useDateLocale';
 import {
   deriveAuthHash,
   clearAllKeys,
-  generateProfileKey,
-  getIdentityPrivateKey,
-  setProfileKey,
-  getProfileKey,
-  createKeyGrant,
-  ensureProfileKey,
 } from '../crypto';
 import { formatNumber } from '../utils/format';
 
@@ -76,7 +70,6 @@ interface UserInfo {
   display_name: string;
   role: string;
   totp_enabled: boolean;
-  identity_pubkey: string;
 }
 
 interface CropArea { x: number; y: number; width: number; height: number }
@@ -138,23 +131,7 @@ export function Settings() {
 
   const createProfileMutation = useMutation({
     mutationFn: async (body: { display_name: string; date_of_birth?: string; biological_sex: string }) => {
-      // E2E profile key: generated client-side, self-grant wraps it for the
-      // owner via ECDH. Server never sees the plaintext profile key.
-      const idPriv = getIdentityPrivateKey();
-      const myPubkey = userInfo?.identity_pubkey;
-      if (!idPriv || !myPubkey || !userId) {
-        // Missing crypto material — fall back to plain create so the feature
-        // still works for users without keys unwrapped (legacy sessions).
-        return api.post<Profile>('/api/v1/profiles', body);
-      }
-      const profileKey = await generateProfileKey();
-      const wrapped = await createKeyGrant(profileKey, idPriv, myPubkey, `selfgrant:${userId}`);
-      const created = await api.post<Profile>('/api/v1/profiles', {
-        ...body,
-        self_grant: { encrypted_key: wrapped },
-      });
-      setProfileKey(created.id, profileKey);
-      return created;
+      return api.post<Profile>('/api/v1/profiles', body);
     },
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
@@ -195,25 +172,15 @@ export function Settings() {
   });
 
   const grantMutation = useMutation({
-    mutationFn: async (args: {
+    mutationFn: async (_args: {
       profileId: string;
       granteeUserId: string;
       granteeIdentityPubkey: string;
       familyId: string;
     }) => {
-      const idPriv = getIdentityPrivateKey();
-      const cachedKey = getProfileKey(args.profileId);
-      if (!idPriv) throw new Error('identity_key_unavailable');
-      if (!cachedKey) throw new Error('profile_key_unavailable');
-      if (!userId) throw new Error('no_user_id');
-      const ctx = `${args.profileId}:${userId}:${args.granteeUserId}`;
-      const wrapped = await createKeyGrant(cachedKey, idPriv, args.granteeIdentityPubkey, ctx);
-      return api.post(`/api/v1/profiles/${args.profileId}/grants`, {
-        grantee_user_id: args.granteeUserId,
-        encrypted_key: wrapped,
-        grant_signature: '',
-        via_family_id: args.familyId,
-      });
+      // E2E content encryption grants have been removed.
+      // Profile sharing is no longer key-based.
+      throw new Error('grants_removed');
     },
     onSuccess: () => {
       setPickedFamilyMember('');
@@ -920,24 +887,8 @@ export function Settings() {
                     <button
                       className="btn btn-add"
                       disabled={!pickedFamilyMember || grantMutation.isPending}
-                      onClick={async () => {
-                        const [familyId, granteeUserId] = pickedFamilyMember.split(':');
-                        try {
-                          // Make sure the profile key is unwrapped (may not
-                          // have been if background fetch hasn't run yet).
-                          if (userId) {
-                            await ensureProfileKey(selectedProfile.id, userId, selectedProfile.owner_user_id);
-                          }
-                          const pk = await api.get<{ identity_pubkey: string }>(`/api/v1/users/${granteeUserId}/public-key`);
-                          grantMutation.mutate({
-                            profileId: selectedProfile.id,
-                            granteeUserId,
-                            granteeIdentityPubkey: pk.identity_pubkey,
-                            familyId,
-                          });
-                        } catch {
-                          setProfileMsg(t('settings.grant_failed'));
-                        }
+                      onClick={() => {
+                        setProfileMsg(t('settings.grant_failed'));
                       }}
                     >
                       {grantMutation.isPending ? t('common.loading') : t('settings.share_action')}

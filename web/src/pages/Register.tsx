@@ -3,20 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { api, ApiError } from '../api/client';
-import {
-  deriveAuthHash,
-  derivePEK,
-  setPEK,
-  setIdentityPrivateKey,
-  generateIdentityKeyPair,
-  exportPublicKey,
-  exportPrivateKeyEncrypted,
-  generateRecoveryCodes,
-} from '../crypto';
+import { deriveAuthHash, generateRecoveryCodes } from '../crypto';
 import { useAuthStore } from '../store/auth';
 
 interface RegisterInitResponse {
-  pek_salt: string;
   auth_salt: string;
 }
 
@@ -28,7 +18,6 @@ interface RegisterCompleteResponse {
 interface LoginResponse {
   expires_at: number;
   user_id: string;
-  pek_salt?: string;
 }
 
 export function Register() {
@@ -95,37 +84,18 @@ export function Register() {
         email,
       });
 
-      // Step 2: Derive keys client-side
-      // PEK uses server-provided salt, auth_hash uses deterministic email-based salt
-      const pekKey = await derivePEK(passphrase, salts.pek_salt);
+      // Step 2: Derive auth hash client-side
       const authHash = await deriveAuthHash(passphrase, email);
 
-      // Step 3: Generate identity keypair (ECDH P-256)
-      const identityKeyPair = await generateIdentityKeyPair();
-      const identityPubkey = await exportPublicKey(identityKeyPair.publicKey);
-      const identityPrivkeyEnc = await exportPrivateKeyEncrypted(identityKeyPair.privateKey, pekKey);
-
-      // Step 4: Generate signing keypair (reuse ECDH for now)
-      const signingKeyPair = await generateIdentityKeyPair();
-      const signingPubkey = await exportPublicKey(signingKeyPair.publicKey);
-      const signingPrivkeyEnc = await exportPrivateKeyEncrypted(signingKeyPair.privateKey, pekKey);
-
-      // Step 5: Generate recovery codes (server will hash with Argon2id)
+      // Step 3: Generate recovery codes (server will hash with Argon2id)
       const codes = generateRecoveryCodes(10);
 
-      // Step 6: Complete registration — include salts so the server stores the
-      // same ones used to derive PEK. Without this, login would derive a
-      // different PEK and fail to decrypt identity_privkey_enc.
+      // Step 4: Complete registration
       await api.post<RegisterCompleteResponse>('/api/v1/auth/register/complete', {
         email,
         display_name: displayName || email.split('@')[0],
         auth_hash: authHash,
-        pek_salt: salts.pek_salt,
         auth_salt: salts.auth_salt,
-        identity_pubkey: identityPubkey,
-        identity_privkey_enc: identityPrivkeyEnc,
-        signing_pubkey: signingPubkey,
-        signing_privkey_enc: signingPrivkeyEnc,
         recovery_codes: codes,
       });
 
@@ -133,10 +103,6 @@ export function Register() {
       setRecoveryCodes(codes);
       setRegisteredEmail(email);
       setRegisteredAuthHash(authHash);
-      setPEK(pekKey);
-      // Keep the just-generated ECDH private key in memory so profile key
-      // wrap/unwrap flows work immediately without another decrypt round-trip.
-      setIdentityPrivateKey(identityKeyPair.privateKey);
       setStep('recovery');
     } catch (err) {
       if (err instanceof ApiError) {

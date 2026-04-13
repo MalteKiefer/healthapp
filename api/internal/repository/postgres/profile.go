@@ -106,11 +106,7 @@ func (r *ProfileRepo) GetAccessibleByUserID(ctx context.Context, userID uuid.UUI
 		       p.archived_at, p.onboarding_completed_at, p.rotation_state,
 		       p.rotation_started_at, p.rotation_progress, p.created_at, p.updated_at
 		FROM profiles p
-		LEFT JOIN profile_key_grants pkg ON p.id = pkg.profile_id
-		    AND pkg.grantee_user_id = $1
-		    AND pkg.revoked_at IS NULL
 		WHERE p.owner_user_id = $1
-		   OR pkg.id IS NOT NULL
 		ORDER BY p.created_at ASC`
 
 	rows, err := r.db.Query(ctx, query, userID)
@@ -178,82 +174,10 @@ func (r *ProfileRepo) Unarchive(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// ── Key Grants ──────────────────────────────────────────────────────
-
-func (r *ProfileRepo) CreateKeyGrant(ctx context.Context, g *profiles.KeyGrant) error {
-	query := `
-		INSERT INTO profile_key_grants (
-			id, profile_id, grantee_user_id, encrypted_key,
-			grant_signature, granted_by_user_id, granted_at, via_family_id
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-
-	if g.ID == uuid.Nil {
-		g.ID = uuid.New()
-	}
-	if g.GrantedAt.IsZero() {
-		g.GrantedAt = time.Now().UTC()
-	}
-
-	_, err := r.db.Exec(ctx, query,
-		g.ID, g.ProfileID, g.GranteeUserID, g.EncryptedKey,
-		g.GrantSignature, g.GrantedByUserID, g.GrantedAt, g.ViaFamilyID,
-	)
-	if err != nil {
-		return fmt.Errorf("insert key grant: %w", err)
-	}
-	return nil
-}
-
-func (r *ProfileRepo) RevokeKeyGrant(ctx context.Context, profileID, granteeUserID uuid.UUID) error {
-	now := time.Now().UTC()
-	_, err := r.db.Exec(ctx,
-		"UPDATE profile_key_grants SET revoked_at = $3 WHERE profile_id = $1 AND grantee_user_id = $2 AND revoked_at IS NULL",
-		profileID, granteeUserID, now,
-	)
-	if err != nil {
-		return fmt.Errorf("revoke key grant: %w", err)
-	}
-	return nil
-}
-
-func (r *ProfileRepo) GetKeyGrantsForProfile(ctx context.Context, profileID uuid.UUID) ([]profiles.KeyGrant, error) {
-	query := `
-		SELECT id, profile_id, grantee_user_id, encrypted_key,
-		       grant_signature, granted_by_user_id, granted_at, revoked_at, via_family_id
-		FROM profile_key_grants
-		WHERE profile_id = $1 AND revoked_at IS NULL
-		ORDER BY granted_at ASC`
-
-	rows, err := r.db.Query(ctx, query, profileID)
-	if err != nil {
-		return nil, fmt.Errorf("query key grants: %w", err)
-	}
-	defer rows.Close()
-
-	var grants []profiles.KeyGrant
-	for rows.Next() {
-		var g profiles.KeyGrant
-		if err := rows.Scan(
-			&g.ID, &g.ProfileID, &g.GranteeUserID, &g.EncryptedKey,
-			&g.GrantSignature, &g.GrantedByUserID, &g.GrantedAt, &g.RevokedAt, &g.ViaFamilyID,
-		); err != nil {
-			return nil, fmt.Errorf("scan key grant: %w", err)
-		}
-		grants = append(grants, g)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate rows: %w", err)
-	}
-	return grants, nil
-}
-
 func (r *ProfileRepo) HasAccess(ctx context.Context, profileID, userID uuid.UUID) (bool, error) {
 	query := `
 		SELECT EXISTS (
 			SELECT 1 FROM profiles WHERE id = $1 AND owner_user_id = $2
-			UNION ALL
-			SELECT 1 FROM profile_key_grants
-			WHERE profile_id = $1 AND grantee_user_id = $2 AND revoked_at IS NULL
 		)`
 
 	var exists bool

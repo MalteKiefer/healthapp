@@ -3,7 +3,7 @@ import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/auth';
 import { useUIStore } from '../store/ui';
-import { clearAllKeys, generateProfileKey, getIdentityPrivateKey, setProfileKey, createKeyGrant } from '../crypto';
+import { clearAllKeys } from '../crypto';
 import { useProfiles } from '../hooks/useProfiles';
 import { api } from '../api/client';
 import type { Profile } from '../api/profiles';
@@ -61,7 +61,6 @@ export function Layout() {
   const { data: profilesData, isLoading: profilesLoading } = useProfiles();
   const profiles = profilesData || [];
   const queryClient = useQueryClient();
-  const { userId } = useAuthStore();
 
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfileDOB, setNewProfileDOB] = useState('');
@@ -69,15 +68,6 @@ export function Layout() {
 
   const createFirstProfile = useMutation({
     mutationFn: async (body: { display_name: string; date_of_birth?: string; biological_sex: string }) => {
-      const idPriv = getIdentityPrivateKey();
-      const me = await api.get<{ identity_pubkey: string }>('/api/v1/users/me');
-      if (idPriv && me.identity_pubkey && userId) {
-        const profileKey = await generateProfileKey();
-        const wrapped = await createKeyGrant(profileKey, idPriv, me.identity_pubkey, `selfgrant:${userId}`);
-        const created = await api.post<Profile>('/api/v1/profiles', { ...body, self_grant: { encrypted_key: wrapped } });
-        setProfileKey(created.id, profileKey);
-        return created;
-      }
       return api.post<Profile>('/api/v1/profiles', body);
     },
     onSuccess: () => {

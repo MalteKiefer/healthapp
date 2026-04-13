@@ -27,15 +27,3 @@ type Profile struct {
 	UpdatedAt             time.Time        `json:"updated_at"`
 }
 
-// KeyGrant represents an encrypted key grant giving a user access to a profile.
-type KeyGrant struct {
-	ID              uuid.UUID  `json:"id"`
-	ProfileID       uuid.UUID  `json:"profile_id"`
-	GranteeUserID   uuid.UUID  `json:"grantee_user_id"`
-	EncryptedKey    string     `json:"encrypted_key"`
-	GrantSignature  string     `json:"grant_signature"`
-	GrantedByUserID uuid.UUID  `json:"granted_by_user_id"`
-	GrantedAt       time.Time  `json:"granted_at"`
-	RevokedAt       *time.Time `json:"revoked_at,omitempty"`
-	ViaFamilyID     *uuid.UUID `json:"via_family_id,omitempty"`
-}

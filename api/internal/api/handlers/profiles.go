@@ -37,11 +37,6 @@ type createProfileRequest struct {
 	RhesusFactor   *string          `json:"rhesus_factor,omitempty"`
 	AvatarColor    string           `json:"avatar_color,omitempty"`
 	AvatarImageEnc []byte           `json:"avatar_image_enc,omitempty"`
-	SelfGrant      *selfGrantBody   `json:"self_grant,omitempty"`
-}
-
-type selfGrantBody struct {
-	EncryptedKey string `json:"encrypted_key"`
 }
 
 type updateProfileRequest struct {
@@ -130,24 +125,6 @@ func (h *ProfileHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("create profile", zap.Error(err))
 		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
 		return
-	}
-
-	// If the client included a self-grant (ECDH-wrapped profile key for the
-	// owner), persist it so the owner can unwrap the profile key on next open.
-	// Legacy clients that omit this still work — a lazy self-grant is created
-	// the first time the owner opens the profile in the new flow.
-	if req.SelfGrant != nil && req.SelfGrant.EncryptedKey != "" {
-		grant := &profiles.KeyGrant{
-			ProfileID:       p.ID,
-			GranteeUserID:   claims.UserID,
-			EncryptedKey:    req.SelfGrant.EncryptedKey,
-			GrantSignature:  "",
-			GrantedByUserID: claims.UserID,
-		}
-		if err := h.repo.CreateKeyGrant(r.Context(), grant); err != nil {
-			// Non-fatal: profile exists, client can create self-grant separately.
-			h.logger.Error("create self-grant", zap.Error(err))
-		}
 	}
 
 	w.Header().Set("Location", fmt.Sprintf("/api/v1/profiles/%s", p.ID))

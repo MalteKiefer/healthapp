@@ -127,22 +127,16 @@ type registerInitRequest struct {
 }
 
 type registerInitResponse struct {
-	PEKSalt  string `json:"pek_salt"`
 	AuthSalt string `json:"auth_salt"`
 }
 
 type registerCompleteRequest struct {
-	Email              string   `json:"email"`
-	DisplayName        string   `json:"display_name"`
-	AuthHash           string   `json:"auth_hash"`
-	PEKSalt            string   `json:"pek_salt"`
-	AuthSalt           string   `json:"auth_salt"`
-	IdentityPubkey     string   `json:"identity_pubkey"`
-	IdentityPrivkeyEnc string   `json:"identity_privkey_enc"`
-	SigningPubkey      string   `json:"signing_pubkey"`
-	SigningPrivkeyEnc  string   `json:"signing_privkey_enc"`
-	RecoveryCodes      []string `json:"recovery_codes"`
-	InviteToken        string   `json:"invite_token"`
+	Email         string   `json:"email"`
+	DisplayName   string   `json:"display_name"`
+	AuthHash      string   `json:"auth_hash"`
+	AuthSalt      string   `json:"auth_salt"`
+	RecoveryCodes []string `json:"recovery_codes"`
+	InviteToken   string   `json:"invite_token"`
 }
 
 type loginRequest struct {
@@ -236,21 +230,13 @@ func (h *AuthHandler) HandleRegisterInit(w http.ResponseWriter, r *http.Request)
 	// email enumeration). The actual duplicate check happens in
 	// HandleRegisterComplete where we return a generic error.
 	if _, err := h.userRepo.GetByEmail(r.Context(), req.Email); err == nil {
-		fakePEK := h.deterministicSalt(req.Email, "pek_salt")
 		fakeAuth := h.deterministicSalt(req.Email, "auth_salt")
 		writeJSON(w, http.StatusOK, registerInitResponse{
-			PEKSalt:  fakePEK,
 			AuthSalt: fakeAuth,
 		})
 		return
 	}
 
-	pekSalt, err := crypto.GenerateSalt(16)
-	if err != nil {
-		h.logger.Error("generate pek_salt", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
 	authSalt, err := crypto.GenerateSalt(16)
 	if err != nil {
 		h.logger.Error("generate auth_salt", zap.Error(err))
@@ -259,7 +245,6 @@ func (h *AuthHandler) HandleRegisterInit(w http.ResponseWriter, r *http.Request)
 	}
 
 	writeJSON(w, http.StatusOK, registerInitResponse{
-		PEKSalt:  pekSalt,
 		AuthSalt: authSalt,
 	})
 }
@@ -338,20 +323,6 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, http.StatusBadRequest, errorResponse("missing_required_fields"))
 		return
 	}
-	// Provide dummy values for legacy crypto fields (kept in DB for backward compat)
-	if req.IdentityPubkey == "" {
-		req.IdentityPubkey = "none"
-	}
-	if req.IdentityPrivkeyEnc == "" {
-		req.IdentityPrivkeyEnc = "none"
-	}
-	if req.SigningPubkey == "" {
-		req.SigningPubkey = "none"
-	}
-	if req.SigningPrivkeyEnc == "" {
-		req.SigningPrivkeyEnc = "none"
-	}
-
 	if len(req.RecoveryCodes) != 10 {
 		writeJSON(w, http.StatusBadRequest, errorResponse("exactly_10_recovery_codes_required"))
 		return
@@ -387,15 +358,6 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Use the salts the client derived PEK/auth from during the init step. The
-	// client already encrypted identity_privkey_enc with PEK(passphrase, pek_salt),
-	// so the stored salt MUST match — otherwise login can't decrypt the key.
-	// Fall back to generating new salts for backward compatibility with older
-	// clients that don't send them (though those keys will be unrecoverable).
-	pekSalt := req.PEKSalt
-	if pekSalt == "" {
-		pekSalt, _ = crypto.GenerateSalt(16)
-	}
 	authSalt := req.AuthSalt
 	if authSalt == "" {
 		authSalt, _ = crypto.GenerateSalt(16)
@@ -405,12 +367,12 @@ func (h *AuthHandler) HandleRegisterComplete(w http.ResponseWriter, r *http.Requ
 		Email:              req.Email,
 		DisplayName:        req.DisplayName,
 		AuthHash:           storedHash,
-		PEKSalt:            pekSalt,
+		PEKSalt:            "none",
 		AuthSalt:           authSalt,
-		IdentityPubkey:     req.IdentityPubkey,
-		IdentityPrivkeyEnc: req.IdentityPrivkeyEnc,
-		SigningPubkey:      req.SigningPubkey,
-		SigningPrivkeyEnc:  req.SigningPrivkeyEnc,
+		IdentityPubkey:     "none",
+		IdentityPrivkeyEnc: "none",
+		SigningPubkey:      "none",
+		SigningPrivkeyEnc:  "none",
 		Role:               "user",
 	}
 

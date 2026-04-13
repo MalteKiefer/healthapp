@@ -252,10 +252,6 @@ func registerTestUser(t *testing.T, env *testEnv, email string) string {
 		"email":                email,
 		"display_name":         "Test User",
 		"auth_hash":            authHash,
-		"identity_pubkey":      "test-identity-pubkey",
-		"identity_privkey_enc": "test-identity-privkey-enc",
-		"signing_pubkey":       "test-signing-pubkey",
-		"signing_privkey_enc":  "test-signing-privkey-enc",
 		"recovery_codes":       recoveryCodes,
 	})
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/register/complete", completeBody)

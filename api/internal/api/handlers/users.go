@@ -88,37 +88,9 @@ func (h *UserHandler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, sanitizeUser(u))
 }
 
-// HandleUpdateKeys replaces the user's identity keypair. Called by the client
-// when the stored identity_privkey_enc can't be decrypted (salt mismatch from
-// a legacy registration bug). The client generates a fresh ECDH keypair,
-// encrypts the private key with the current PEK, and sends both to replace the
-// stored values. Existing profile grants signed with the old key become
-// invalid; the client creates new self-grants as part of the flow.
+// HandleUpdateKeys is a no-op stub. E2E content encryption has been removed.
+// Kept to avoid 404s from older clients that may still call this endpoint.
 func (h *UserHandler) HandleUpdateKeys(w http.ResponseWriter, r *http.Request) {
-	claims, ok := ClaimsFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
-		return
-	}
-
-	var req struct {
-		IdentityPubkey     string `json:"identity_pubkey"`
-		IdentityPrivkeyEnc string `json:"identity_privkey_enc"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.IdentityPubkey == "" || req.IdentityPrivkeyEnc == "" {
-		writeJSON(w, http.StatusBadRequest, errorResponse("missing_required_fields"))
-		return
-	}
-
-	_, err := h.db.Exec(r.Context(),
-		"UPDATE users SET identity_pubkey = $2, identity_privkey_enc = $3, updated_at = NOW() WHERE id = $1",
-		claims.UserID, req.IdentityPubkey, req.IdentityPrivkeyEnc)
-	if err != nil {
-		h.logger.Error("update keys", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
-
 	writeJSON(w, http.StatusOK, map[string]string{"status": "keys_updated"})
 }
 
@@ -127,24 +99,6 @@ func (h *UserHandler) HandleDeleteMe(w http.ResponseWriter, r *http.Request) {
 	claims, ok := ClaimsFromContext(r.Context())
 	if !ok {
 		writeJSON(w, http.StatusUnauthorized, errorResponse("not_authenticated"))
-		return
-	}
-
-	// Check if the user has profiles shared with (granted to) other users.
-	// The user must revoke all grants before deleting their account.
-	var sharedCount int
-	err := h.db.QueryRow(r.Context(),
-		`SELECT COUNT(*) FROM profile_key_grants
-		 WHERE granted_by_user_id = $1 AND revoked_at IS NULL`,
-		claims.UserID,
-	).Scan(&sharedCount)
-	if err != nil {
-		h.logger.Error("check shared profiles", zap.Error(err))
-		writeJSON(w, http.StatusInternalServerError, errorResponse("internal_error"))
-		return
-	}
-	if sharedCount > 0 {
-		writeJSON(w, http.StatusConflict, errorResponse("has_shared_profiles"))
 		return
 	}
 
@@ -413,7 +367,7 @@ func (h *UserHandler) HandleUpdatePreferences(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, prefs)
 }
 
-// HandleGetPublicKey returns the identity public key for any user (for ECDH key exchange).
+// HandleGetPublicKey is a no-op stub. E2E content encryption has been removed.
 func (h *UserHandler) HandleGetPublicKey(w http.ResponseWriter, r *http.Request) {
 	userID, err := uuid.Parse(chi.URLParam(r, "userID"))
 	if err != nil {
@@ -421,15 +375,9 @@ func (h *UserHandler) HandleGetPublicKey(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	u, err := h.userRepo.GetByID(r.Context(), userID)
-	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse("user_not_found"))
-		return
-	}
-
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"user_id":         u.ID,
-		"identity_pubkey": u.IdentityPubkey,
+		"user_id":         userID,
+		"identity_pubkey": "none",
 	})
 }
 
@@ -443,10 +391,8 @@ func (h *UserHandler) HandleChangePassphrase(w http.ResponseWriter, r *http.Requ
 	}
 
 	var req struct {
-		CurrentAuthHash    string `json:"current_auth_hash"`
-		NewAuthHash        string `json:"new_auth_hash"`
-		IdentityPrivkeyEnc string `json:"identity_privkey_enc"`
-		SigningPrivkeyEnc  string `json:"signing_privkey_enc"`
+		CurrentAuthHash string `json:"current_auth_hash"`
+		NewAuthHash     string `json:"new_auth_hash"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse("invalid_request"))
@@ -481,8 +427,6 @@ func (h *UserHandler) HandleChangePassphrase(w http.ResponseWriter, r *http.Requ
 	}
 
 	u.AuthHash = storedHash
-	u.IdentityPrivkeyEnc = req.IdentityPrivkeyEnc
-	u.SigningPrivkeyEnc = req.SigningPrivkeyEnc
 
 	if err := h.userRepo.Update(r.Context(), u); err != nil {
 		h.logger.Error("update user passphrase", zap.Error(err))
@@ -509,8 +453,6 @@ func sanitizeUser(u *user.User) map[string]interface{} {
 		"id":                      u.ID,
 		"email":                   u.Email,
 		"display_name":            u.DisplayName,
-		"identity_pubkey":         u.IdentityPubkey,
-		"signing_pubkey":          u.SigningPubkey,
 		"role":                    u.Role,
 		"is_disabled":             u.IsDisabled,
 		"totp_enabled":            u.TOTPEnabled,
