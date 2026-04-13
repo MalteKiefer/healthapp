@@ -1,6 +1,8 @@
 import { api } from './client';
 
 export interface Task {
+  id: string;
+  profile_id: string;
   title: string;
   due_date?: string;
   priority: string;

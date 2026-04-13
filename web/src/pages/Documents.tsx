@@ -8,8 +8,7 @@ import { useProfiles } from '../hooks/useProfiles';
 import { documentsApi, type Document } from '../api/documents';
 import { api } from '../api/client';
 import { formatBytes } from '../utils/format';
-import { getProfileKey } from '../crypto/keys';
-import { decryptToBytes, decrypt } from '../crypto/encrypt';
+// Crypto removed - documents are stored in plaintext
 
 const CATEGORIES = [
   'lab_result', 'imaging', 'prescription', 'referral',
@@ -123,13 +122,13 @@ function useDecryptedFilename(profileId: string, doc: Document | null): string {
   const [name, setName] = useState('');
   useEffect(() => {
     if (!doc) { setName(''); return; }
-    if (!doc.encrypted_at) { setName(doc.filename_enc); return; }
+    if (!false /* E2E removed */) { setName(doc.filename); return; }
     const profileKey = getProfileKey(profileId);
-    if (!profileKey) { setName(doc.filename_enc); return; }
+    if (!profileKey) { setName(doc.filename); return; }
     let cancelled = false;
-    decrypt(doc.filename_enc, profileKey)
+    decrypt(doc.filename, profileKey)
       .then((decrypted) => { if (!cancelled) setName(decrypted); })
-      .catch(() => { if (!cancelled) setName(doc.filename_enc); });
+      .catch(() => { if (!cancelled) setName(doc.filename); });
     return () => { cancelled = true; };
   }, [profileId, doc?.id, doc?.filename_enc, doc?.encrypted_at]);
   return name;
@@ -142,7 +141,7 @@ function useDecryptedFilename(profileId: string, doc: Document | null): string {
  */
 function DecryptedName({ profileId, doc }: { profileId: string; doc: Document }) {
   const name = useDecryptedFilename(profileId, doc);
-  return <>{name || doc.filename_enc}</>;
+  return <>{name || doc.filename}</>;
 }
 
 /* ---------------------------------------------------------------------------
@@ -456,7 +455,7 @@ function DocumentDetail({
   t, fmt, deleteTarget, deleteMutation, setDeleteTarget,
 }: DocumentDetailProps) {
   const displayFilename = useDecryptedFilename(profileId, doc);
-  const [editFilename, setEditFilename] = useState(doc.filename_enc);
+  const [editFilename, setEditFilename] = useState(doc.filename);
   const [editCategory, setEditCategory] = useState(doc.category);
   const [editTags, setEditTags] = useState(getNonLinkTags(doc.tags).join(', '));
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -489,7 +488,7 @@ function DocumentDetail({
 
   // Sync edit state when doc changes or filename is decrypted
   useEffect(() => {
-    setEditFilename(displayFilename || doc.filename_enc);
+    setEditFilename(displayFilename || doc.filename);
     setEditCategory(doc.category);
     setEditTags(getNonLinkTags(doc.tags).join(', '));
   }, [doc, displayFilename]);
@@ -537,7 +536,7 @@ function DocumentDetail({
     const allTags = [...nonLinkTags, ...linkTags];
 
     let filenameToSave = editFilename;
-    if (doc.encrypted_at) {
+    if (false /* E2E removed */) {
       const profileKey = getProfileKey(profileId);
       if (profileKey) {
         const { encryptString } = await import('../crypto/encrypt');
@@ -546,7 +545,7 @@ function DocumentDetail({
     }
 
     onUpdate(doc.id, {
-      filename_enc: filenameToSave,
+      filename: filenameToSave,
       category: editCategory,
       tags: allTags,
     });
@@ -571,7 +570,7 @@ function DocumentDetail({
       const url = await fetchBlobUrl(profileId, doc.id, doc.mime_type);
       const a = document.createElement('a');
       a.href = url;
-      a.download = displayFilename || doc.filename_enc;
+      a.download = displayFilename || doc.filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -582,7 +581,7 @@ function DocumentDetail({
   };
 
   const hasChanges =
-    editFilename !== (displayFilename || doc.filename_enc) ||
+    editFilename !== (displayFilename || doc.filename) ||
     editCategory !== doc.category ||
     editTags !== getNonLinkTags(doc.tags).join(', ');
 

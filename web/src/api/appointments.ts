@@ -1,6 +1,8 @@
 import { api } from './client';
 
 export interface Appointment {
+  id: string;
+  profile_id: string;
   title: string;
   appointment_type: string;
   scheduled_at: string;

@@ -1,6 +1,8 @@
 import { api } from './client';
 
 export interface DiaryEvent {
+  id: string;
+  profile_id: string;
   title: string;
   event_type: string;
   started_at: string;

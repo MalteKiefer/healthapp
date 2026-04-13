@@ -8,6 +8,8 @@ export type DiagnosisStatus =
   | 'suspected';
 
 export interface Diagnosis {
+  id: string;
+  profile_id: string;
   name: string;
   icd10_code?: string;
   status: DiagnosisStatus;

@@ -1,6 +1,8 @@
 import { api } from './client';
 
 export interface Contact {
+  id: string;
+  profile_id: string;
   contact_type: string;
   name: string;
   specialty?: string;

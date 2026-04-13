@@ -1,6 +1,8 @@
 import { api } from './client';
 
 export interface Vaccination {
+  id: string;
+  profile_id: string;
   vaccine_name: string;
   trade_name?: string;
   manufacturer?: string;
