@@ -282,7 +282,7 @@ export function Symptoms() {
                   <button
                     className="btn-icon-sm"
                     style={{ position: 'absolute', top: 0, right: 0 }}
-                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(record.id); }}
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(record.id ?? null); }}
                     title={t('common.delete')}
                     aria-label={t('common.delete')}
                   >×</button>
@@ -321,7 +321,7 @@ export function Symptoms() {
             <div className="modal-body">
               <form id="symptom-edit-form" onSubmit={editForm.handleSubmit((data) => {
                 updateMutation.mutate({
-                  id: editTarget.id,
+                  id: editTarget.id ?? '',
                   recorded_at: editTarget.recorded_at,
                   entries: [{
                     symptom_type: data.symptom_type,

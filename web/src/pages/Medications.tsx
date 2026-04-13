@@ -140,7 +140,7 @@ export function Medications() {
   }, [allData, ui.showActive]);
   const { data: intakeData } = useQuery({
     queryKey: ['med-intake', profileId, ui.selectedMed?.id],
-    queryFn: () => medicationsApi.listIntake(profileId, ui.selectedMed!.id),
+    queryFn: () => medicationsApi.listIntake(profileId, ui.selectedMed!.id ?? ''),
     enabled: !!profileId && !!ui.selectedMed,
   });
   const intakes = intakeData?.items || [];
@@ -189,7 +189,7 @@ export function Medications() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['medications', profileId] }); dispatch({ type: 'SET_EDIT_TARGET', med: null }); editReset(); },
   });
   const deleteIntakeMutation = useMutation({
-    mutationFn: (intakeId: string) => medicationsApi.deleteIntake(profileId, ui.selectedMed!.id, intakeId),
+    mutationFn: (intakeId: string) => medicationsApi.deleteIntake(profileId, ui.selectedMed!.id ?? '', intakeId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['med-intake'] }),
   });
 
@@ -320,7 +320,7 @@ export function Medications() {
                         </td>
                         <td>{intake.notes || intake.skipped_reason || '—'}</td>
                         <td>
-                          <button className="btn-icon-sm" onClick={() => dispatch({ type: 'SET_DELETE_INTAKE_TARGET', id: intake.id })} title={t('common.delete')} aria-label={t('common.delete')}>×</button>
+                          <button className="btn-icon-sm" onClick={() => dispatch({ type: 'SET_DELETE_INTAKE_TARGET', id: intake.id ?? null })} title={t('common.delete')} aria-label={t('common.delete')}>×</button>
                         </td>
                       </tr>
                     );
@@ -431,7 +431,7 @@ export function Medications() {
                         <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SET_EDIT_TARGET', med }); }} title={t('medications.edit')}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
-                        <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SET_DELETE_TARGET', id: med.id }); }} title={t('common.delete')}>×</button>
+                        <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SET_DELETE_TARGET', id: med.id ?? null }); }} title={t('common.delete')}>×</button>
                       </div>
                     </td>
                   </tr>
@@ -517,7 +517,7 @@ export function Medications() {
             <button className="modal-close" onClick={() => dispatch({ type: 'SET_EDIT_TARGET', med: null })}>&times;</button>
           </div>
           <div className="modal-body">
-            <form id="med-edit-form" onSubmit={editHandleSubmit((d) => updateMutation.mutate({ ...d, id: ui.editTarget!.id }))}>
+            <form id="med-edit-form" onSubmit={editHandleSubmit((d) => updateMutation.mutate({ ...d, id: ui.editTarget!.id ?? '' }))}>
               <div className="form-row">
                 <div className="form-group"><label>{t('common.name')} *</label><input type="text" {...editRegister('name')} required /></div>
                 <div className="form-group"><label>{t('medications.dosage')}</label><input type="text" {...editRegister('dosage')} /></div>

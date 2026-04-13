@@ -115,22 +115,15 @@ function getDocIconComponent(mimeType: string, size = 20) {
 }
 
 /* ---------------------------------------------------------------------------
-   Filename decryption helper
+   Filename helper (E2E encryption removed – filenames are plaintext)
    --------------------------------------------------------------------------- */
 
-function useDecryptedFilename(profileId: string, doc: Document | null): string {
+function useDecryptedFilename(_profileId: string, doc: Document | null): string {
   const [name, setName] = useState('');
   useEffect(() => {
     if (!doc) { setName(''); return; }
-    if (!false /* E2E removed */) { setName(doc.filename); return; }
-    const profileKey = getProfileKey(profileId);
-    if (!profileKey) { setName(doc.filename); return; }
-    let cancelled = false;
-    decrypt(doc.filename, profileKey)
-      .then((decrypted) => { if (!cancelled) setName(decrypted); })
-      .catch(() => { if (!cancelled) setName(doc.filename); });
-    return () => { cancelled = true; };
-  }, [profileId, doc?.id, doc?.filename_enc, doc?.encrypted_at]);
+    setName(doc.filename);
+  }, [doc?.id, doc?.filename]);
   return name;
 }
 
@@ -148,24 +141,13 @@ function DecryptedName({ profileId, doc }: { profileId: string; doc: Document })
    Blob URL fetcher for authenticated preview/download
    --------------------------------------------------------------------------- */
 
-async function fetchBlobUrl(profileId: string, docId: string, mimeType: string): Promise<string> {
+async function fetchBlobUrl(profileId: string, docId: string, _mimeType: string): Promise<string> {
   const res = await fetch(documentsApi.downloadUrl(profileId, docId), {
     credentials: 'include',
   });
   if (!res.ok) throw new Error('Download failed');
 
-  const isEncrypted = res.headers.get('X-Encrypted') === 'true';
-  if (isEncrypted) {
-    const profileKey = getProfileKey(profileId);
-    if (!profileKey) throw new Error('No profile key for decryption');
-    // The stored file is base64(iv+ciphertext) text written by encryptFile
-    const base64Text = await res.text();
-    const decryptedBytes = await decryptToBytes(base64Text, profileKey);
-    const blob = new Blob([decryptedBytes.buffer as ArrayBuffer], { type: mimeType });
-    return URL.createObjectURL(blob);
-  }
-
-  // Legacy unencrypted file
+  // E2E encryption removed – files are served plaintext
   const blob = await res.blob();
   return URL.createObjectURL(blob);
 }
@@ -271,7 +253,7 @@ export function Documents() {
     if (categoryFilter && d.category !== categoryFilter) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    if (d.filename_enc.toLowerCase().includes(q)) return true;
+    if (d.filename.toLowerCase().includes(q)) return true;
     if (t('documents.cat_' + d.category).toLowerCase().includes(q)) return true;
     if (d.tags?.some((tag) => tag.toLowerCase().includes(q))) return true;
     return false;
@@ -535,17 +517,8 @@ function DocumentDetail({
     const linkTags = (doc.tags || []).filter((t) => t.startsWith('link:'));
     const allTags = [...nonLinkTags, ...linkTags];
 
-    let filenameToSave = editFilename;
-    if (false /* E2E removed */) {
-      const profileKey = getProfileKey(profileId);
-      if (profileKey) {
-        const { encryptString } = await import('../crypto/encrypt');
-        filenameToSave = await encryptString(editFilename, profileKey);
-      }
-    }
-
     onUpdate(doc.id, {
-      filename: filenameToSave,
+      filename: editFilename,
       category: editCategory,
       tags: allTags,
     });

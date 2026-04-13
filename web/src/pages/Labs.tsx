@@ -129,7 +129,7 @@ export function Labs() {
 
   const onEditSubmit = (formData: { lab_name: string; ordered_by: string; sample_date: string; values: LabValue[] }) => {
     if (!editTarget) return;
-    updateMutation.mutate({ ...formData, id: editTarget.id });
+    updateMutation.mutate({ ...formData, id: editTarget.id ?? '' });
   };
 
   const items = data?.items || [];
@@ -216,7 +216,7 @@ export function Labs() {
           <div className="lab-list">
             {sortedItems.map((lab) => (
               <div key={lab.id} className="lab-item">
-                <div className="lab-header" onClick={() => setExpandedId(expandedId === lab.id ? null : lab.id)}>
+                <div className="lab-header" onClick={() => setExpandedId(expandedId === lab.id ? null : lab.id ?? null)}>
                   <div className="lab-info">
                     <div className="med-name">{lab.lab_name || t('labs.lab_result')}</div>
                     <div className="med-details">
@@ -235,7 +235,7 @@ export function Labs() {
                     >&#9998;</button>
                     <button
                       className="btn-icon-sm"
-                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(lab.id); }}
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(lab.id ?? null); }}
                       title={t('common.delete')}
                       aria-label={t('common.delete')}
                     >×</button>
